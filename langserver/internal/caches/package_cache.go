@@ -80,22 +80,26 @@ func (c *PackageCache) Load(pkgDir string) (*packages.Package, error) {
 		return nil, nil
 	}
 
-	go c.push(pkgList)
+	go c.pushWithLock(pkgList)
 
 	return pkgList[0], nil
 }
 
-func (c *PackageCache) push(pkgList []*packages.Package) {
+func (c *PackageCache) pushWithLock(pkgList []*packages.Package) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	c.push(pkgList)
+}
+
+func (c *PackageCache) push(pkgList []*packages.Package) {
 	for _, pkg := range pkgList {
 		c.cache(pkg)
 	}
 }
 
 func (c *PackageCache) cache(pkg *packages.Package) {
-	if len(pkg.CompiledGoFiles[0]) == 0 {
+	if len(pkg.CompiledGoFiles) == 0 {
 		return
 	}
 
