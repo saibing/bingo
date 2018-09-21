@@ -25,6 +25,7 @@ require (
 	github.com/stretchr/testify v1.2.2 // indirect
 	golang.org/x/net v0.0.0-20180921000356-2f5d2388922f
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f // indirect
+	golang.org/x/sys v0.0.0-20180920110915-d641721ec2de // indirect
 	golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
 )
