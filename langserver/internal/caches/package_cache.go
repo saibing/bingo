@@ -1,4 +1,4 @@
-package cache
+package caches
 
 import (
 	"context"
@@ -16,6 +16,10 @@ type packagePool map[string]*packages.Package
 type PackageCache struct {
 	mu   sync.RWMutex
 	pool packagePool
+}
+
+func New() *PackageCache {
+	return &PackageCache{pool: packagePool{}}
 }
 
 const windowsOS = "windows"
@@ -108,12 +112,28 @@ func (c *PackageCache) cache(pkg *packages.Package) {
 	}
 }
 
+func (c *PackageCache) Lookup(pkgPath string) *packages.Package {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	for _, pkg := range c.pool {
+		if pkg.PkgPath == pkgPath {
+			return pkg
+		}
+	}
+
+	return nil
+}
+
 func getLoadDir(dir string) string {
 	if runtime.GOOS != windowsOS {
 		return dir
 	}
 
-	return dir[1:]
+	if dir[0] == '/' {
+		return dir[1:]
+	}
+
+	return dir
 }
 
 func getCacheKey(filename string) string {

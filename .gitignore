@@ -1,3 +1,5 @@
 .vscode/
 .idea/
 go.sum
+go-langserver
+go-langserver.exe

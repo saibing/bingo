@@ -16,21 +16,9 @@ import (
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
-
-	"golang.org/x/tools/go/loader"
 )
 
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
-	if h.config.UseBinaryPkgCache {
-		_, _, locs, err := h.definitionGodef(ctx, params)
-		if err == godef.ErrNoIdentifierFound {
-			// This is expected to happen when j2d over
-			// comments/strings/whitespace/etc), just return no info.
-			return []lsp.Location{}, nil
-		}
-		return locs, err
-	}
-
 	res, err := h.handleXDefinition(ctx, conn, req, params)
 	if err != nil {
 		return nil, err
@@ -114,28 +102,6 @@ type dereferencable interface {
 	Elem() types.Type
 }
 
-// typeLookup looks for a named type, but will search through
-// any number of type qualifiers (chan/array/slice/pointer)
-// which have an unambiguous base type. If no named type is
-// found, we are not interested, because this is only used
-// for finding a type's definition.
-func typeLookup(prog *loader.Program, typ types.Type) *types.TypeName {
-	if typ == nil {
-		return nil
-	}
-	for {
-		switch t := typ.(type) {
-		case *types.Named:
-			return t.Obj()
-		case *types.Map:
-			return nil
-		case dereferencable:
-			typ = t.Elem()
-		default:
-			return nil
-		}
-	}
-}
 
 func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]symbolLocationInformation, error) {
 	if !util.IsURI(params.TextDocument.URI) {
@@ -145,10 +111,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		}
 	}
 
-	rootPath := h.FilePath(h.init.Root())
-	bctx := h.BuildContext(ctx)
-
-	fset, node, pathEnclosingInterval, prog, pkg, _, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, start, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no locations.
@@ -158,16 +121,21 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		return nil, err
 	}
 
+	pathNodes, node, err := getPathNode(pkg, start, start)
+	if err != nil {
+		return nil, err
+	}
+
 	var nodes []foundNode
-	obj, ok := pkg.Uses[node]
+	obj, ok := pkg.TypesInfo.Uses[node]
 	if !ok {
-		obj, ok = pkg.Defs[node]
+		obj, ok = pkg.TypesInfo.Defs[node]
 	}
 	if ok && obj != nil {
 		if p := obj.Pos(); p.IsValid() {
 			nodes = append(nodes, foundNode{
 				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
-				typ:   typeLookup(prog, pkg.TypeOf(node)),
+				typ:   typeLookup(pkg.TypesInfo.TypeOf(node)),
 			})
 		} else {
 			// Builtins have an invalid Pos. Just don't emit a definition for
@@ -181,22 +149,23 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 	if len(nodes) == 0 {
 		return nil, errors.New("definition not found")
 	}
-	findPackage := h.getFindPackageFunc()
+	findPackage := h.getFindModulePackageFunc()
 	locs := make([]symbolLocationInformation, 0, len(nodes))
 	for _, found := range nodes {
 		// Determine location information for the node.
 		l := symbolLocationInformation{
-			Location: goRangeToLSPLocation(fset, found.ident.Pos(), found.ident.End()),
+			Location: goRangeToLSPLocation(pkg.Fset, found.ident.Pos(), found.ident.End()),
 		}
 		if found.typ != nil {
 			// We don't get an end position, but we can assume it's comparable to
 			// the length of the name, I hope.
-			l.TypeLocation = goRangeToLSPLocation(fset, found.typ.Pos(), token.Pos(int(found.typ.Pos())+len(found.typ.Name())))
+			l.TypeLocation = goRangeToLSPLocation(pkg.Fset, found.typ.Pos(), token.Pos(int(found.typ.Pos())+len(found.typ.Name())))
 		}
 
 		// Determine metadata information for the node.
-		if def, err := refs.DefInfo(pkg.Pkg, &pkg.Info, pathEnclosingInterval, found.ident.Pos()); err == nil {
-			symDesc, err := defSymbolDescriptor(ctx, bctx, rootPath, *def, findPackage)
+		if def, err := refs.DefInfo(pkg.Types, pkg.TypesInfo, pathNodes, found.ident.Pos()); err == nil {
+			rootPath := h.FilePath(h.init.Root())
+			symDesc, err := defModuleSymbolDescriptor(pkg, h.packageCache, rootPath, *def, findPackage)
 			if err != nil {
 				// TODO: tracing
 				log.Println("refs.DefInfo:", err)

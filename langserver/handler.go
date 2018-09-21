@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sourcegraph/go-langserver/langserver/internal/caches"
 	"log"
 	"strconv"
 	"sync"
@@ -63,6 +64,7 @@ type LangHandler struct {
 	init *InitializeParams // set by "initialize" request
 
 	typecheckCache   cache
+	packageCache *caches.PackageCache
 	symbolCache      cache
 	diagnosticsCache *diagnosticsCache
 
@@ -129,6 +131,10 @@ func (h *LangHandler) resetCaches(lock bool) {
 		h.typecheckCache = newTypecheckCache()
 	} else {
 		h.typecheckCache.Purge()
+	}
+
+	if h.packageCache == nil {
+		h.packageCache = caches.New()
 	}
 
 	if h.symbolCache == nil {
@@ -222,6 +228,11 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		if err := h.reset(&params); err != nil {
 			return nil, err
 		}
+
+		if err := h.packageCache.Init(ctx, h.FilePath(params.Root())); err != nil {
+			return nil, err
+		}
+
 		if h.config.GocodeCompletionEnabled {
 			gocode.InitDaemon(h.BuildContext(ctx))
 		}

@@ -2,7 +2,12 @@ package langserver
 
 import (
 	"context"
+	"fmt"
+	"github.com/sourcegraph/go-langserver/langserver/internal/caches"
 	"go/build"
+	"golang.org/x/tools/go/packages"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/sourcegraph/ctxvfs"
@@ -38,6 +43,29 @@ func (h *HandlerShared) getFindPackageFunc() FindPackageFunc {
 	}
 	return defaultFindPackageFunc
 }
+
+// FindPackageFunc matches the signature of loader.Config.FindPackage, except
+// also takes a context.Context.
+type FindModulePackageFunc func(packageCache *caches.PackageCache, importPath, fromDir string) (*packages.Package, error)
+
+
+func (h *HandlerShared) getFindModulePackageFunc() FindModulePackageFunc {
+	return defaultModuleFindPackageFunc
+}
+
+func defaultModuleFindPackageFunc(packageCache *caches.PackageCache, importPath, fromDir string) (*packages.Package, error) {
+	if strings.HasPrefix(importPath, "/") {
+		return nil, fmt.Errorf("import %q: cannot import absolute path", importPath)
+	}
+
+	if build.IsLocalImport(importPath) {
+		dir := filepath.Join(fromDir, importPath)
+		return packageCache.Load(dir)
+	}
+
+	return packageCache.Lookup(importPath), nil
+}
+
 
 func (h *HandlerShared) Reset(useOSFS bool) error {
 	h.Mu.Lock()

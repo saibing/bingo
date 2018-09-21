@@ -276,6 +276,8 @@ func DefInfo(pkg *types.Package, info *types.Info, nodes []ast.Node, pos token.P
 	return nil, errors.New("no selector type")
 }
 
+
+
 // deepRecvType gets the embedded struct's name that the method or
 // field is actually defined on, not just the original/outer recv
 // type.
@@ -316,12 +318,12 @@ type dereferencable interface {
 func dereferenceType(otyp types.Type) types.Type {
 	for {
 		switch typ := otyp.(type) {
-			case *types.Map:
-				return otyp
-			case dereferencable:
-				otyp = typ.Elem()
-			default:
-				return otyp
+		case *types.Map:
+			return otyp
+		case dereferencable:
+			otyp = typ.Elem()
+		default:
+			return otyp
 		}
 	}
 }

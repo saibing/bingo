@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/sourcegraph/go-langserver/langserver/internal/caches"
 	"go/ast"
 	"go/build"
 	"go/parser"
 	"go/token"
 	"go/types"
+	"golang.org/x/tools/go/packages"
 	"log"
 	"math"
 	"strings"
@@ -331,6 +333,44 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 		span.SetTag("err", fmt.Sprintf("workspaceRefsFromPkg: workspace refs failed: %v: %v", pkg, refsErr))
 	}
 	return nil
+}
+
+func defModuleSymbolDescriptor(pkg *packages.Package, packageCache *caches.PackageCache, rootPath string, def refs.Def, findPackage FindModulePackageFunc) (*symbolDescriptor, error) {
+	var err error
+	defPkg, _ := pkg.Imports[def.ImportPath]
+	if defPkg == nil {
+		defPkg, err = findPackage(packageCache, def.ImportPath, rootPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// NOTE: fields must be kept in sync with symbol.go:symbolEqual
+	desc := &symbolDescriptor{
+		Vendor:      false,
+		Package:     defPkg.PkgPath,
+		PackageName: def.PackageName,
+		Recv:        "",
+		Name:        "",
+		ID:          "",
+	}
+
+	fields := strings.Fields(def.Path)
+	switch {
+	case len(fields) == 0:
+		// reference to just a package
+		desc.ID = fmt.Sprintf("%s", desc.Package)
+	case len(fields) >= 2:
+		desc.Recv = fields[0]
+		desc.Name = fields[1]
+		desc.ID = fmt.Sprintf("%s/-/%s/%s", desc.Package, desc.Recv, desc.Name)
+	case len(fields) >= 1:
+		desc.Name = fields[0]
+		desc.ID = fmt.Sprintf("%s/-/%s", desc.Package, desc.Name)
+	default:
+		panic("invalid def.Path response from internal/refs")
+	}
+	return desc, nil
 }
 
 func defSymbolDescriptor(ctx context.Context, bctx *build.Context, rootPath string, def refs.Def, findPackage FindPackageFunc) (*symbolDescriptor, error) {
