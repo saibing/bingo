@@ -20,6 +20,27 @@ type PackageCache struct {
 
 const windowsOS = "windows"
 
+func (c *PackageCache) Init(ctx context.Context, root string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	log.Printf("root dir: %s\n", root)
+	loadDir := getLoadDir(root)
+	log.Printf("load dir: %s\n", loadDir)
+	err := os.Chdir(loadDir)
+	if err != nil {
+		return err
+	}
+
+	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context:ctx, Tests: true}
+	pkgList, err := packages.Load(cfg, "./...")
+	if err != nil {
+		return err
+	}
+	c.push(pkgList)
+	return nil
+}
+
 func (c *PackageCache) Load(pkgDir string) (*packages.Package, error) {
 	loadDir := getLoadDir(pkgDir)
 	cacheKey := loadDir
@@ -55,18 +76,18 @@ func (c *PackageCache) Load(pkgDir string) (*packages.Package, error) {
 		return nil, nil
 	}
 
-	pkg = pkgList[0]
+	go c.push(pkgList)
 
-	go c.push(pkg)
-
-	return pkg, nil
+	return pkgList[0], nil
 }
 
-func (c *PackageCache) push(pkg *packages.Package) {
+func (c *PackageCache) push(pkgList []*packages.Package) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.cache(pkg)
+	for _, pkg := range pkgList {
+		c.cache(pkg)
+	}
 }
 
 func (c *PackageCache) cache(pkg *packages.Package) {
