@@ -57,6 +57,21 @@ func tokenFileContainsPos(f *token.File, pos token.Pos) bool {
 // The zero value is returned if not found.
 //
 func pathEnclosingInterval(pkg *packages.Package, start, end token.Pos) (path []ast.Node, exact bool) {
+	path, exact = doEnclosingInterval(pkg, start, end)
+	if path != nil && len(path) != 0{
+		return path, exact
+	}
+
+	for _, importPkg := range pkg.Imports {
+		path, exact = doEnclosingInterval(importPkg, start, end)
+		if path != nil && len(path) != 0{
+			return path, exact
+		}
+	}
+	return nil, false
+}
+
+func doEnclosingInterval(pkg *packages.Package, start, end token.Pos) ([]ast.Node, bool) {
 	if pkg == nil {
 		return nil, false
 	}

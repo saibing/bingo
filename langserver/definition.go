@@ -4,18 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go/ast"
-	"go/build"
-	"go/token"
-	"go/types"
-	"log"
-	"path/filepath"
-
-	"github.com/sourcegraph/go-langserver/langserver/internal/godef"
 	"github.com/sourcegraph/go-langserver/langserver/internal/refs"
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"go/ast"
+	"go/token"
+	"go/types"
+	"log"
 )
 
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
@@ -46,52 +42,6 @@ func (h *LangHandler) handleTypeDefinition(ctx context.Context, conn jsonrpc2.JS
 }
 
 var testOSToVFSPath func(osPath string) string
-
-func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocumentPositionParams) (*token.FileSet, *godef.Result, []lsp.Location, error) {
-	// In the case of testing, our OS paths and VFS paths do not match. In the
-	// real world, this is never the case. Give the test suite the opportunity
-	// to correct the path now.
-	vfsURI := params.TextDocument.URI
-	if testOSToVFSPath != nil {
-		vfsURI = util.PathToURI(testOSToVFSPath(util.UriToPath(vfsURI)))
-	}
-
-	// Read file contents and calculate byte offset.
-	contents, err := h.readFile(ctx, vfsURI)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	// convert the path into a real path because 3rd party tools
-	// might load additional code based on the file's package
-	filename := util.UriToRealPath(params.TextDocument.URI)
-	offset, valid, why := offsetForPosition(contents, params.Position)
-	if !valid {
-		return nil, nil, nil, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, params.Position.Line, params.Position.Character, why)
-	}
-
-	// Invoke godef to determine the position of the definition.
-	fset := token.NewFileSet()
-	res, err := godef.Godef(fset, offset, filename, contents)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	if res.Package != nil {
-		// TODO: return directory location. This right now at least matches our
-		// other implementation.
-		return fset, res, []lsp.Location{}, nil
-	}
-	loc := goRangeToLSPLocation(fset, res.Start, res.End)
-
-	if loc.URI == "file://" {
-		// TODO: builtins do not have valid URIs or locations, so we emit a
-		// phony location here instead. This is better than our other
-		// implementation.
-		loc.URI = util.PathToURI(filepath.Join(build.Default.GOROOT, "/src/builtin/builtin.go"))
-		loc.Range = lsp.Range{}
-	}
-
-	return fset, res, []lsp.Location{loc}, nil
-}
 
 type foundNode struct {
 	ident *ast.Ident      // the lookup in Uses[] or Defs[]

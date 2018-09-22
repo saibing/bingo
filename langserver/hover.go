@@ -4,28 +4,21 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/slimsag/godocmd"
 	"go/ast"
 	"go/build"
 	"go/format"
-	"go/parser"
 	"go/token"
 	"go/types"
-	"path/filepath"
 	"sort"
 	"strings"
 
-	doc "github.com/slimsag/godocmd"
-	"github.com/sourcegraph/go-langserver/langserver/internal/godef"
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
 func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
-	if h.config.UseBinaryPkgCache {
-		return h.handleHoverGodef(ctx, conn, req, params)
-	}
-
 	if !util.IsURI(params.TextDocument.URI) {
 		return nil, &jsonrpc2.Error{
 			Code:    jsonrpc2.CodeInvalidParams,
@@ -33,7 +26,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		}
 	}
 
-	fset, node, _, prog, pkg, _, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, start, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
@@ -50,14 +43,19 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		return nil, err
 	}
 
-	o := pkg.ObjectOf(node)
-	t := pkg.TypeOf(node)
+	_, node, err := getPathNode(pkg, start, start)
+	if err != nil {
+		return nil, err
+	}
+
+	o := pkg.TypesInfo.ObjectOf(node)
+	t := pkg.TypesInfo.TypeOf(node)
 	if o == nil && t == nil {
-		comments := packageDoc(pkg.Files, node.Name)
+		comments := packageDoc(pkg.Syntax, node.Name)
 
 		// Package statement idents don't have an object, so try that separately.
-		r := rangeForNode(fset, node)
-		if pkgName := packageStatementName(fset, pkg.Files, node); pkgName != "" {
+		r := rangeForNode(pkg.Fset, node)
+		if pkgName := packageStatementName(pkg.Fset, pkg.Syntax, node); pkgName != "" {
 			return &lsp.Hover{
 				Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: "package " + pkgName}}),
 				Range:    &r,
@@ -105,24 +103,24 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		// Package names must be resolved specially, so do this now to avoid
 		// additional overhead.
 		if v, ok := o.(*types.PkgName); ok {
-			pkg := prog.Package(v.Imported().Path())
-			if pkg == nil {
+			importPkg := pkg.Imports[v.Imported().Path()]
+			if importPkg == nil {
 				return "", fmt.Errorf("failed to import package %q", v.Imported().Path())
 			}
-			return packageDoc(pkg.Files, node.Name), nil
+			return packageDoc(importPkg.Syntax, node.Name), nil
 		}
 
 		// Resolve the object o into its respective ast.Node
-		_, path, _ := prog.PathEnclosingInterval(o.Pos(), o.Pos())
-		if path == nil {
+		pathNodes, _, _ := getObjectPathNode(pkg, o)
+		if len(pathNodes) == 0 {
 			return "", nil
 		}
 
 		// Pull the comment out of the comment map for the file. Do
 		// not search too far away from the current path.
 		var comments string
-		for i := 0; i < 3 && i < len(path) && comments == ""; i++ {
-			switch v := path[i].(type) {
+		for i := 0; i < 3 && i < len(pathNodes) && comments == ""; i++ {
+			switch v := pathNodes[i].(type) {
 			case *ast.Field:
 				// Concat associated documentation with any inline comments
 				comments = joinCommentGroups(v.Doc, v.Comment)
@@ -150,7 +148,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		contents = append(contents, lsp.MarkedString{Language: "go", Value: extra})
 	}
 
-	r := rangeForNode(fset, node)
+	r := rangeForNode(pkg.Fset, node)
 	return &lsp.Hover{
 		Contents: contents,
 		Range:    &r,
@@ -274,93 +272,6 @@ func prettyPrintTypesString(s string) string {
 		}
 	}
 	return b.String()
-}
-
-func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
-	// First perform the equivalent of a textDocument/definition request in
-	// order to resolve the definition position.
-	fset, res, _, err := h.definitionGodef(ctx, params)
-	if err != nil {
-		if err == godef.ErrNoIdentifierFound {
-			// This is expected to happen when hovering over
-			// comments/strings/whitespace/etc), just return no info.
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	// If our target is a package import statement or package selector, then we
-	// handle that separately now.
-	if res.Package != nil {
-		// res.Package.Name is invalid since it was imported with FindOnly, so
-		// import normally now.
-		bpkg, err := build.Default.ImportDir(res.Package.Dir, 0)
-		if err != nil {
-			return nil, err
-		}
-
-		// Parse the entire dir into its respective AST packages.
-		pkgs, err := parser.ParseDir(fset, res.Package.Dir, nil, parser.ParseComments)
-		if err != nil {
-			return nil, err
-		}
-		pkg := pkgs[bpkg.Name]
-
-		// Find the package doc comments.
-		pkgFiles := make([]*ast.File, 0, len(pkg.Files))
-		for _, f := range pkg.Files {
-			pkgFiles = append(pkgFiles, f)
-		}
-		comments := packageDoc(pkgFiles, bpkg.Name)
-
-		return &lsp.Hover{
-			Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: fmt.Sprintf("package %s (%q)", bpkg.Name, bpkg.ImportPath)}}),
-
-			// TODO(slimsag): I think we can add Range here, but not exactly
-			// sure. res.Start and res.End are only present if it's a package
-			// selector, not an import statement. Since Range is optional,
-			// we're omitting it here.
-		}, nil
-	}
-
-	loc := goRangeToLSPLocation(fset, res.Start, res.End)
-
-	if loc.URI == "file://" {
-		// TODO: builtins do not have valid URIs or locations.
-		return &lsp.Hover{}, nil
-	}
-
-	// convert the path into a real path because 3rd party tools
-	// might load additional code based on the file's package
-	filename := util.UriToRealPath(loc.URI)
-
-	// Parse the entire dir into its respective AST packages.
-	pkgs, err := parser.ParseDir(fset, filepath.Dir(filename), nil, parser.ParseComments)
-	if err != nil {
-		return nil, err
-	}
-
-	// Locate the AST package that contains the file we're interested in.
-	foundImportPath, foundPackage, err := packageForFile(pkgs, filename)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create documentation for the package.
-	docPkg := doc.New(foundPackage, foundImportPath, doc.AllDecls)
-
-	// Locate the target in the docs.
-	target := fset.Position(res.Start)
-	docObject := findDocTarget(fset, target, docPkg)
-	if docObject == nil {
-		// probably a local variable, so just ignore.
-		return &lsp.Hover{}, nil
-	}
-
-	contents, _ := fmtDocObject(fset, docObject, target)
-	return &lsp.Hover{
-		Contents: contents,
-	}, nil
 }
 
 // packageForFile returns the import path and pkg from pkgs that contains the
