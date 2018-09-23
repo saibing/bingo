@@ -4,7 +4,6 @@ import (
 	"context"
 	"golang.org/x/tools/go/packages"
 	"log"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -31,13 +30,15 @@ func (c *PackageCache) Init(ctx context.Context, root string) error {
 	log.Printf("root dir: %s\n", root)
 	loadDir := getLoadDir(root)
 	log.Printf("load dir: %s\n", loadDir)
-	err := os.Chdir(loadDir)
-	if err != nil {
-		return err
-	}
-
 	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context:ctx, Tests: true}
-	pkgList, err := packages.Load(cfg, "./...")
+	//err := os.Chdir(loadDir)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//
+	//pkgList, err := packages.Load(cfg, "./...")
+	pkgList, err := packages.Load(cfg, loadDir + "/...")
 	if err != nil {
 		return err
 	}
@@ -66,12 +67,13 @@ func (c *PackageCache) Load(pkgDir string) (*packages.Package, error) {
 	c.mu.RUnlock()
 
 	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context:context.Background(), Tests: true}
-	err := os.Chdir(loadDir)
-	if err != nil {
-		return nil, err
-	}
-
-	pkgList, err := packages.Load(cfg, ".")
+	//err := os.Chdir(loadDir)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//pkgList, err := packages.Load(cfg, ".")
+	pkgList, err := packages.Load(cfg, loadDir)
 	if err != nil {
 		return nil, err
 	}
