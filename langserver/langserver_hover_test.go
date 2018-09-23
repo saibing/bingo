@@ -46,6 +46,14 @@ func TestHover(t *testing.T) {
 		test(t, testPkgDir, "a_test.go:1:37", "var X int")
 		test(t, testPkgDir, "a_test.go:1:43", "var B int")
 	})
+
+	t.Run("subdirectory hover", func(t *testing.T) {
+		test(t, subdirectoryPkgDir, "a.go:1:17",    "func A()")
+		test(t, subdirectoryPkgDir, "a.go:1:23",    "func A()")
+		test(t, subdirectoryPkgDir, "d2/b.go:1:98", "func B()")
+		test(t, subdirectoryPkgDir, "d2/b.go:1:106", "func A()")
+		test(t, subdirectoryPkgDir, "d2/b.go:1:111", "func B()")
+	})
 }
 
 type hoverTestCase struct {

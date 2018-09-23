@@ -25,6 +25,7 @@ const basicPkgDir = "test/pkg/basic"
 const detailedPkgDir = "test/pkg/detailed"
 const xtestPkgDir = "test/pkg/xtest"
 const testPkgDir = "test/pkg/test"
+const subdirectoryPkgDir = "test/pkg/subdirectory"
 
 func TestMain(m *testing.M) {
 	fmt.Println("------main begin------")
