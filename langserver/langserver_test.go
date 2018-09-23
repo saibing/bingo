@@ -16,7 +16,6 @@ import (
 	"reflect"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -44,20 +43,6 @@ var serverTestCases = map[string]serverTestCase{
 			"b.go": "package p; func B() { A() }",
 		},
 		cases: lspTestCases{
-			overrideGodefHover: map[string]string{
-				//"a.go:1:9":  "package p", // TODO(slimsag): sub-optimal "no declaration found for p"
-				"a.go:1:17": "func A()",
-				"a.go:1:23": "func A()",
-				"b.go:1:17": "func B()",
-				"b.go:1:23": "func A()",
-			},
-			wantHover: map[string]string{
-				"a.go:1:9":  "package p",
-				"a.go:1:17": "func A()",
-				"a.go:1:23": "func A()",
-				"b.go:1:17": "func B()",
-				"b.go:1:23": "func A()",
-			},
 			wantDefinition: map[string]string{
 				"a.go:1:17": "/src/test/pkg/a.go:1:17-1:18",
 				"a.go:1:23": "/src/test/pkg/a.go:1:17-1:18",
@@ -144,19 +129,6 @@ var serverTestCases = map[string]serverTestCase{
 			"a.go": "package p; type T struct { F string }",
 		},
 		cases: lspTestCases{
-			overrideGodefHover: map[string]string{
-				// "a.go:1:28": "(T).F string", // TODO(sqs): see golang/hover.go; this is the output we want
-				"a.go:1:28": "struct field F string",
-				"a.go:1:17": `type T struct; struct{ F string }`,
-			},
-
-			wantHover: map[string]string{
-				// "a.go:1:28": "(T).F string", // TODO(sqs): see golang/hover.go; this is the output we want
-				"a.go:1:28": "struct field F string",
-				"a.go:1:17": `type T struct; struct {
-    F string
-}`,
-			},
 			wantSymbols: map[string][]string{
 				"a.go": {"/src/test/pkg/a.go:field:T.F:1:28", "/src/test/pkg/a.go:class:T:1:17"},
 			},
@@ -194,21 +166,6 @@ var serverTestCases = map[string]serverTestCase{
 			"b_test.go": "package p; func Y() int { return X }",
 		},
 		cases: lspTestCases{
-			overrideGodefHover: map[string]string{
-				"a.go:1:16":      "var A int",
-				"x_test.go:1:40": "var X = p.A",
-				"x_test.go:1:46": "var A int",
-				"a_test.go:1:16": "var X = A",
-				"a_test.go:1:20": "var A int",
-			},
-
-			wantHover: map[string]string{
-				"a.go:1:16":      "var A int",
-				"x_test.go:1:40": "var X int",
-				"x_test.go:1:46": "var A int",
-				"a_test.go:1:16": "var X int",
-				"a_test.go:1:20": "var A int",
-			},
 			wantCompletion: map[string]string{
 				"x_test.go:1:45": "1:44-1:45 panic function func(interface{}), print function func(...interface{}), println function func(...interface{}), p module ",
 				"x_test.go:1:46": "1:46-1:46 A variable int",
@@ -262,14 +219,6 @@ var serverTestCases = map[string]serverTestCase{
 			"c/c.go":    `package c; import "test/pkg/b"; var X = b.B;`,
 		},
 		cases: lspTestCases{
-			overrideGodefHover: map[string]string{
-				"a_test.go:1:37": "var X = b.B",
-				"a_test.go:1:43": "var B int",
-			},
-			wantHover: map[string]string{
-				"a_test.go:1:37": "var X int",
-				"a_test.go:1:43": "var B int",
-			},
 			wantReferences: map[string][]string{
 				"a_test.go:1:43": {
 					"/src/test/pkg/a_test.go:1:43",
@@ -1498,18 +1447,6 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 	}
 }
 
-// tbRun calls (testing.T).Run or (testing.B).Run.
-func tbRun(t testing.TB, name string, f func(testing.TB)) bool {
-	switch tb := t.(type) {
-	case *testing.B:
-		return tb.Run(name, func(b *testing.B) { f(b) })
-	case *testing.T:
-		return tb.Run(name, func(t *testing.T) { f(t) })
-	default:
-		panic(fmt.Sprintf("unexpected %T, want *testing.B or *testing.T", tb))
-	}
-}
-
 func uriJoin(base lsp.DocumentURI, file string) lsp.DocumentURI {
 	return lsp.DocumentURI(string(base) + "/" + file)
 }
@@ -1715,48 +1652,6 @@ func formattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 	if reflect.DeepEqual(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
-}
-
-func parsePos(s string) (file string, line, char int, err error) {
-	parts := strings.Split(s, ":")
-	if len(parts) != 3 {
-		err = fmt.Errorf("invalid pos %q (%d parts)", s, len(parts))
-		return
-	}
-	file = parts[0]
-	line, err = strconv.Atoi(parts[1])
-	if err != nil {
-		err = fmt.Errorf("invalid line in %q: %s", s, err)
-		return
-	}
-	char, err = strconv.Atoi(parts[2])
-	if err != nil {
-		err = fmt.Errorf("invalid char in %q: %s", s, err)
-		return
-	}
-	return file, line - 1, char - 1, nil // LSP is 0-indexed
-}
-
-func callHover(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
-	var res struct {
-		Contents markedStrings `json:"contents"`
-		lsp.Hover
-	}
-	err := c.Call(ctx, "textDocument/hover", lsp.TextDocumentPositionParams{
-		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
-		Position:     lsp.Position{Line: line, Character: char},
-	}, &res)
-	if err != nil {
-		return "", err
-	}
-	var str string
-	for i, ms := range res.Contents {
-		if i != 0 {
-			str += "; "
-		}
-		str += ms.Value
-	}
-	return str, nil
 }
 
 func callDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
