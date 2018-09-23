@@ -54,6 +54,15 @@ func TestHover(t *testing.T) {
 		test(t, subdirectoryPkgDir, "d2/b.go:1:106", "func A()")
 		test(t, subdirectoryPkgDir, "d2/b.go:1:111", "func B()")
 	})
+
+	t.Run("multiple packages in dir", func(t *testing.T) {
+		test(t, multiplePkgDir, "a.go:1:17", "func A()")
+		test(t, multiplePkgDir, "a.go:1:23", "func A()")
+	})
+
+	t.Run("goroot", func(t *testing.T) {
+		test(t, gorootPkgDir, "a.go:1:40", "func Println(a ...interface{}) (n int, err error); Println formats using the default formats for its operands and writes to standard output. Spaces are always added between operands and a newline is appended. It returns the number of bytes written and any write error encountered. \n\n")
+	})
 }
 
 type hoverTestCase struct {

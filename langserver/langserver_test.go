@@ -243,13 +243,6 @@ var serverTestCases = map[string]serverTestCase{
 			"d2/b.go": `package d2; import "test/pkg/d"; func B() { d.A(); B() }`,
 		},
 		cases: lspTestCases{
-			wantHover: map[string]string{
-				"a.go:1:17":    "func A()",
-				"a.go:1:23":    "func A()",
-				"d2/b.go:1:39": "func B()",
-				"d2/b.go:1:47": "func A()",
-				"d2/b.go:1:52": "func B()",
-			},
 			wantDefinition: map[string]string{
 				"a.go:1:17":    "/src/test/pkg/d/a.go:1:17-1:18",
 				"a.go:1:23":    "/src/test/pkg/d/a.go:1:17-1:18",
@@ -346,16 +339,6 @@ var serverTestCases = map[string]serverTestCase{
 package main; import "test/pkg"; func B() { p.A(); B() }`,
 		},
 		cases: lspTestCases{
-
-			wantHover: map[string]string{
-				"a.go:1:17": "func A()",
-				"a.go:1:23": "func A()",
-				// Not parsing build-tag-ignored files:
-				//
-				// "main.go:3:39": "func B()", // func B()
-				// "main.go:3:47": "func A()", // p.A()
-				// "main.go:3:52": "func B()", // B()
-			},
 			wantDefinition: map[string]string{
 				"a.go:1:17": "/src/test/pkg/a.go:1:17-1:18",
 				"a.go:1:23": "/src/test/pkg/a.go:1:17-1:18",
@@ -391,17 +374,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			overrideGodefHover: map[string]string{
-				"a.go:1:40": "func Println(a ...interface{}) (n int, err error); Println formats using the default formats for its operands and writes to standard output. Spaces are always added between operands and a newline is appended. It returns the number of bytes written and any write error encountered. \n\n",
-				// "a.go:1:53": "type int int",
-			},
 			wantHover: map[string]string{
 				"a.go:1:40": "func Println(a ...interface{}) (n int, err error)",
 				// "a.go:1:53": "type int int",
-			},
-			overrideGodefDefinition: map[string]string{
-				"a.go:1:40": "/goroot/src/fmt/print.go",               // hitting the real GOROOT
-				"a.go:1:53": "/goroot/src/builtin/builtin.go:1:1-1:1", // TODO: accurate builtin positions
 			},
 			wantDefinition: map[string]string{
 				"a.go:1:40": "/goroot/src/fmt/print.go:1:19-1:26",
