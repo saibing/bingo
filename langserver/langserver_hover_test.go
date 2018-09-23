@@ -3,16 +3,16 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/sourcegraph/go-langserver/langserver/util"
 	"log"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/sourcegraph/go-langserver/langserver/util"
+
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
-
 
 func TestHover(t *testing.T) {
 	test := func(t *testing.T, pkgDir string, input string, output string) {
@@ -22,7 +22,7 @@ func TestHover(t *testing.T) {
 	t.Run("basic hover", func(t *testing.T) {
 		test(t, basicPkgDir, "a.go:1:9", "package p")
 		test(t, basicPkgDir, "a.go:1:17", "func A()")
-		test(t, basicPkgDir, "a.go:1:23",  "func A()")
+		test(t, basicPkgDir, "a.go:1:23", "func A()")
 		test(t, basicPkgDir, "b.go:1:17", "func B()")
 		test(t, basicPkgDir, "b.go:1:23", "func A()")
 	})
@@ -48,8 +48,8 @@ func TestHover(t *testing.T) {
 	})
 
 	t.Run("subdirectory hover", func(t *testing.T) {
-		test(t, subdirectoryPkgDir, "a.go:1:17",    "func A()")
-		test(t, subdirectoryPkgDir, "a.go:1:23",    "func A()")
+		test(t, subdirectoryPkgDir, "a.go:1:17", "func A()")
+		test(t, subdirectoryPkgDir, "a.go:1:23", "func A()")
 		test(t, subdirectoryPkgDir, "d2/b.go:1:98", "func B()")
 		test(t, subdirectoryPkgDir, "d2/b.go:1:106", "func A()")
 		test(t, subdirectoryPkgDir, "d2/b.go:1:111", "func B()")
@@ -70,7 +70,24 @@ func TestHover(t *testing.T) {
 	})
 
 	t.Run("go module", func(t *testing.T) {
+		test(t, gomodulePkgDir, "a.go:1:57", "func D()")
+		test(t, gomodulePkgDir, "b.go:1:63", "func D()")
+		test(t, gomodulePkgDir, "c.go:1:63", "func D1() D2")
+		test(t, gomodulePkgDir, "c.go:1:68", "struct field D2 int")
+	})
 
+	t.Run("hover docs", func(t *testing.T) {
+		test(t, hoverDocsPkgDir, "a.go:7:9", "package p; Package p is a package with lots of great things. \n\n")
+		//"a.go:9:9": "", TODO: handle hovering on import statements (ast.BasicLit)
+		test(t, hoverDocsPkgDir, "a.go:12:5", "var logit func(); logit is pkg2.X \n\n")
+		test(t, hoverDocsPkgDir, "a.go:12:13", "package pkg2 (\"github.com/saibing/dep/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n")
+		test(t, hoverDocsPkgDir, "a.go:12:18", "func X(); X does the unknown. \n\n")
+		test(t, hoverDocsPkgDir, "a.go:15:6", "type T struct; T is a struct. \n\n; struct {\n    F string\n    H Header\n}")
+		test(t, hoverDocsPkgDir, "a.go:17:2", "struct field F string; F is a string field. \n\n")
+		test(t, hoverDocsPkgDir, "a.go:20:2", "struct field H github.com/saibing/dep/pkg2.Header; H is a header. \n\n")
+		test(t, hoverDocsPkgDir, "a.go:20:4", "package pkg2 (\"github.com/saibing/dep/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n")
+		test(t, hoverDocsPkgDir, "a.go:24:5", "var Foo string; Foo is the best string. \n\n")
+		test(t, hoverDocsPkgDir, "a.go:31:2", "var I2 int; I2 is an int \n\n")
 	})
 }
 

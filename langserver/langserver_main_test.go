@@ -23,6 +23,9 @@ var conn *jsonrpc2.Conn
 var ctx context.Context
 
 const (
+	rootDir        = "test/pkg"
+	rootImportPath = "github.com/sourcegraph/go-langserver/langserver/test/pkg"
+
 	basicPkgDir        = "test/pkg/basic"
 	detailedPkgDir     = "test/pkg/detailed"
 	xtestPkgDir        = "test/pkg/xtest"
@@ -32,13 +35,14 @@ const (
 	gorootPkgDir       = "test/pkg/goroot"
 	goprojectPkgDir    = "test/pkg/goproject"
 	gomodulePkgDir     = "test/pkg/gomodule"
+	hoverDocsPkgDir    = "test/pkg/docs"
 )
 
 func TestMain(m *testing.M) {
 	fmt.Println("------main begin------")
 	flag.Parse()
 
-	dir, err := filepath.Abs("./test/pkg")
+	dir, err := filepath.Abs(rootDir)
 	if err != nil {
 		log.Fatal("TestMain", err)
 	}
@@ -84,7 +88,7 @@ func Init(root lsp.DocumentURI) {
 			Capabilities: lsp.ClientCapabilities{TextDocument: tdCap},
 		},
 		NoOSFileSystemAccess: false,
-		RootImportPath:       strings.TrimPrefix(string(root), "/src/"),
+		RootImportPath:       rootImportPath,
 		BuildContext: &InitializeBuildContextParams{
 			GOOS:     runtime.GOOS,
 			GOARCH:   runtime.GOARCH,
