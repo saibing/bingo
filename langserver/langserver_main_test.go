@@ -4,9 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	"github.com/sourcegraph/jsonrpc2"
 	"log"
 	"net"
 	"os"
@@ -15,19 +12,27 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/sourcegraph/go-langserver/langserver/util"
+	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/sourcegraph/jsonrpc2"
 )
 
 var h *LangHandler
 var conn *jsonrpc2.Conn
 var ctx context.Context
 
-const basicPkgDir = "test/pkg/basic"
-const detailedPkgDir = "test/pkg/detailed"
-const xtestPkgDir = "test/pkg/xtest"
-const testPkgDir = "test/pkg/test"
-const subdirectoryPkgDir = "test/pkg/subdirectory"
-const multiplePkgDir = "test/pkg/multiple"
-const gorootPkgDir = "test/pkg/goroot"
+const (
+	basicPkgDir        = "test/pkg/basic"
+	detailedPkgDir     = "test/pkg/detailed"
+	xtestPkgDir        = "test/pkg/xtest"
+	testPkgDir         = "test/pkg/test"
+	subdirectoryPkgDir = "test/pkg/subdirectory"
+	multiplePkgDir     = "test/pkg/multiple"
+	gorootPkgDir       = "test/pkg/goroot"
+	goprojectPkgDir    = "test/pkg/goproject"
+	gomodulePkgDir     = "test/pkg/gomodule"
+)
 
 func TestMain(m *testing.M) {
 	fmt.Println("------main begin------")
@@ -53,8 +58,6 @@ func TestMain(m *testing.M) {
 	fmt.Println("------main end------")
 	os.Exit(exitCode)
 }
-
-
 
 func Init(root lsp.DocumentURI) {
 	fmt.Printf("root uri is %s\n", root)
@@ -156,7 +159,6 @@ func dialLanguageServer(addr string, h ...*jsonrpc2.HandlerWithErrorConfigurer) 
 		handler,
 	)
 }
-
 
 // tbRun calls (testing.T).Run or (testing.B).Run.
 func tbRun(t testing.TB, name string, f func(testing.TB)) bool {

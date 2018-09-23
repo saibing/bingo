@@ -374,10 +374,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			wantHover: map[string]string{
-				"a.go:1:40": "func Println(a ...interface{}) (n int, err error)",
-				// "a.go:1:53": "type int int",
-			},
 			wantDefinition: map[string]string{
 				"a.go:1:40": "/goroot/src/fmt/print.go:1:19-1:26",
 				// "a.go:1:53": "/goroot/src/builtin/builtin.go:TODO:TODO", // TODO(sqs): support builtins
@@ -417,11 +413,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			"b/b.go": `package b; import "test/pkg/a"; var _ = a.A`,
 		},
 		cases: lspTestCases{
-			wantHover: map[string]string{
-				"a/a.go:1:17": "func A()",
-				// "b/b.go:1:20": "package", // TODO(sqs): make import paths hoverable
-				"b/b.go:1:43": "func A()",
-			},
 			wantDefinition: map[string]string{
 				"a/a.go:1:17": "/src/test/pkg/a/a.go:1:17-1:18",
 				// "b/b.go:1:20": "/src/test/pkg/a", // TODO(sqs): make import paths hoverable

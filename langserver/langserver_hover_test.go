@@ -60,8 +60,17 @@ func TestHover(t *testing.T) {
 		test(t, multiplePkgDir, "a.go:1:23", "func A()")
 	})
 
-	t.Run("goroot", func(t *testing.T) {
+	t.Run("go root", func(t *testing.T) {
 		test(t, gorootPkgDir, "a.go:1:40", "func Println(a ...interface{}) (n int, err error); Println formats using the default formats for its operands and writes to standard output. Spaces are always added between operands and a newline is appended. It returns the number of bytes written and any write error encountered. \n\n")
+	})
+
+	t.Run("go project", func(t *testing.T) {
+		test(t, goprojectPkgDir, "a/a.go:1:17", "func A()")
+		test(t, goprojectPkgDir, "b/b.go:1:101", "func A()")
+	})
+
+	t.Run("go module", func(t *testing.T) {
+
 	})
 }
 
