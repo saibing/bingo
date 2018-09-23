@@ -88,6 +88,14 @@ func TestHover(t *testing.T) {
 		test(t, hoverDocsPkgDir, "a.go:20:4", "package pkg2 (\"github.com/saibing/dep/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n")
 		test(t, hoverDocsPkgDir, "a.go:24:5", "var Foo string; Foo is the best string. \n\n")
 		test(t, hoverDocsPkgDir, "a.go:31:2", "var I2 int; I2 is an int \n\n")
+
+		test(t, hoverDocsPkgDir, "q.go:3:2", "struct field Q string; Q is a string field. \n\n")
+		test(t, hoverDocsPkgDir, "q.go:5:2", "struct field X int; X is documented. \n\nX has comments. \n\n")
+	})
+
+	t.Run("hover issue", func(t *testing.T) {
+		test(t, issuePkgDir, "223.go:13:17", "func (*Hello).Bye() int")
+		test(t, issuePkgDir, "261.go:11:15", "var t T")
 	})
 }
 

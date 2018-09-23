@@ -36,6 +36,7 @@ const (
 	goprojectPkgDir    = "test/pkg/goproject"
 	gomodulePkgDir     = "test/pkg/gomodule"
 	hoverDocsPkgDir    = "test/pkg/docs"
+	issuePkgDir        = "test/pkg/issue"
 )
 
 func TestMain(m *testing.M) {

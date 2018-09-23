@@ -506,9 +506,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			wantHover: map[string]string{
-				"a.go:1:57": "func D()",
-			},
 			wantDefinition: map[string]string{
 				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20-1:21",
 			},
@@ -621,97 +618,6 @@ func yza() {}
 				{Query: "bcd"}:         {"/src/test/pkg/bcd.go:method:YZA.BCD:5:14", "/src/test/pkg/bcd.go:class:YZA:3:6"},
 				{Query: "cde"}:         {"/src/test/pkg/cde.go:variable:a:4:2", "/src/test/pkg/cde.go:variable:b:4:5", "/src/test/pkg/cde.go:variable:c:5:2"},
 				{Query: "is:exported"}: {"/src/test/pkg/abc.go:variable:A:8:2", "/src/test/pkg/abc.go:constant:B:12:2", "/src/test/pkg/abc.go:class:C:17:2", "/src/test/pkg/abc.go:class:T:22:6", "/src/test/pkg/abc.go:interface:UVW:20:6", "/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/bcd.go:class:YZA:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
-			},
-		},
-	},
-	"go hover docs": {
-		rootURI: "file:///src/test/pkg",
-		fs: map[string]string{
-			"a.go": `// Copyright 2015 someone.
-// Copyrights often span multiple lines.
-
-// Some additional non-package docs.
-
-// Package p is a package with lots of great things.
-package p
-
-import "github.com/a/pkg2"
-
-// logit is pkg2.X
-var logit = pkg2.X
-
-// T is a struct.
-type T struct {
-	// F is a string field.
-	F string
-
-	// H is a header.
-	H pkg2.Header
-}
-
-// Foo is the best string.
-var Foo string
-
-var (
-	// I1 is an int
-	I1 = 1
-
-	// I2 is an int
-	I2 = 3
-)
-`,
-			"vendor/github.com/a/pkg2/x.go": `// Package pkg2 shows dependencies.
-//
-// How to
-//
-// 	Example Code!
-//
-package pkg2
-
-// A comment that should be ignored
-
-// X does the unknown.
-func X() {
-	panic("zomg")
-}
-
-// Header is like an HTTP header, only better.
-type Header struct {
-	// F is a string, too.
-	F string
-}
-`,
-		},
-		cases: lspTestCases{
-			wantHover: map[string]string{
-				"a.go:7:9": "package p; Package p is a package with lots of great things. \n\n",
-				//"a.go:9:9": "", TODO: handle hovering on import statements (ast.BasicLit)
-				"a.go:12:5":  "var logit func(); logit is pkg2.X \n\n",
-				"a.go:12:13": "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
-				"a.go:12:18": "func X(); X does the unknown. \n\n",
-				"a.go:15:6":  "type T struct; T is a struct. \n\n; struct {\n    F string\n    H Header\n}",
-				"a.go:17:2":  "struct field F string; F is a string field. \n\n",
-				"a.go:20:2":  "struct field H test/pkg/vendor/github.com/a/pkg2.Header; H is a header. \n\n",
-				"a.go:20:4":  "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
-				"a.go:24:5":  "var Foo string; Foo is the best string. \n\n",
-				"a.go:31:2":  "var I2 int; I2 is an int \n\n",
-			},
-		},
-	},
-	"go hover docs special cases": {
-		rootURI: "file:///src/test/pkg",
-		fs: map[string]string{
-			"q.go": `package p
-type T struct {
-	Q string // Q is a string field.
-	// X is documented.
-	X int // X has comments.
-}`,
-		},
-		cases: lspTestCases{
-			wantHover: map[string]string{
-				"q.go:3:2": "struct field Q string; Q is a string field. \n\n",
-				"q.go:5:2": "struct field X int; X is documented. \n\nX has comments. \n\n",
 			},
 		},
 	},
@@ -873,69 +779,6 @@ func (x XYZ) ABC() {}
 			wantSymbols: map[string][]string{
 				"abc.go": []string{"/src/test/pkg/abc.go:class:XYZ:2:6"},
 				"bcd.go": []string{"/src/test/pkg/bcd.go:method:XYZ.ABC:2:14"},
-			},
-		},
-	},
-	"hover fail issue 223": {
-		rootURI: "file:///src/test/pkg",
-		fs: map[string]string{
-			"main.go": `package main
-
-import (
-	"fmt"
-)
-
-func main() {
-
-	b := &Hello{
-		a: 1,
-	}
-
-	fmt.Println(b.Bye())
-}
-
-type Hello struct {
-	a int
-}
-
-func (h *Hello) Bye() int {
-	return h.a
-}
-`,
-		},
-		cases: lspTestCases{
-			overrideGodefHover: map[string]string{
-				"main.go:13:17": "func (h *Hello) Bye() int",
-			},
-			wantHover: map[string]string{
-				"main.go:13:17": "func (*Hello).Bye() int",
-			},
-		},
-	},
-	"godoc fail issue 261": {
-		rootURI: "file:///src/test/pkg",
-		fs: map[string]string{
-			"main.go": `package main
-
-import "fmt"
-
-type T string
-type TM map[string]T
-
-func main() {
-	var tm TM
-	for _, t := range tm {
-		fmt.Println(t)
-	}
-}
-`,
-		},
-		cases: lspTestCases{
-			overrideGodefHover: map[string]string{
-				"main.go:11:15": "",
-			},
-			wantHover: map[string]string{
-				"main.go:11:15": "var t T",
 			},
 		},
 	},
