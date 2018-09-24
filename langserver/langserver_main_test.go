@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("TestMain", err)
 	}
-	workspaceDir = "file://" + workspaceDir + "/"
+	workspaceDir += "/"
 
 	gopathDir = getGOPATH()
 
@@ -224,7 +224,7 @@ func multipleOutput(suffix string) string {
 }
 
 func gorootOutput(suffix string) string {
-	return "file://" + runtime.GOROOT() + "/" + suffix
+	return runtime.GOROOT() + "/" + suffix
 }
 
 func goprojectOutput(suffix string) string {
@@ -233,7 +233,7 @@ func goprojectOutput(suffix string) string {
 
 func gomoduleOutput(suffix string) string {
 	depPath := filepath.Join(gopathDir, "pkg/mod/github.com/saibing/dep@v1.0.2")
-	return "file://" + depPath + "/" + suffix
+	return depPath + "/" + suffix
 }
 
 func lookupOutput(suffix string) string {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/saibing/bingo/pkg/lspext"
 	"log"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -73,21 +74,36 @@ func testDefinition(tb testing.TB, c *definitionTestCase) {
 		if err != nil {
 			log.Fatal("testDefinition", err)
 		}
-		doDefinitionTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+		doDefinitionTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output, "")
 	})
 }
 
-func doDefinitionTest(t testing.TB, ctx context.Context, conn *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
+
+func doDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want, trimPrefix string) {
 	file, line, char, err := parsePos(pos)
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := callDefinition(ctx, conn, uriJoin(rootURI, file), line, char)
+	definition, err := callDefinition(ctx, c, uriJoin(rootURI, file), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result != want {
-		t.Fatalf("got %q, want %q", result, want)
+	if definition != "" {
+		definition = util.UriToPath(lsp.DocumentURI(definition))
+		if trimPrefix != "" {
+			definition = strings.TrimPrefix(definition, util.UriToPath(util.PathToURI(trimPrefix)))
+		}
+	}
+	if want != "" && !strings.Contains(path.Base(want), ":") {
+		// our want is just a path, so we only check that matches. This is
+		// used by our godef tests into GOROOT. The GOROOT changes over time,
+		// but the file for a symbol is usually pretty stable.
+		dir := path.Dir(definition)
+		base := strings.Split(path.Base(definition), ":")[0]
+		definition = path.Join(dir, base)
+	}
+	if definition != want {
+		t.Errorf("got %q, want %q", definition, want)
 	}
 }
 
@@ -170,20 +186,20 @@ func testXDefinition(tb testing.TB, c *definitionTestCase) {
 	})
 }
 
-func doXDefinitionTest(t testing.TB, ctx context.Context, conn *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
+func doXDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
 	file, line, char, err := parsePos(pos)
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := callXDefinition(ctx, conn, uriJoin(rootURI, file), line, char)
+	xdefinition, err := callXDefinition(ctx, c, uriJoin(rootURI, file), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result != want {
-		t.Fatalf("got %q, want %q", result, want)
+	xdefinition = util.UriToPath(lsp.DocumentURI(xdefinition))
+	if xdefinition != want {
+		t.Errorf("\ngot  %q\nwant %q", xdefinition, want)
 	}
 }
-
 
 func callXDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
 	var res []lspext.SymbolLocationInformation
@@ -227,23 +243,38 @@ func testTypeDefinition(tb testing.TB, c *definitionTestCase) {
 		if err != nil {
 			log.Fatal("testTypeDefinition", err)
 		}
-		doTypeDefinitionTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+		doTypeDefinitionTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output, "")
 	})
 }
 
-func doTypeDefinitionTest(t testing.TB, ctx context.Context, conn *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
+func doTypeDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want, trimPrefix string) {
 	file, line, char, err := parsePos(pos)
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := callTypeDefinition(ctx, conn, uriJoin(rootURI, file), line, char)
+	definition, err := callTypeDefinition(ctx, c, uriJoin(rootURI, file), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result != want {
-		t.Fatalf("got %q, want %q", result, want)
+	if definition != "" {
+		definition = util.UriToPath(lsp.DocumentURI(definition))
+		if trimPrefix != "" {
+			definition = strings.TrimPrefix(definition, util.UriToPath(util.PathToURI(trimPrefix)))
+		}
+	}
+	if want != "" && !strings.Contains(path.Base(want), ":") {
+		// our want is just a path, so we only check that matches. This is
+		// used by our godef tests into GOROOT. The GOROOT changes over time,
+		// but the file for a symbol is usually pretty stable.
+		dir := path.Dir(definition)
+		base := strings.Split(path.Base(definition), ":")[0]
+		definition = path.Join(dir, base)
+	}
+	if definition != want {
+		t.Errorf("got %q, want %q", definition, want)
 	}
 }
+
 
 func callTypeDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
 	var res locations
