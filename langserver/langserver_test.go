@@ -43,12 +43,6 @@ var serverTestCases = map[string]serverTestCase{
 			"b.go": "package p; func B() { A() }",
 		},
 		cases: lspTestCases{
-			wantDefinition: map[string]string{
-				"a.go:1:17": "/src/test/pkg/a.go:1:17-1:18",
-				"a.go:1:23": "/src/test/pkg/a.go:1:17-1:18",
-				"b.go:1:17": "/src/test/pkg/b.go:1:17-1:18",
-				"b.go:1:23": "/src/test/pkg/a.go:1:17-1:18",
-			},
 			wantXDefinition: map[string]string{
 				"a.go:1:17": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
 				"a.go:1:23": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
@@ -1325,71 +1319,6 @@ func formattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 	}
 }
 
-func callDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
-	var res locations
-	err := c.Call(ctx, "textDocument/definition", lsp.TextDocumentPositionParams{
-		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
-		Position:     lsp.Position{Line: line, Character: char},
-	}, &res)
-	if err != nil {
-		return "", err
-	}
-	var str string
-	for i, loc := range res {
-		if loc.URI == "" {
-			continue
-		}
-		if i != 0 {
-			str += ", "
-		}
-		str += fmt.Sprintf("%s:%d:%d-%d:%d", loc.URI, loc.Range.Start.Line+1, loc.Range.Start.Character+1, loc.Range.End.Line+1, loc.Range.End.Character+1)
-	}
-	return str, nil
-}
-
-func callTypeDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
-	var res locations
-	err := c.Call(ctx, "textDocument/typeDefinition", lsp.TextDocumentPositionParams{
-		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
-		Position:     lsp.Position{Line: line, Character: char},
-	}, &res)
-	if err != nil {
-		return "", err
-	}
-	var str string
-	for i, loc := range res {
-		if loc.URI == "" {
-			continue
-		}
-		if i != 0 {
-			str += ", "
-		}
-		str += fmt.Sprintf("%s:%d:%d-%d:%d", loc.URI, loc.Range.Start.Line+1, loc.Range.Start.Character+1, loc.Range.End.Line+1, loc.Range.End.Character+1)
-	}
-	return str, nil
-}
-
-func callXDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
-	var res []lspext.SymbolLocationInformation
-	err := c.Call(ctx, "textDocument/xdefinition", lsp.TextDocumentPositionParams{
-		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
-		Position:     lsp.Position{Line: line, Character: char},
-	}, &res)
-	if err != nil {
-		return "", err
-	}
-	var str string
-	for i, loc := range res {
-		if loc.Location.URI == "" {
-			continue
-		}
-		if i != 0 {
-			str += ", "
-		}
-		str += fmt.Sprintf("%s:%d:%d %s", loc.Location.URI, loc.Location.Range.Start.Line+1, loc.Location.Range.Start.Character+1, loc.Symbol)
-	}
-	return str, nil
-}
 
 func callCompletion(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
 	var res lsp.CompletionList

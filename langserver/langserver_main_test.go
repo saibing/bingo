@@ -39,6 +39,10 @@ const (
 	issuePkgDir        = "test/pkg/issue"
 )
 
+var (
+	workspaceDir = ""
+)
+
 func TestMain(m *testing.M) {
 	fmt.Println("------main begin------")
 	flag.Parse()
@@ -47,6 +51,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("TestMain", err)
 	}
+
+	workspaceDir, err = os.Getwd()
+	if err != nil {
+		log.Fatal("TestMain", err)
+	}
+	workspaceDir = "file://" + workspaceDir + "/"
 
 	Init(util.PathToURI(dir))
 
@@ -195,4 +205,16 @@ func parsePos(s string) (file string, line, char int, err error) {
 		return
 	}
 	return file, line - 1, char - 1, nil // LSP is 0-indexed
+}
+
+func basicOutput(suffix string) string {
+	return genOutput(basicPkgDir, suffix)
+}
+
+func subdirectoryOutput(suffix string) string {
+	return genOutput(subdirectoryPkgDir, suffix)
+}
+
+func genOutput(pkgDir, suffix string) string {
+	return workspaceDir + pkgDir + "/" + suffix
 }
