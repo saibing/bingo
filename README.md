@@ -23,7 +23,6 @@ Bingo supports editor features as follow:
 
 
 Bingo only support go module, so you need install [Go 1.11 or above](https://golang.google.cn/dl/),
-
 to build and install the standalone `bingo` run
 
 ```bash
