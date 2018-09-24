@@ -888,23 +888,8 @@ func copyDirToOS(ctx context.Context, fs *AtomicFS, targetDir, srcDir string) er
 
 // lspTests runs all test suites for LSP functionality.
 func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, cases lspTestCases) {
-	for pos, want := range cases.wantHover {
-		tbRun(t, fmt.Sprintf("hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			hoverTest(t, ctx, c, rootURI, pos, want)
-		})
-	}
 
-	// Godef-based definition & hover testing
-	wantGodefDefinition := cases.overrideGodefDefinition
-	if len(wantGodefDefinition) == 0 {
-		wantGodefDefinition = cases.wantDefinition
-	}
-	wantGodefHover := cases.overrideGodefHover
-	if len(wantGodefHover) == 0 {
-		wantGodefHover = cases.wantHover
-	}
-
-	if len(wantGodefDefinition) > 0 || (len(wantGodefHover) > 0 && h != nil) || len(cases.wantCompletion) > 0 {
+	if len(cases.wantCompletion) > 0 {
 		h.config.UseBinaryPkgCache = true
 
 		// Copy the VFS into a temp directory, which will be our $GOPATH.
@@ -939,20 +924,6 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 			return strings.TrimPrefix(osPath, util.UriToPath(util.PathToURI(tmpDir)))
 		}
 
-		// Run the tests.
-		for pos, want := range wantGodefDefinition {
-			if strings.HasPrefix(want, "/goroot") {
-				want = strings.Replace(want, "/goroot", path.Clean(util.UriToPath(util.PathToURI(build.Default.GOROOT))), 1)
-			}
-			tbRun(t, fmt.Sprintf("godef-definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				definitionTest(t, ctx, c, util.PathToURI(tmpRootPath), pos, want, tmpDir)
-			})
-		}
-		for pos, want := range wantGodefHover {
-			tbRun(t, fmt.Sprintf("godef-hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				hoverTest(t, ctx, c, util.PathToURI(tmpRootPath), pos, want)
-			})
-		}
 		for pos, want := range cases.wantCompletion {
 			tbRun(t, fmt.Sprintf("completion-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 				completionTest(t, ctx, c, util.PathToURI(tmpRootPath), pos, want)
@@ -960,30 +931,6 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 		}
 
 		h.config.UseBinaryPkgCache = false
-	}
-
-	for pos, want := range cases.wantDefinition {
-		tbRun(t, fmt.Sprintf("definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			definitionTest(t, ctx, c, rootURI, pos, want, "")
-		})
-	}
-
-	for pos, want := range cases.wantTypeDefinition {
-		tbRun(t, fmt.Sprintf("typedefinition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			typeDefinitionTest(t, ctx, c, rootURI, pos, want, "")
-		})
-	}
-
-	for pos, want := range cases.wantXDefinition {
-		tbRun(t, fmt.Sprintf("xdefinition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			xdefinitionTest(t, ctx, c, rootURI, pos, want)
-		})
-	}
-
-	for pos, want := range cases.wantReferences {
-		tbRun(t, fmt.Sprintf("references-%s", pos), func(t testing.TB) {
-			referencesTest(t, ctx, c, rootURI, pos, want)
-		})
 	}
 
 	for pos, want := range cases.wantImplementation {
@@ -1027,91 +974,6 @@ func uriJoin(base lsp.DocumentURI, file string) lsp.DocumentURI {
 	return lsp.DocumentURI(string(base) + "/" + file)
 }
 
-func hoverTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
-	file, line, char, err := parsePos(pos)
-	if err != nil {
-		t.Fatal(err)
-	}
-	hover, err := callHover(ctx, c, uriJoin(rootURI, file), line, char)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if hover != want {
-		t.Fatalf("got %q, want %q", hover, want)
-	}
-}
-
-func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want, trimPrefix string) {
-	file, line, char, err := parsePos(pos)
-	if err != nil {
-		t.Fatal(err)
-	}
-	definition, err := callDefinition(ctx, c, uriJoin(rootURI, file), line, char)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if definition != "" {
-		definition = util.UriToPath(lsp.DocumentURI(definition))
-		if trimPrefix != "" {
-			definition = strings.TrimPrefix(definition, util.UriToPath(util.PathToURI(trimPrefix)))
-		}
-	}
-	if want != "" && !strings.Contains(path.Base(want), ":") {
-		// our want is just a path, so we only check that matches. This is
-		// used by our godef tests into GOROOT. The GOROOT changes over time,
-		// but the file for a symbol is usually pretty stable.
-		dir := path.Dir(definition)
-		base := strings.Split(path.Base(definition), ":")[0]
-		definition = path.Join(dir, base)
-	}
-	if definition != want {
-		t.Errorf("got %q, want %q", definition, want)
-	}
-}
-
-func typeDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want, trimPrefix string) {
-	file, line, char, err := parsePos(pos)
-	if err != nil {
-		t.Fatal(err)
-	}
-	definition, err := callTypeDefinition(ctx, c, uriJoin(rootURI, file), line, char)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if definition != "" {
-		definition = util.UriToPath(lsp.DocumentURI(definition))
-		if trimPrefix != "" {
-			definition = strings.TrimPrefix(definition, util.UriToPath(util.PathToURI(trimPrefix)))
-		}
-	}
-	if want != "" && !strings.Contains(path.Base(want), ":") {
-		// our want is just a path, so we only check that matches. This is
-		// used by our godef tests into GOROOT. The GOROOT changes over time,
-		// but the file for a symbol is usually pretty stable.
-		dir := path.Dir(definition)
-		base := strings.Split(path.Base(definition), ":")[0]
-		definition = path.Join(dir, base)
-	}
-	if definition != want {
-		t.Errorf("got %q, want %q", definition, want)
-	}
-}
-
-func xdefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
-	file, line, char, err := parsePos(pos)
-	if err != nil {
-		t.Fatal(err)
-	}
-	xdefinition, err := callXDefinition(ctx, c, uriJoin(rootURI, file), line, char)
-	if err != nil {
-		t.Fatal(err)
-	}
-	xdefinition = util.UriToPath(lsp.DocumentURI(xdefinition))
-	if xdefinition != want {
-		t.Errorf("\ngot  %q\nwant %q", xdefinition, want)
-	}
-}
-
 func completionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
 	file, line, char, err := parsePos(pos)
 	if err != nil {
@@ -1123,25 +985,6 @@ func completionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 	}
 	if completion != want {
 		t.Fatalf("got %q, want %q", completion, want)
-	}
-}
-
-func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos string, want []string) {
-	file, line, char, err := parsePos(pos)
-	if err != nil {
-		t.Fatal(err)
-	}
-	references, err := callReferences(ctx, c, uriJoin(rootURI, file), line, char)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i := range references {
-		references[i] = util.UriToPath(lsp.DocumentURI(references[i]))
-	}
-	sort.Strings(references)
-	sort.Strings(want)
-	if !reflect.DeepEqual(references, want) {
-		t.Errorf("\ngot\n\t%q\nwant\n\t%q", references, want)
 	}
 }
 
@@ -1253,24 +1096,6 @@ func callCompletion(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, 
 	return str, nil
 }
 
-func callReferences(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) ([]string, error) {
-	var res locations
-	err := c.Call(ctx, "textDocument/references", lsp.ReferenceParams{
-		Context: lsp.ReferenceContext{IncludeDeclaration: true},
-		TextDocumentPositionParams: lsp.TextDocumentPositionParams{
-			TextDocument: lsp.TextDocumentIdentifier{URI: uri},
-			Position:     lsp.Position{Line: line, Character: char},
-		},
-	}, &res)
-	if err != nil {
-		return nil, err
-	}
-	str := make([]string, len(res))
-	for i, loc := range res {
-		str[i] = fmt.Sprintf("%s:%d:%d", loc.URI, loc.Range.Start.Line+1, loc.Range.Start.Character+1)
-	}
-	return str, nil
-}
 
 func callImplementation(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) ([]string, error) {
 	var res []lspext.ImplementationLocation
