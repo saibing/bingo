@@ -1,0 +1,1 @@
+package p; type I0 interface { M0() }

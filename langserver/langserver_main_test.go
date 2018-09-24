@@ -26,18 +26,19 @@ const (
 	rootDir        = "test/pkg"
 	rootImportPath = "github.com/saibing/bingo/langserver/test/pkg"
 
-	basicPkgDir        = "test/pkg/basic"
-	detailedPkgDir     = "test/pkg/detailed"
-	xtestPkgDir        = "test/pkg/xtest"
-	testPkgDir         = "test/pkg/test"
-	subdirectoryPkgDir = "test/pkg/subdirectory"
-	multiplePkgDir     = "test/pkg/multiple"
-	gorootPkgDir       = "test/pkg/goroot"
-	goprojectPkgDir    = "test/pkg/goproject"
-	gomodulePkgDir     = "test/pkg/gomodule"
-	hoverDocsPkgDir    = "test/pkg/docs"
-	issuePkgDir        = "test/pkg/issue"
-	lookupPkgDir       = "test/pkg/lookup"
+	basicPkgDir           = "test/pkg/basic"
+	detailedPkgDir        = "test/pkg/detailed"
+	xtestPkgDir           = "test/pkg/xtest"
+	testPkgDir            = "test/pkg/test"
+	subdirectoryPkgDir    = "test/pkg/subdirectory"
+	multiplePkgDir        = "test/pkg/multiple"
+	gorootPkgDir          = "test/pkg/goroot"
+	goprojectPkgDir       = "test/pkg/goproject"
+	gomodulePkgDir        = "test/pkg/gomodule"
+	hoverDocsPkgDir       = "test/pkg/docs"
+	issuePkgDir           = "test/pkg/issue"
+	lookupPkgDir          = "test/pkg/lookup"
+	implementationsPkgDir = "test/pkg/implementations"
 )
 
 var (
@@ -216,7 +217,6 @@ func testOutput(suffix string) string {
 	return genOutput(testPkgDir, suffix)
 }
 
-
 func subdirectoryOutput(suffix string) string {
 	return genOutput(subdirectoryPkgDir, suffix)
 }
@@ -244,6 +244,10 @@ func gomoduleOutput(suffix string) string {
 
 func lookupOutput(suffix string) string {
 	return genOutput(lookupPkgDir, suffix)
+}
+
+func implementationsOutput(suffix string) string {
+	return genOutput(implementationsPkgDir, suffix)
 }
 
 func genOutput(pkgDir, suffix string) string {

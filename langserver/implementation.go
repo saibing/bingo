@@ -4,18 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/caches"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"golang.org/x/tools/go/packages"
 	"sort"
 
 	"github.com/saibing/bingo/langserver/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
-	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/refactor/importgraph"
 )
 
 func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]*lspext.ImplementationLocation, error) {
@@ -27,7 +27,7 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 	}
 
 	// Do initial cached, standard typecheck pass to get position arg.
-	fset0, _, _, _, pkg, pos0, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, start, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
@@ -37,32 +37,16 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 		return nil, err
 	}
 
-	// Now typecheck again, but with a larger analysis scope.
-	lconf := loader.Config{
-		Build: h.BuildContext(ctx),
-	}
-
-	// Inspect the forward and reverse transitive closure of the selected package. (In theory even
-	// this is incomplete.)
-	_, rev, _ := importgraph.Build(lconf.Build)
-	for path := range rev.Search(pkg.Pkg.Path()) {
-		lconf.ImportWithTests(path)
-	}
-	// Type-check the program.
-	lprog, err := lconf.Load()
-	if err != nil {
-		return nil, err
-	}
-	pos := posForFileOffset(lconf.Fset, fset0.Position(*pos0).Filename, fset0.Position(*pos0).Offset)
-	pkg, path, _ := lprog.PathEnclosingInterval(pos, pos)
+	pos := posForFileOffset(pkg.Fset, pkg.Fset.Position(start).Filename, pkg.Fset.Position(start).Offset)
+	path, _, _ := getPathNode(pkg, pos, pos)
 	path, action := findInterestingNode(pkg, path)
 
-	return implements(lconf.Fset, lprog, pkg, path, action)
+	return implements(h.packageCache, pkg, path, action)
 }
 
 // Adapted from golang.org/x/tools/cmd/guru (Copyright (c) 2013 The Go Authors). All rights
 // reserved. See NOTICE for full license.
-func implements(fset *token.FileSet, lprog *loader.Program, pkgInfo *loader.PackageInfo, path []ast.Node, action action) ([]*lspext.ImplementationLocation, error) {
+func implements(packageCache *caches.PackageCache, pkg *packages.Package, path []ast.Node, action action) ([]*lspext.ImplementationLocation, error) {
 	var method *types.Func
 	var T types.Type // selected type (receiver if method != nil)
 
@@ -70,7 +54,7 @@ func implements(fset *token.FileSet, lprog *loader.Program, pkgInfo *loader.Pack
 	case actionExpr:
 		// method?
 		if id, ok := path[0].(*ast.Ident); ok {
-			if obj, ok := pkgInfo.ObjectOf(id).(*types.Func); ok {
+			if obj, ok := pkg.TypesInfo.ObjectOf(id).(*types.Func); ok {
 				recv := obj.Type().(*types.Signature).Recv()
 				if recv == nil {
 					return nil, errors.New("this function is not a method")
@@ -82,11 +66,11 @@ func implements(fset *token.FileSet, lprog *loader.Program, pkgInfo *loader.Pack
 
 		// If not a method, use the expression's type.
 		if T == nil {
-			T = pkgInfo.TypeOf(path[0].(ast.Expr))
+			T = pkg.TypesInfo.TypeOf(path[0].(ast.Expr))
 		}
 
 	case actionType:
-		T = pkgInfo.TypeOf(path[0].(ast.Expr))
+		T = pkg.TypesInfo.TypeOf(path[0].(ast.Expr))
 	}
 	if T == nil {
 		return nil, errors.New("not a type, method, or value")
@@ -97,15 +81,24 @@ func implements(fset *token.FileSet, lprog *loader.Program, pkgInfo *loader.Pack
 	// We ignore aliases 'type M = N' to avoid duplicate
 	// reporting of the Named type N.
 	var allNamed []*types.Named
-	for _, info := range lprog.AllPackages {
-		for _, obj := range info.Defs {
+
+	f := func(p *packages.Package) error {
+		for _, obj := range p.TypesInfo.Defs {
 			if obj, ok := obj.(*types.TypeName); ok && !isAlias(obj) {
 				if named, ok := obj.Type().(*types.Named); ok {
 					allNamed = append(allNamed, named)
 				}
 			}
 		}
+
+		return nil
 	}
+
+	err := packageCache.Iterate(f)
+	if err != nil {
+		return nil, err
+	}
+
 	allNamed = append(allNamed, types.Universe.Lookup("error").Type().(*types.Named))
 
 	var msets typeutil.MethodSetCache
@@ -184,7 +177,7 @@ func implements(fset *token.FileSet, lprog *loader.Program, pkgInfo *loader.Pack
 		pos := obj.Pos()
 		end := obj.Pos() + token.Pos(len(obj.Name()))
 		return &lspext.ImplementationLocation{
-			Location: goRangeToLSPLocation(fset, pos, end),
+			Location: goRangeToLSPLocation(pkg.Fset, pos, end),
 			Method:   method != nil,
 		}
 	}

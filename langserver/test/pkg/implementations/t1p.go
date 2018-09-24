@@ -1,0 +1,1 @@
+package p; type T1P struct {}; func (*T1P) M1() {}
