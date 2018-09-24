@@ -51,10 +51,10 @@ func TestDefinition(t *testing.T) {
 	})
 
 	t.Run("go module", func(t *testing.T) {
-		test(t, gomodulePkgDir, "a.go:1:57", gomoduleOutput("d.go:1:19-1:20"))
-		test(t, gomodulePkgDir, "b.go:1:63", gomoduleOutput("subp/d.go:1:20-1:21"))
-		test(t, gomodulePkgDir, "c.go:1:63", gomoduleOutput("dep1/d1.go:1:58-1:60"))
-		test(t, gomodulePkgDir, "c.go:1:68", gomoduleOutput("dep2/d2.go:1:32-1:34"))
+		test(t, gomodulePkgDir, "a.go:1:57", gomoduleDepOutput("d.go:1:19-1:20"))
+		test(t, gomodulePkgDir, "b.go:1:63", gomoduleDepOutput("subp/d.go:1:20-1:21"))
+		test(t, gomodulePkgDir, "c.go:1:63", gomoduleDepOutput("dep1/d1.go:1:58-1:60"))
+		test(t, gomodulePkgDir, "c.go:1:68", gomoduleDepOutput("dep2/d2.go:1:32-1:34"))
 	})
 
 	t.Run("type definition lookup", func(t *testing.T) {
@@ -164,10 +164,10 @@ func TestXDefinition(t *testing.T) {
 	})
 
 	t.Run("go module", func(t *testing.T) {
-		test(t, gomodulePkgDir, "a.go:1:57", gomoduleOutput("d.go:1:19 id:github.com/saibing/dep/-/D name:D package:github.com/saibing/dep packageName:dep recv: vendor:false"))
-		test(t, gomodulePkgDir, "b.go:1:63", gomoduleOutput("subp/d.go:1:20 id:github.com/saibing/dep/subp/-/D name:D package:github.com/saibing/dep/subp packageName:subp recv: vendor:false"))
-		test(t, gomodulePkgDir, "c.go:1:63", gomoduleOutput("dep1/d1.go:1:58 id:github.com/saibing/dep/dep1/-/D1 name:D1 package:github.com/saibing/dep/dep1 packageName:dep1 recv: vendor:false"))
-		test(t, gomodulePkgDir, "c.go:1:68", gomoduleOutput("dep2/d2.go:1:32 id:github.com/saibing/dep/dep2/-/D2/D2 name:D2 package:github.com/saibing/dep/dep2 packageName:dep2 recv:D2 vendor:false"))
+		test(t, gomodulePkgDir, "a.go:1:57", gomoduleDepOutput("d.go:1:19 id:github.com/saibing/dep/-/D name:D package:github.com/saibing/dep packageName:dep recv: vendor:false"))
+		test(t, gomodulePkgDir, "b.go:1:63", gomoduleDepOutput("subp/d.go:1:20 id:github.com/saibing/dep/subp/-/D name:D package:github.com/saibing/dep/subp packageName:subp recv: vendor:false"))
+		test(t, gomodulePkgDir, "c.go:1:63", gomoduleDepOutput("dep1/d1.go:1:58 id:github.com/saibing/dep/dep1/-/D1 name:D1 package:github.com/saibing/dep/dep1 packageName:dep1 recv: vendor:false"))
+		test(t, gomodulePkgDir, "c.go:1:68", gomoduleDepOutput("dep2/d2.go:1:32 id:github.com/saibing/dep/dep2/-/D2/D2 name:D2 package:github.com/saibing/dep/dep2 packageName:dep2 recv:D2 vendor:false"))
 	})
 
 	t.Run("type definition lookup", func(t *testing.T) {

@@ -340,15 +340,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:34": "1:20-1:34 github.com/d/dep module ",
 				"a.go:1:51": "1:51-1:51 D function func()",
 			},
-			wantReferences: map[string][]string{
-				"a.go:1:51": {
-					"/src/test/pkg/a.go:1:51",
-					"/src/test/pkg/a.go:1:66",
-					// Do not include "refs" from the dependency
-					// package itself; only return results in the
-					// workspace.
-				},
-			},
 			wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 				{Query: lspext.SymbolDescriptor{}}: {
 					"/src/test/pkg/a.go:1:19-1:37 -> id:github.com/d/dep name: package:github.com/d/dep packageName:dep recv: vendor:false",

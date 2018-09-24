@@ -240,9 +240,13 @@ func goprojectOutput(suffix string) string {
 	return genOutput(goprojectPkgDir, suffix)
 }
 
-func gomoduleOutput(suffix string) string {
+func gomoduleDepOutput(suffix string) string {
 	depPath := filepath.Join(gopathDir, "pkg/mod/github.com/saibing/dep@v1.0.2")
 	return depPath + "/" + suffix
+}
+
+func gomoduleOutput(suffix string) string {
+	return genOutput(gomodulePkgDir, suffix)
 }
 
 func lookupOutput(suffix string) string {

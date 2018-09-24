@@ -49,12 +49,9 @@ func TestReferences(t *testing.T) {
 		test(t, goprojectPkgDir, "b/b.go:1:87", []string{goprojectOutput("b/b.go:1:19"), goprojectOutput("b/b.go:1:87")})
 	})
 
-	/*t.Run("go module", func(t *testing.T) {
-		test(t, gomodulePkgDir, "a.go:1:57", "func D()")
-		test(t, gomodulePkgDir, "b.go:1:63", "func D()")
-		test(t, gomodulePkgDir, "c.go:1:63", "func D1() D2")
-		test(t, gomodulePkgDir, "c.go:1:68", "struct field D2 int")
-	})*/
+	t.Run("go module", func(t *testing.T) {
+		test(t, gomodulePkgDir, "a.go:1:57", []string{gomoduleOutput("a.go:1:57"), gomoduleOutput("a.go:1:72")})
+	})
 }
 
 type referencesTestCase struct {
