@@ -142,18 +142,18 @@ func TestXDefinition(t *testing.T) {
 	}
 
 	t.Run("basic definition", func(t *testing.T) {
-		test(t, basicPkgDir, "a.go:1:17", basicOutput("a.go:1:17-1:18"))
-		test(t, basicPkgDir, "a.go:1:23", basicOutput("a.go:1:17-1:18"))
-		test(t, basicPkgDir, "b.go:1:17", basicOutput("b.go:1:17-1:18"))
-		test(t, basicPkgDir, "b.go:1:23", basicOutput("a.go:1:17-1:18"))
+		test(t, basicPkgDir, "a.go:1:17", basicOutput("a.go:1:17 id:github.com/saibing/bingo/langserver/test/pkg/basic/-/A name:A package:github.com/saibing/bingo/langserver/test/pkg/basic packageName:p recv: vendor:false"))
+		test(t, basicPkgDir, "a.go:1:23", basicOutput("a.go:1:17 id:github.com/saibing/bingo/langserver/test/pkg/basic/-/A name:A package:github.com/saibing/bingo/langserver/test/pkg/basic packageName:p recv: vendor:false"))
+		test(t, basicPkgDir, "b.go:1:17", basicOutput("b.go:1:17 id:github.com/saibing/bingo/langserver/test/pkg/basic/-/B name:B package:github.com/saibing/bingo/langserver/test/pkg/basic packageName:p recv: vendor:false"))
+		test(t, basicPkgDir, "b.go:1:23", basicOutput("a.go:1:17 id:github.com/saibing/bingo/langserver/test/pkg/basic/-/A name:A package:github.com/saibing/bingo/langserver/test/pkg/basic packageName:p recv: vendor:false"))
 	})
 
 	t.Run("subdirectory definition", func(t *testing.T) {
-		test(t, subdirectoryPkgDir, "a.go:1:17", subdirectoryOutput("a.go:1:17-1:18"))
-		test(t, subdirectoryPkgDir, "a.go:1:23", subdirectoryOutput("a.go:1:17-1:18"))
-		test(t, subdirectoryPkgDir, "d2/b.go:1:98", subdirectoryOutput("d2/b.go:1:98-1:99"))
-		test(t, subdirectoryPkgDir, "d2/b.go:1:106", subdirectoryOutput("a.go:1:17-1:18"))
-		test(t, subdirectoryPkgDir, "d2/b.go:1:111", subdirectoryOutput("d2/b.go:1:98-1:99"))
+		test(t, subdirectoryPkgDir, "a.go:1:17", subdirectoryOutput("a.go:1:17 id:github.com/saibing/bingo/langserver/test/pkg/subdirectory/-/A name:A package:github.com/saibing/bingo/langserver/test/pkg/subdirectory packageName:d recv: vendor:false"))
+		test(t, subdirectoryPkgDir, "a.go:1:23", subdirectoryOutput("a.go:1:17 id:github.com/saibing/bingo/langserver/test/pkg/subdirectory/-/A name:A package:github.com/saibing/bingo/langserver/test/pkg/subdirectory packageName:d recv: vendor:false"))
+		test(t, subdirectoryPkgDir, "d2/b.go:1:86", subdirectoryOutput("d2/b.go:1:86 id:github.com/saibing/bingo/langserver/test/pkg/subdirectory/d2/-/B name:B package:github.com/saibing/bingo/langserver/test/pkg/subdirectory/d2 packageName:d2 recv: vendor:false"))
+		test(t, subdirectoryPkgDir, "d2/b.go:1:94", subdirectoryOutput("a.go:1:17 id:github.com/saibing/bingo/langserver/test/pkg/subdirectory/-/A name:A package:github.com/saibing/bingo/langserver/test/pkg/subdirectory packageName:d recv: vendor:false"))
+		test(t, subdirectoryPkgDir, "d2/b.go:1:99", subdirectoryOutput("d2/b.go:1:86 id:github.com/saibing/bingo/langserver/test/pkg/subdirectory/d2/-/B name:B package:github.com/saibing/bingo/langserver/test/pkg/subdirectory/d2 packageName:d2 recv: vendor:false"))
 	})
 
 	t.Run("multiple packages in dir", func(t *testing.T) {
