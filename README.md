@@ -22,7 +22,7 @@ Bingo supports editor features as follow:
 - [ ] workspace/xreferences
 
 
-Bingo only support go module, so you need install [Go 1.11 or above](https://golang.org),
+Bingo only support go module, so you need install [Go 1.11 or above](https://golang.google.cn/dl/),
 
 to build and install the standalone `bingo` run
 
