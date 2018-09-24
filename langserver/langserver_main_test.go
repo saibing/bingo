@@ -41,8 +41,8 @@ const (
 )
 
 var (
-	workspaceDir = ""
-	gopathDir = ""
+	currentWorkDir = ""
+	gopathDir      = ""
 )
 
 func TestMain(m *testing.M) {
@@ -54,11 +54,11 @@ func TestMain(m *testing.M) {
 		log.Fatal("TestMain", err)
 	}
 
-	workspaceDir, err = os.Getwd()
+	currentWorkDir, err = os.Getwd()
 	if err != nil {
 		log.Fatal("TestMain", err)
 	}
-	workspaceDir += "/"
+	currentWorkDir += "/"
 
 	gopathDir = getGOPATH()
 
@@ -114,13 +114,6 @@ func Init(root lsp.DocumentURI) {
 	}, nil); err != nil {
 		log.Fatal("conn.Call", err)
 	}
-
-	//h.Mu.Lock()
-	//h.FS.Bind(rootFSPath, mapFS(test.fs), "/", ctxvfs.BindReplace)
-	//for mountDir, fs := range test.mountFS {
-	//	h.FS.Bind(mountDir, mapFS(fs), "/", ctxvfs.BindAfter)
-	//}
-	//h.Mu.Unlock()
 }
 
 func startLanguageServer(h jsonrpc2.Handler) (addr string, done func()) {
@@ -254,7 +247,7 @@ func lookupOutput(suffix string) string {
 }
 
 func genOutput(pkgDir, suffix string) string {
-	return workspaceDir + pkgDir + "/" + suffix
+	return currentWorkDir + pkgDir + "/" + suffix
 }
 
 func getGOPATH() string {
