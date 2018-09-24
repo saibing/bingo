@@ -87,6 +87,19 @@ func (c *PackageCache) Load(pkgDir string) (*packages.Package, error) {
 	return pkgList[0], nil
 }
 
+func (c *PackageCache) Iterate(visit func (p *packages.Package) error) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	for _, pkg := range c.pool {
+		if err := visit(pkg); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *PackageCache) pushWithLock(pkgList []*packages.Package) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
