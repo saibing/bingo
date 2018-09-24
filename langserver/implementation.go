@@ -41,7 +41,7 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 	lconf := loader.Config{
 		Build: h.BuildContext(ctx),
 	}
-	allowErrors(&lconf)
+
 	// Inspect the forward and reverse transitive closure of the selected package. (In theory even
 	// this is incomplete.)
 	_, rev, _ := importgraph.Build(lconf.Build)

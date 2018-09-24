@@ -1,17 +1,13 @@
 package langserver
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/build"
-	"go/parser"
 	"go/token"
 	"go/types"
-	"io"
 	"math"
 	"strings"
 	"sync"
@@ -20,15 +16,9 @@ import (
 	"github.com/saibing/bingo/langserver/internal/caches"
 	"golang.org/x/tools/go/packages"
 
-	"golang.org/x/tools/go/buildutil"
-	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/refactor/importgraph"
-
-	"github.com/opentracing/opentracing-go"
 	"github.com/saibing/bingo/langserver/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
-	"github.com/saibing/bingo/pkg/tools"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -134,69 +124,6 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	}
 
 	return locs, nil
-}
-
-// reverseImportGraph returns the reversed import graph for the workspace
-// under the RootPath. Computing the reverse import graph is IO intensive, as
-// such we may send down more than one import graph. The later a graph is
-// sent, the more accurate it is. The channel will be closed, and the last
-// graph sent is accurate. The reader does not have to read all the values.
-func (h *LangHandler) reverseImportGraph(ctx context.Context, conn jsonrpc2.JSONRPC2) <-chan importgraph.Graph {
-	// Ensure our buffer is big enough to prevent deadlock
-	c := make(chan importgraph.Graph, 2)
-
-	go func() {
-		// This should always be related to the go import path for
-		// this repo. For sourcegraph.com this means we share the
-		// import graph across commits. We want this behaviour since
-		// we assume that they don't change drastically across
-		// commits.
-		cacheKey := "importgraph:" + string(h.init.Root())
-
-		h.mu.Lock()
-		tryCache := h.importGraph == nil
-		once := h.importGraphOnce
-		h.mu.Unlock()
-		if tryCache {
-			g := make(importgraph.Graph)
-			if hit := h.cacheGet(ctx, conn, cacheKey, g); hit {
-				// \o/
-				c <- g
-			}
-		}
-
-		parentCtx := ctx
-		once.Do(func() {
-			// Note: We use a background context since this
-			// operation should not be cancelled due to an
-			// individual request.
-			span := startSpanFollowsFromContext(parentCtx, "BuildReverseImportGraph")
-			ctx := opentracing.ContextWithSpan(context.Background(), span)
-			defer span.Finish()
-
-			bctx := h.BuildContext(ctx)
-			findPackageWithCtx := h.getFindPackageFunc()
-			findPackage := func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
-				return findPackageWithCtx(ctx, bctx, importPath, fromDir, mode)
-			}
-			g := tools.BuildReverseImportGraph(bctx, findPackage, h.FilePath(h.init.Root()))
-			h.mu.Lock()
-			h.importGraph = g
-			h.mu.Unlock()
-
-			// Update cache in background
-			go h.cacheSet(ctx, conn, cacheKey, g)
-		})
-		h.mu.Lock()
-		// TODO(keegancsmith) h.importGraph may have been reset after once
-		importGraph := h.importGraph
-		h.mu.Unlock()
-		c <- importGraph
-
-		close(c)
-	}()
-
-	return c
 }
 
 // refStreamAndCollect returns all refs read in from chan until it is
@@ -335,39 +262,6 @@ func findReferences(ctx context.Context, fset *token.FileSet, packageCache *cach
 	return nil
 }
 
-
-// classify classifies objects by how far
-// we have to look to find references to them.
-func classify(obj types.Object) (global, pkglevel bool) {
-	if obj.Exported() {
-		if obj.Parent() == nil {
-			// selectable object (field or method)
-			return true, false
-		}
-		if obj.Parent() == obj.Pkg().Scope() {
-			// lexical object (package-level var/const/func/type)
-			return true, true
-		}
-	}
-	// object with unexported named or defined in local scope
-	return false, false
-}
-
-// allowErrors causes type errors to be silently ignored.
-// (Not suitable if SSA construction follows.)
-//
-// NOTICE: Adapted from golang.org/x/tools.
-func allowErrors(lconf *loader.Config) {
-	ctxt := *lconf.Build // copy
-	ctxt.CgoEnabled = false
-	lconf.Build = &ctxt
-	lconf.AllowErrors = true
-	// AllErrors makes the parser always return an AST instead of
-	// bailing out after 10 errors and returning an empty ast.File.
-	lconf.ParserMode = parser.AllErrors
-	lconf.TypeChecker.Error = func(err error) {}
-}
-
 // findObject returns the object defined at the specified position.
 func findObject(fset *token.FileSet, info *types.Info, objposn token.Position) types.Object {
 	good := func(obj types.Object) bool {
@@ -390,16 +284,6 @@ func findObject(fset *token.FileSet, info *types.Info, objposn token.Position) t
 	return nil
 }
 
-func usesOf(queryObj types.Object, info *loader.PackageInfo) []*ast.Ident {
-	var refs []*ast.Ident
-	for id, obj := range info.Uses {
-		if sameObj(queryObj, obj) {
-			refs = append(refs, id)
-		}
-	}
-	return refs
-}
-
 // same reports whether x and y are identical, or both are PkgNames
 // that import the same Package.
 func sameObj(x, y types.Object) bool {
@@ -412,22 +296,4 @@ func sameObj(x, y types.Object) bool {
 		}
 	}
 	return false
-}
-
-// readFile is like ioutil.ReadFile, but
-// it goes through the virtualized build.Context.
-// If non-nil, buf must have been reset.
-func readFile(ctxt *build.Context, filename string, buf *bytes.Buffer) ([]byte, error) {
-	rc, err := buildutil.OpenFile(ctxt, filename)
-	if err != nil {
-		return nil, err
-	}
-	defer rc.Close()
-	if buf == nil {
-		buf = new(bytes.Buffer)
-	}
-	if _, err := io.Copy(buf, rc); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
