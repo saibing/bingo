@@ -50,9 +50,9 @@ func TestHover(t *testing.T) {
 	t.Run("subdirectory hover", func(t *testing.T) {
 		test(t, subdirectoryPkgDir, "a.go:1:17", "func A()")
 		test(t, subdirectoryPkgDir, "a.go:1:23", "func A()")
-		test(t, subdirectoryPkgDir, "d2/b.go:1:98", "func B()")
-		test(t, subdirectoryPkgDir, "d2/b.go:1:106", "func A()")
-		test(t, subdirectoryPkgDir, "d2/b.go:1:111", "func B()")
+		test(t, subdirectoryPkgDir, "d2/b.go:1:86", "func B()")
+		test(t, subdirectoryPkgDir, "d2/b.go:1:94", "func A()")
+		test(t, subdirectoryPkgDir, "d2/b.go:1:99", "func B()")
 	})
 
 	t.Run("multiple packages in dir", func(t *testing.T) {
@@ -66,7 +66,7 @@ func TestHover(t *testing.T) {
 
 	t.Run("go project", func(t *testing.T) {
 		test(t, goprojectPkgDir, "a/a.go:1:17", "func A()")
-		test(t, goprojectPkgDir, "b/b.go:1:101", "func A()")
+		test(t, goprojectPkgDir, "b/b.go:1:89", "func A()")
 	})
 
 	t.Run("go module", func(t *testing.T) {

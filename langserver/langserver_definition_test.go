@@ -30,9 +30,9 @@ func TestDefinition(t *testing.T) {
 	t.Run("subdirectory definition", func(t *testing.T) {
 		test(t, subdirectoryPkgDir, "a.go:1:17", subdirectoryOutput("a.go:1:17-1:18"))
 		test(t, subdirectoryPkgDir, "a.go:1:23", subdirectoryOutput("a.go:1:17-1:18"))
-		test(t, subdirectoryPkgDir, "d2/b.go:1:98", subdirectoryOutput("d2/b.go:1:98-1:99"))
-		test(t, subdirectoryPkgDir, "d2/b.go:1:106", subdirectoryOutput("a.go:1:17-1:18"))
-		test(t, subdirectoryPkgDir, "d2/b.go:1:111", subdirectoryOutput("d2/b.go:1:98-1:99"))
+		test(t, subdirectoryPkgDir, "d2/b.go:1:86", subdirectoryOutput("d2/b.go:1:86-1:87"))
+		test(t, subdirectoryPkgDir, "d2/b.go:1:94", subdirectoryOutput("a.go:1:17-1:18"))
+		test(t, subdirectoryPkgDir, "d2/b.go:1:99", subdirectoryOutput("d2/b.go:1:86-1:87"))
 	})
 
 	t.Run("multiple packages in dir", func(t *testing.T) {
@@ -46,7 +46,7 @@ func TestDefinition(t *testing.T) {
 
 	t.Run("go project", func(t *testing.T) {
 		test(t, goprojectPkgDir, "a/a.go:1:17", goprojectOutput("a/a.go:1:17-1:18"))
-		test(t, goprojectPkgDir, "b/b.go:1:101", goprojectOutput("a/a.go:1:17-1:18"))
+		test(t, goprojectPkgDir, "b/b.go:1:89", goprojectOutput("a/a.go:1:17-1:18"))
 	})
 
 	t.Run("go module", func(t *testing.T) {
@@ -57,7 +57,7 @@ func TestDefinition(t *testing.T) {
 	})
 
 	t.Run("type definition lookup", func(t *testing.T) {
-		test(t, lookupPkgDir, "b/b.go:1:127", lookupOutput("b/b.go:1:107-1:108"))
+		test(t, lookupPkgDir, "b/b.go:1:115", lookupOutput("b/b.go:1:95-1:96"))
 	})
 }
 
