@@ -43,12 +43,6 @@ var serverTestCases = map[string]serverTestCase{
 			"b.go": "package p; func B() { A() }",
 		},
 		cases: lspTestCases{
-			wantXDefinition: map[string]string{
-				"a.go:1:17": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
-				"a.go:1:23": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
-				"b.go:1:17": "/src/test/pkg/b.go:1:17 id:test/pkg/-/B name:B package:test/pkg packageName:p recv: vendor:false",
-				"b.go:1:23": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
-			},
 			wantCompletion: map[string]string{
 				//"a.go:1:24": "1:23-1:24 A function func()", // returns empty list for unknown reason. Works if the two statements are in separate lines
 				"b.go:1:24": "1:23-1:24 A function func()",
@@ -237,13 +231,6 @@ var serverTestCases = map[string]serverTestCase{
 			"d2/b.go": `package d2; import "test/pkg/d"; func B() { d.A(); B() }`,
 		},
 		cases: lspTestCases{
-			wantXDefinition: map[string]string{
-				"a.go:1:17":    "/src/test/pkg/d/a.go:1:17 id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
-				"a.go:1:23":    "/src/test/pkg/d/a.go:1:17 id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
-				"d2/b.go:1:39": "/src/test/pkg/d/d2/b.go:1:39 id:test/pkg/d/d2/-/B name:B package:test/pkg/d/d2 packageName:d2 recv: vendor:false",
-				"d2/b.go:1:47": "/src/test/pkg/d/a.go:1:17 id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
-				"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39 id:test/pkg/d/d2/-/B name:B package:test/pkg/d/d2 packageName:d2 recv: vendor:false",
-			},
 			wantCompletion: map[string]string{
 				"d2/b.go:1:47": "1:47-1:47 A function func()",
 				//"d2/b.go:1:52": "1:52-1:52 d module , B function func()", // B not presented, see test case "go simple"
@@ -326,10 +313,6 @@ var serverTestCases = map[string]serverTestCase{
 package main; import "test/pkg"; func B() { p.A(); B() }`,
 		},
 		cases: lspTestCases{
-			wantXDefinition: map[string]string{
-				"a.go:1:17": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
-				"a.go:1:23": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
-			},
 			wantSymbols: map[string][]string{
 				"a.go": {"/src/test/pkg/a.go:function:A:1:17"},
 			},
@@ -352,9 +335,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			wantXDefinition: map[string]string{
-				"a.go:1:40": "/goroot/src/fmt/print.go:1:19 id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
-			},
 			wantCompletion: map[string]string{
 				// use default GOROOT, since gocode needs package binaries
 				"a.go:1:21": "1:20-1:21 flag module , fmt module ",

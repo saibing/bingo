@@ -157,28 +157,28 @@ func TestXDefinition(t *testing.T) {
 	})
 
 	t.Run("multiple packages in dir", func(t *testing.T) {
-		test(t, multiplePkgDir, "a.go:1:17", multipleOutput("a.go:1:17-1:18"))
-		test(t, multiplePkgDir, "a.go:1:23", multipleOutput("a.go:1:17-1:18"))
+		test(t, multiplePkgDir, "a.go:1:17", multipleOutput("a.go:1:17 id:github.com/saibing/bingo/langserver/test/pkg/multiple/-/A name:A package:github.com/saibing/bingo/langserver/test/pkg/multiple packageName:p recv: vendor:false"))
+		test(t, multiplePkgDir, "a.go:1:23", multipleOutput("a.go:1:17 id:github.com/saibing/bingo/langserver/test/pkg/multiple/-/A name:A package:github.com/saibing/bingo/langserver/test/pkg/multiple packageName:p recv: vendor:false"))
 	})
 
 	t.Run("go root", func(t *testing.T) {
-		test(t, gorootPkgDir, "a.go:1:40", gorootOutput("src/fmt/print.go:263:6-263:13"))
+		test(t, gorootPkgDir, "a.go:1:40", gorootOutput("src/fmt/print.go:263:6 id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false"))
 	})
 
 	t.Run("go project", func(t *testing.T) {
-		test(t, goprojectPkgDir, "a/a.go:1:17", goprojectOutput("a/a.go:1:17-1:18"))
-		test(t, goprojectPkgDir, "b/b.go:1:101", goprojectOutput("a/a.go:1:17-1:18"))
+		test(t, goprojectPkgDir, "a/a.go:1:17", goprojectOutput("a/a.go:1:17 id:github.com/saibing/bingo/langserver/test/pkg/goproject/a/-/A name:A package:github.com/saibing/bingo/langserver/test/pkg/goproject/a packageName:a recv: vendor:false"))
+		test(t, goprojectPkgDir, "b/b.go:1:89", goprojectOutput("a/a.go:1:17 id:github.com/saibing/bingo/langserver/test/pkg/goproject/a/-/A name:A package:github.com/saibing/bingo/langserver/test/pkg/goproject/a packageName:a recv: vendor:false"))
 	})
 
 	t.Run("go module", func(t *testing.T) {
-		test(t, gomodulePkgDir, "a.go:1:57", gomoduleOutput("d.go:1:19-1:20"))
-		test(t, gomodulePkgDir, "b.go:1:63", gomoduleOutput("subp/d.go:1:20-1:21"))
-		test(t, gomodulePkgDir, "c.go:1:63", gomoduleOutput("dep1/d1.go:1:58-1:60"))
-		test(t, gomodulePkgDir, "c.go:1:68", gomoduleOutput("dep2/d2.go:1:32-1:34"))
+		test(t, gomodulePkgDir, "a.go:1:57", gomoduleOutput("d.go:1:19 id:github.com/saibing/dep/-/D name:D package:github.com/saibing/dep packageName:dep recv: vendor:false"))
+		test(t, gomodulePkgDir, "b.go:1:63", gomoduleOutput("subp/d.go:1:20 id:github.com/saibing/dep/subp/-/D name:D package:github.com/saibing/dep/subp packageName:subp recv: vendor:false"))
+		test(t, gomodulePkgDir, "c.go:1:63", gomoduleOutput("dep1/d1.go:1:58 id:github.com/saibing/dep/dep1/-/D1 name:D1 package:github.com/saibing/dep/dep1 packageName:dep1 recv: vendor:false"))
+		test(t, gomodulePkgDir, "c.go:1:68", gomoduleOutput("dep2/d2.go:1:32 id:github.com/saibing/dep/dep2/-/D2/D2 name:D2 package:github.com/saibing/dep/dep2 packageName:dep2 recv:D2 vendor:false"))
 	})
 
 	t.Run("type definition lookup", func(t *testing.T) {
-		test(t, lookupPkgDir, "b/b.go:1:127", lookupOutput("b/b.go:1:107-1:108"))
+		test(t, lookupPkgDir, "b/b.go:1:115", lookupOutput("b/b.go:1:95 id:github.com/saibing/bingo/langserver/test/pkg/lookup/a/-/A name:A package:github.com/saibing/bingo/langserver/test/pkg/lookup/a packageName:a recv: vendor:false"))
 	})
 }
 
