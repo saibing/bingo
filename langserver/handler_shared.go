@@ -3,7 +3,7 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/sourcegraph/go-langserver/langserver/internal/caches"
+	"github.com/saibing/bingo/langserver/internal/caches"
 	"go/build"
 	"golang.org/x/tools/go/packages"
 	"path/filepath"

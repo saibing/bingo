@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sourcegraph/go-langserver/langserver/internal/caches"
+	"github.com/saibing/bingo/langserver/internal/caches"
 	"log"
 	"strconv"
 	"sync"
@@ -16,12 +16,12 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	"github.com/sourcegraph/go-langserver/pkg/lspext"
+	"github.com/saibing/bingo/langserver/internal/gocode"
+	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 
-	"github.com/sourcegraph/go-langserver/langserver/util"
+	"github.com/saibing/bingo/langserver/util"
 )
 
 // NewHandler creates a Go language server handler.

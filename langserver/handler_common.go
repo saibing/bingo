@@ -8,8 +8,8 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 
-	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/pkg/lsp"
 )
 
 // HandlerCommon contains functionality that both the build and lang

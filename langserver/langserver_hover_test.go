@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sourcegraph/go-langserver/langserver/util"
+	"github.com/saibing/bingo/langserver/util"
 
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

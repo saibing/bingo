@@ -14,7 +14,7 @@ class GoLangserver < Formula
 
   def install
     mkdir_p buildpath/"src/github.com/sourcegraph"
-    ln_s buildpath, buildpath/"src/github.com/sourcegraph/go-langserver"
+    ln_s buildpath, buildpath/"src/github.com/saibing/bingo"
     ENV["GOPATH"] = buildpath.to_s
     Language::Go.stage_deps resources, buildpath/"src"
     system "go", "build", "langserver/cmd/langserver-go/langserver-go.go"

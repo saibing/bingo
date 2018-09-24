@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -24,7 +24,7 @@ var ctx context.Context
 
 const (
 	rootDir        = "test/pkg"
-	rootImportPath = "github.com/sourcegraph/go-langserver/langserver/test/pkg"
+	rootImportPath = "github.com/saibing/bingo/langserver/test/pkg"
 
 	basicPkgDir        = "test/pkg/basic"
 	detailedPkgDir     = "test/pkg/detailed"

@@ -6,12 +6,12 @@ speaks
 supports editor features such as go-to-definition, hover, and find-references
 for Go projects.
 
-[**Open in Sourcegraph**](https://sourcegraph.com/github.com/sourcegraph/go-langserver/-/tree/langserver)
+[**Open in Sourcegraph**](https://sourcegraph.com/github.com/saibing/bingo/-/tree/langserver)
 
 To build and install the standalone `go-langserver` run
 
 ```
-go get -u github.com/sourcegraph/go-langserver
+go get -u github.com/saibing/bingo
 ```
 
 # Support

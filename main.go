@@ -1,4 +1,4 @@
-package main // import "github.com/sourcegraph/go-langserver"
+package main // import "github.com/saibing/bingo"
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/sourcegraph/go-langserver/langserver"
+	"github.com/saibing/bingo/langserver"
 	"github.com/sourcegraph/jsonrpc2"
 
 	_ "net/http/pprof"

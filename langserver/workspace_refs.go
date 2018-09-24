@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/sourcegraph/go-langserver/langserver/internal/caches"
+	"github.com/saibing/bingo/langserver/internal/caches"
 	"go/ast"
 	"go/build"
 	"go/parser"
@@ -21,11 +21,11 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/sourcegraph/go-langserver/langserver/internal/refs"
-	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	"github.com/sourcegraph/go-langserver/pkg/lspext"
-	"github.com/sourcegraph/go-langserver/pkg/tools"
+	"github.com/saibing/bingo/langserver/internal/refs"
+	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/saibing/bingo/pkg/lspext"
+	"github.com/saibing/bingo/pkg/tools"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

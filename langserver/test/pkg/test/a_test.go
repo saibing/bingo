@@ -1,7 +1,7 @@
 package p
 
 import (
-	"github.com/sourcegraph/go-langserver/langserver/test/pkg/test/b"
+	"github.com/saibing/bingo/langserver/test/pkg/test/b"
 	"testing"
 )
 

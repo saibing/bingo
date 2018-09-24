@@ -1,1 +1,1 @@
-package b; import "github.com/sourcegraph/go-langserver/langserver/test/pkg/goproject/a"; var _ = a.A
+package b; import "github.com/saibing/bingo/langserver/test/pkg/goproject/a"; var _ = a.A

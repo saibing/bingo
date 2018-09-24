@@ -3,7 +3,7 @@ package langserver
 import (
 	"testing"
 
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/saibing/bingo/pkg/lsp"
 )
 
 type applyContentChangesTestCase struct {

@@ -2,11 +2,11 @@ require "language/go"
 
 class GoLangserver < Formula
   desc "Go language LSP server"
-  homepage "https://github.com/sourcegraph/go-langserver"
-  url "https://github.com/sourcegraph/go-langserver/archive/v1.0.0.tar.gz"
+  homepage "https://github.com/saibing/bingo"
+  url "https://github.com/saibing/bingo/archive/v1.0.0.tar.gz"
   sha256 "e803e69f3df40e6e840d04f648e27ffcfb382ff77899c0c7a7b62cf3b3b277a4"
 
-  head "https://github.com/sourcegraph/go-langserver.git"
+  head "https://github.com/saibing/bingo.git"
 
   depends_on "go" => :build
 
@@ -92,7 +92,7 @@ class GoLangserver < Formula
 
   def install
     mkdir_p buildpath/"src/github.com/sourcegraph"
-    ln_s buildpath, buildpath/"src/github.com/sourcegraph/go-langserver"
+    ln_s buildpath, buildpath/"src/github.com/saibing/bingo"
     ENV["GOPATH"] = buildpath.to_s
     Language::Go.stage_deps resources, buildpath/"src"
     system "go", "build", "langserver/cmd/langserver-go/langserver-go.go"

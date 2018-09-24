@@ -1,1 +1,1 @@
-package c; import "github.com/sourcegraph/go-langserver/langserver/test/pkg/lookup/a"; func Dummy() **a.A { var x **a.A; return x }
+package c; import "github.com/saibing/bingo/langserver/test/pkg/lookup/a"; func Dummy() **a.A { var x **a.A; return x }
