@@ -756,9 +756,6 @@ func (x XYZ) ABC() {}
 			"d/d.go": `package d; import "test/pkg/a"; func Dummy() map[string]a.A { var x map[string]a.A; return x }`,
 		},
 		cases: lspTestCases{
-			wantDefinition: map[string]string{
-				"b/b.go:1:72": "/src/test/pkg/b/b.go:1:52-1:53", // declaration of x
-			},
 			wantTypeDefinition: map[string]string{
 				"a/a.go:1:58": "/src/test/pkg/a/a.go:1:17-1:18", // declaration of A's type, a.A.
 				"b/b.go:1:72": "/src/test/pkg/a/a.go:1:17-1:18", // declaration of x's type, a.A.
