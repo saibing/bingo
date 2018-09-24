@@ -113,29 +113,6 @@ func callDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, 
 	return str, nil
 }
 
-func callTypeDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
-	var res locations
-	err := c.Call(ctx, "textDocument/typeDefinition", lsp.TextDocumentPositionParams{
-		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
-		Position:     lsp.Position{Line: line, Character: char},
-	}, &res)
-	if err != nil {
-		return "", err
-	}
-	var str string
-	for i, loc := range res {
-		if loc.URI == "" {
-			continue
-		}
-		if i != 0 {
-			str += ", "
-		}
-		str += fmt.Sprintf("%s:%d:%d-%d:%d", loc.URI, loc.Range.Start.Line+1, loc.Range.Start.Character+1, loc.Range.End.Line+1, loc.Range.End.Character+1)
-	}
-	return str, nil
-}
-
-
 func TestXDefinition(t *testing.T) {
 	test := func(t *testing.T, pkgDir string, input string, output string) {
 		testXDefinition(t, &definitionTestCase{pkgDir: pkgDir, input: input, output: output})
@@ -226,6 +203,66 @@ func callXDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI,
 			str += ", "
 		}
 		str += fmt.Sprintf("%s:%d:%d %s", loc.Location.URI, loc.Location.Range.Start.Line+1, loc.Location.Range.Start.Character+1, loc.Symbol)
+	}
+	return str, nil
+}
+
+
+func TestTypeDefinition(t *testing.T) {
+	test := func(t *testing.T, pkgDir string, input string, output string) {
+		testTypeDefinition(t, &definitionTestCase{pkgDir: pkgDir, input: input, output: output})
+	}
+
+	t.Run("type definition lookup", func(t *testing.T) {
+		test(t, lookupPkgDir, "a/a.go:1:58", lookupOutput("a/a.go:1:17-1:18"))
+		test(t, lookupPkgDir, "b/b.go:1:115", lookupOutput("a/a.go:1:17-1:18"))
+		test(t, lookupPkgDir, "c/c.go:1:117", lookupOutput("a/a.go:1:17-1:18"))
+		test(t, lookupPkgDir, "d/d.go:1:135", "")
+	})
+}
+
+func testTypeDefinition(tb testing.TB, c *definitionTestCase) {
+	tbRun(tb, fmt.Sprintf("typeDefinition-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
+		dir, err := filepath.Abs(c.pkgDir)
+		if err != nil {
+			log.Fatal("testTypeDefinition", err)
+		}
+		doTypeDefinitionTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+	})
+}
+
+func doTypeDefinitionTest(t testing.TB, ctx context.Context, conn *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
+	file, line, char, err := parsePos(pos)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := callTypeDefinition(ctx, conn, uriJoin(rootURI, file), line, char)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != want {
+		t.Fatalf("got %q, want %q", result, want)
+	}
+}
+
+func callTypeDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
+	var res locations
+	err := c.Call(ctx, "textDocument/typeDefinition", lsp.TextDocumentPositionParams{
+		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
+		Position:     lsp.Position{Line: line, Character: char},
+	}, &res)
+	if err != nil {
+		return "", err
+	}
+	var str string
+	for i, loc := range res {
+		if loc.URI == "" {
+			continue
+		}
+		if i != 0 {
+			str += ", "
+		}
+		str += fmt.Sprintf("%s:%d:%d-%d:%d", loc.URI, loc.Range.Start.Line+1, loc.Range.Start.Character+1, loc.Range.End.Line+1, loc.Range.End.Character+1)
 	}
 	return str, nil
 }

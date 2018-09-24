@@ -367,10 +367,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			"b/b.go": `package b; import "test/pkg/a"; var _ = a.A`,
 		},
 		cases: lspTestCases{
-			wantXDefinition: map[string]string{
-				"a/a.go:1:17": "/src/test/pkg/a/a.go:1:17 id:test/pkg/a/-/A name:A package:test/pkg/a packageName:a recv: vendor:false",
-				"b/b.go:1:43": "/src/test/pkg/a/a.go:1:17 id:test/pkg/a/-/A name:A package:test/pkg/a packageName:a recv: vendor:false",
-			},
 			wantCompletion: map[string]string{
 				"b/b.go:1:26": "1:20-1:26 test/pkg/a module , test/pkg/b module ",
 				"b/b.go:1:43": "1:43-1:43 A function func()",
@@ -416,12 +412,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			wantDefinition: map[string]string{
-				"a.go:1:51": "/src/github.com/d/dep/d.go:1:19-1:20",
-			},
-			wantXDefinition: map[string]string{
-				"a.go:1:51": "/src/github.com/d/dep/d.go:1:19 id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
-			},
 			wantCompletion: map[string]string{
 				"a.go:1:34": "1:20-1:34 github.com/d/dep module ",
 				"a.go:1:51": "1:51-1:51 D function func()",
@@ -455,12 +445,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			wantDefinition: map[string]string{
-				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20-1:21",
-			},
-			wantXDefinition: map[string]string{
-				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20 id:github.com/d/dep/subp/-/D name:D package:github.com/d/dep/subp packageName:subp recv: vendor:false",
-			},
 			wantCompletion: map[string]string{
 				"a.go:1:34": "1:20-1:34 github.com/d/dep/subp module ",
 				"a.go:1:57": "1:57-1:57 D function func()",
@@ -487,10 +471,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			wantXDefinition: map[string]string{
-				"a.go:1:53": "/src/github.com/d/dep1/d1.go:1:48 id:github.com/d/dep1/-/D1 name:D1 package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
-				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32 id:github.com/d/dep2/-/D2/D2 name:D2 package:github.com/d/dep2 packageName:dep2 recv:D2 vendor:false",
-			},
 			wantCompletion: map[string]string{
 				//"a.go:1:53": "1:53-1:53 D1 function func() D2", // gocode does not handle D2 correctly
 				"a.go:1:58": "1:58-1:58 D2 variable int",
@@ -724,23 +704,6 @@ func (x XYZ) ABC() {}
 			wantSymbols: map[string][]string{
 				"abc.go": []string{"/src/test/pkg/abc.go:class:XYZ:2:6"},
 				"bcd.go": []string{"/src/test/pkg/bcd.go:method:XYZ.ABC:2:14"},
-			},
-		},
-	},
-	"type definition lookup": {
-		rootURI: "file:///src/test/pkg",
-		fs: map[string]string{
-			"a/a.go": `package a; type A int; func A1() A { var A A = 1; return A }`,
-			"b/b.go": `package b; import "test/pkg/a"; func Dummy() a.A { x := a.A1(); return x }`,
-			"c/c.go": `package c; import "test/pkg/a"; func Dummy() **a.A { var x **a.A; return x }`,
-			"d/d.go": `package d; import "test/pkg/a"; func Dummy() map[string]a.A { var x map[string]a.A; return x }`,
-		},
-		cases: lspTestCases{
-			wantTypeDefinition: map[string]string{
-				"a/a.go:1:58": "/src/test/pkg/a/a.go:1:17-1:18", // declaration of A's type, a.A.
-				"b/b.go:1:72": "/src/test/pkg/a/a.go:1:17-1:18", // declaration of x's type, a.A.
-				"c/c.go:1:74": "/src/test/pkg/a/a.go:1:17-1:18", // declaration of **x's type, a.A.
-				"d/d.go:1:92": "",                               // no lookup for slice
 			},
 		},
 	},
