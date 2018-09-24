@@ -23,54 +23,33 @@ func TestReferences(t *testing.T) {
 
 	t.Run("basic", func(t *testing.T) {
 		test(t, basicPkgDir, "a.go:1:17", []string{basicOutput("a.go:1:17"), basicOutput("a.go:1:23"), basicOutput("b.go:1:23")})
-		//test(t, basicPkgDir, "a.go:1:23", "func A()")
-		//test(t, basicPkgDir, "b.go:1:17", "func B()")
-		//test(t, basicPkgDir, "b.go:1:23", "func A()")
+		test(t, basicPkgDir, "a.go:1:23", []string{basicOutput("a.go:1:17"), basicOutput("a.go:1:23"), basicOutput("b.go:1:23")})
+		test(t, basicPkgDir, "b.go:1:17", []string{basicOutput("b.go:1:17")})
+		test(t, basicPkgDir, "b.go:1:23", []string{basicOutput("a.go:1:17"), basicOutput("a.go:1:23"), basicOutput("b.go:1:23")})
 	})
 
-	/*t.Run("detailed hover", func(t *testing.T) {
-		test(t, detailedPkgDir, "a.go:1:28", "struct field F string")
-		test(t, detailedPkgDir, "a.go:1:17", `type T struct; struct {
-    F string
-}`)
-	})
 
-	t.Run("xtest hover", func(t *testing.T) {
-		test(t, xtestPkgDir, "a.go:1:16", "var A int")
-		test(t, xtestPkgDir, "x_test.go:1:40", "var X int")
-		test(t, xtestPkgDir, "x_test.go:1:46", "var A int")
-		test(t, xtestPkgDir, "a_test.go:1:16", "var X int")
-		test(t, xtestPkgDir, "a_test.go:1:20", "var A int")
+	t.Run("xtest", func(t *testing.T) {
+		test(t, xtestPkgDir, "a.go:1:16", []string{xtestOutput("a.go:1:16"), xtestOutput("a_test.go:1:20"), xtestOutput("x_test.go:1:46")})
+		test(t, xtestPkgDir, "x_test.go:1:46", []string{xtestOutput("a.go:1:16"), xtestOutput("a_test.go:1:20"), xtestOutput("x_test.go:1:46")})
+		test(t, xtestPkgDir, "x_test.go:1:40", []string{xtestOutput("x_test.go:1:40"), xtestOutput("y_test.go:1:39")})
+		test(t, xtestPkgDir, "a_test.go:1:16", []string{xtestOutput("a.go:1:16"), xtestOutput("a_test.go:1:20"), xtestOutput("x_test.go:1:46")})
+		test(t, xtestPkgDir, "a_test.go:1:20", []string{xtestOutput("a_test.go:1:16"), xtestOutput("b_test.go:1:34")})
 	})
 
 	t.Run("test hover", func(t *testing.T) {
-		test(t, testPkgDir, "a_test.go:1:37", "var X int")
-		test(t, testPkgDir, "a_test.go:1:43", "var B int")
-	})
-
-	t.Run("subdirectory hover", func(t *testing.T) {
-		test(t, subdirectoryPkgDir, "a.go:1:17", "func A()")
-		test(t, subdirectoryPkgDir, "a.go:1:23", "func A()")
-		test(t, subdirectoryPkgDir, "d2/b.go:1:86", "func B()")
-		test(t, subdirectoryPkgDir, "d2/b.go:1:94", "func A()")
-		test(t, subdirectoryPkgDir, "d2/b.go:1:99", "func B()")
-	})
-
-	t.Run("multiple packages in dir", func(t *testing.T) {
-		test(t, multiplePkgDir, "a.go:1:17", "func A()")
-		test(t, multiplePkgDir, "a.go:1:23", "func A()")
-	})
-
-	t.Run("go root", func(t *testing.T) {
-		test(t, gorootPkgDir, "a.go:1:40", "func Println(a ...interface{}) (n int, err error); Println formats using the default formats for its operands and writes to standard output. Spaces are always added between operands and a newline is appended. It returns the number of bytes written and any write error encountered. \n\n")
+		test(t, testPkgDir, "a_test.go:1:43", []string{testOutput("a_test.go:1:43"), testOutput("b/b.go:1:16"), testOutput("b/b.go:1:45"), testOutput("c/c.go:1:43")})
+		test(t, testPkgDir, "a_test.go:1:41", []string{testOutput("a_test.go:1:19"), testOutput("a_test.go:1:41")})
+		test(t, testPkgDir, "a_test.go:1:51", []string{testOutput("a_test.go:1:51")})
 	})
 
 	t.Run("go project", func(t *testing.T) {
-		test(t, goprojectPkgDir, "a/a.go:1:17", "func A()")
-		test(t, goprojectPkgDir, "b/b.go:1:89", "func A()")
+		test(t, goprojectPkgDir, "a/a.go:1:17", []string{goprojectOutput("a/a.go:1:17"), goprojectOutput("b/b.go:1:89")})
+		test(t, goprojectPkgDir, "b/b.go:1:89", []string{goprojectOutput("a/a.go:1:17"), goprojectOutput("b/b.go:1:89")})
+		test(t, goprojectPkgDir, "b/b.go:1:87", []string{goprojectOutput("b/b.go:1:19"), goprojectOutput("b/b.go:1:87")})
 	})
 
-	t.Run("go module", func(t *testing.T) {
+	/*t.Run("go module", func(t *testing.T) {
 		test(t, gomodulePkgDir, "a.go:1:57", "func D()")
 		test(t, gomodulePkgDir, "b.go:1:63", "func D()")
 		test(t, gomodulePkgDir, "c.go:1:63", "func D1() D2")

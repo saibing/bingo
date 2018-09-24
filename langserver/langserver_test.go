@@ -47,24 +47,6 @@ var serverTestCases = map[string]serverTestCase{
 				//"a.go:1:24": "1:23-1:24 A function func()", // returns empty list for unknown reason. Works if the two statements are in separate lines
 				"b.go:1:24": "1:23-1:24 A function func()",
 			},
-			wantReferences: map[string][]string{
-				"a.go:1:17": {
-					"/src/test/pkg/a.go:1:17",
-					"/src/test/pkg/a.go:1:23",
-					"/src/test/pkg/b.go:1:23",
-				},
-				"a.go:1:23": {
-					"/src/test/pkg/a.go:1:17",
-					"/src/test/pkg/a.go:1:23",
-					"/src/test/pkg/b.go:1:23",
-				},
-				"b.go:1:17": {"/src/test/pkg/b.go:1:17"},
-				"b.go:1:23": {
-					"/src/test/pkg/a.go:1:17",
-					"/src/test/pkg/a.go:1:23",
-					"/src/test/pkg/b.go:1:23",
-				},
-			},
 			wantSymbols: map[string][]string{
 				"a.go": {"/src/test/pkg/a.go:function:A:1:17"},
 				"b.go": {"/src/test/pkg/b.go:function:B:1:17"},
@@ -163,33 +145,6 @@ var serverTestCases = map[string]serverTestCase{
 				"y_test.go": {"/src/test/pkg/y_test.go:function:Y:1:22"},
 				"b_test.go": {"/src/test/pkg/b_test.go:function:Y:1:17"},
 			},
-			wantReferences: map[string][]string{
-				"a.go:1:16": {
-					"/src/test/pkg/a.go:1:16",
-					"/src/test/pkg/a_test.go:1:20",
-					"/src/test/pkg/x_test.go:1:46",
-				},
-				"x_test.go:1:46": {
-					"/src/test/pkg/a.go:1:16",
-					"/src/test/pkg/a_test.go:1:20",
-					"/src/test/pkg/x_test.go:1:46",
-				},
-				"x_test.go:1:40": {
-					"/src/test/pkg/x_test.go:1:40",
-					"/src/test/pkg/y_test.go:1:39",
-				},
-
-				// The same as the xtest references above, but in the normal test pkg.
-				"a_test.go:1:20": {
-					"/src/test/pkg/a.go:1:16",
-					"/src/test/pkg/a_test.go:1:20",
-					"/src/test/pkg/x_test.go:1:46",
-				},
-				"a_test.go:1:16": {
-					"/src/test/pkg/a_test.go:1:16",
-					"/src/test/pkg/b_test.go:1:34",
-				},
-			},
 			wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 				{Query: lspext.SymbolDescriptor{}}: {
 					"/src/test/pkg/x_test.go:1:24-1:34 -> id:test/pkg name: package:test/pkg packageName:p recv: vendor:false",
@@ -205,23 +160,6 @@ var serverTestCases = map[string]serverTestCase{
 			"a_test.go": `package p; import "test/pkg/b"; var X = b.B; func TestB() {}`,
 			"b/b.go":    "package b; var B int; func C() int { return B };",
 			"c/c.go":    `package c; import "test/pkg/b"; var X = b.B;`,
-		},
-		cases: lspTestCases{
-			wantReferences: map[string][]string{
-				"a_test.go:1:43": {
-					"/src/test/pkg/a_test.go:1:43",
-					"/src/test/pkg/b/b.go:1:16",
-					"/src/test/pkg/b/b.go:1:45",
-					"/src/test/pkg/c/c.go:1:43",
-				},
-				"a_test.go:1:41": {
-					"/src/test/pkg/a_test.go:1:19",
-					"/src/test/pkg/a_test.go:1:41",
-				},
-				"a_test.go:1:51": {
-					"/src/test/pkg/a_test.go:1:51",
-				},
-			},
 		},
 	},
 	"go subdirectory in repo": {
@@ -370,20 +308,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			wantCompletion: map[string]string{
 				"b/b.go:1:26": "1:20-1:26 test/pkg/a module , test/pkg/b module ",
 				"b/b.go:1:43": "1:43-1:43 A function func()",
-			},
-			wantReferences: map[string][]string{
-				"a/a.go:1:17": {
-					"/src/test/pkg/a/a.go:1:17",
-					"/src/test/pkg/b/b.go:1:43",
-				},
-				"b/b.go:1:43": { // calling "references" on call site should return same result as on decl
-					"/src/test/pkg/a/a.go:1:17",
-					"/src/test/pkg/b/b.go:1:43",
-				},
-				"b/b.go:1:41": { // calling "references" on package
-					"/src/test/pkg/b/b.go:1:19",
-					"/src/test/pkg/b/b.go:1:41",
-				},
 			},
 			wantSymbols: map[string][]string{
 				"a/a.go": {"/src/test/pkg/a/a.go:function:A:1:17"},

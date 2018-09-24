@@ -215,6 +215,15 @@ func basicOutput(suffix string) string {
 	return genOutput(basicPkgDir, suffix)
 }
 
+func xtestOutput(suffix string) string {
+	return genOutput(xtestPkgDir, suffix)
+}
+
+func testOutput(suffix string) string {
+	return genOutput(testPkgDir, suffix)
+}
+
+
 func subdirectoryOutput(suffix string) string {
 	return genOutput(subdirectoryPkgDir, suffix)
 }
