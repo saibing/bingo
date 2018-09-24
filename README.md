@@ -4,7 +4,6 @@ Bingo is a [Go](https://golang.org) language server that speaks
 [Language Server Protocol](https://github.com/Microsoft/language-server-protocol).
 
 This project was largely inspired by [go-langserver](https://github.com/sourcegraph/go-langserver),
-
 but Bingo more simpler, more faster, more smarter!
 
 Bingo supports editor features as follow:
