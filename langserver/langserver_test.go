@@ -237,13 +237,6 @@ var serverTestCases = map[string]serverTestCase{
 			"d2/b.go": `package d2; import "test/pkg/d"; func B() { d.A(); B() }`,
 		},
 		cases: lspTestCases{
-			wantDefinition: map[string]string{
-				"a.go:1:17":    "/src/test/pkg/d/a.go:1:17-1:18",
-				"a.go:1:23":    "/src/test/pkg/d/a.go:1:17-1:18",
-				"d2/b.go:1:39": "/src/test/pkg/d/d2/b.go:1:39-1:40",
-				"d2/b.go:1:47": "/src/test/pkg/d/a.go:1:17-1:18",
-				"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39-1:40",
-			},
 			wantXDefinition: map[string]string{
 				"a.go:1:17":    "/src/test/pkg/d/a.go:1:17 id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
 				"a.go:1:23":    "/src/test/pkg/d/a.go:1:17 id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
@@ -333,15 +326,6 @@ var serverTestCases = map[string]serverTestCase{
 package main; import "test/pkg"; func B() { p.A(); B() }`,
 		},
 		cases: lspTestCases{
-			wantDefinition: map[string]string{
-				"a.go:1:17": "/src/test/pkg/a.go:1:17-1:18",
-				"a.go:1:23": "/src/test/pkg/a.go:1:17-1:18",
-				// Not parsing build-tag-ignored files:
-				//
-				// "main.go:3:39": "/src/test/pkg/main.go:3:39", // B() -> func B()
-				// "main.go:3:47": "/src/test/pkg/a.go:1:17",    // p.A() -> a.go func A()
-				// "main.go:3:52": "/src/test/pkg/main.go:3:39", // B() -> func B()
-			},
 			wantXDefinition: map[string]string{
 				"a.go:1:17": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
 				"a.go:1:23": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
@@ -368,10 +352,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			wantDefinition: map[string]string{
-				"a.go:1:40": "/goroot/src/fmt/print.go:1:19-1:26",
-				// "a.go:1:53": "/goroot/src/builtin/builtin.go:TODO:TODO", // TODO(sqs): support builtins
-			},
 			wantXDefinition: map[string]string{
 				"a.go:1:40": "/goroot/src/fmt/print.go:1:19 id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
 			},
@@ -407,11 +387,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			"b/b.go": `package b; import "test/pkg/a"; var _ = a.A`,
 		},
 		cases: lspTestCases{
-			wantDefinition: map[string]string{
-				"a/a.go:1:17": "/src/test/pkg/a/a.go:1:17-1:18",
-				// "b/b.go:1:20": "/src/test/pkg/a", // TODO(sqs): make import paths hoverable
-				"b/b.go:1:43": "/src/test/pkg/a/a.go:1:17-1:18",
-			},
 			wantXDefinition: map[string]string{
 				"a/a.go:1:17": "/src/test/pkg/a/a.go:1:17 id:test/pkg/a/-/A name:A package:test/pkg/a packageName:a recv: vendor:false",
 				"b/b.go:1:43": "/src/test/pkg/a/a.go:1:17 id:test/pkg/a/-/A name:A package:test/pkg/a packageName:a recv: vendor:false",
@@ -532,10 +507,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			wantDefinition: map[string]string{
-				"a.go:1:53": "/src/github.com/d/dep1/d1.go:1:48-1:50", // func D1
-				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32-1:34", // field D2
-			},
 			wantXDefinition: map[string]string{
 				"a.go:1:53": "/src/github.com/d/dep1/d1.go:1:48 id:github.com/d/dep1/-/D1 name:D1 package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
 				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32 id:github.com/d/dep2/-/D2/D2 name:D2 package:github.com/d/dep2 packageName:dep2 recv:D2 vendor:false",

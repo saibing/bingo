@@ -1,0 +1,1 @@
+package a; type A int; func A1() A { var A A = 1; return A }

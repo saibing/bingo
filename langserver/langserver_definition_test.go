@@ -36,24 +36,28 @@ func TestDefinition(t *testing.T) {
 	})
 
 	t.Run("multiple packages in dir", func(t *testing.T) {
-		test(t, multiplePkgDir, "a.go:1:17", "func A()")
-		test(t, multiplePkgDir, "a.go:1:23", "func A()")
+		test(t, multiplePkgDir, "a.go:1:17", multipleOutput("a.go:1:17-1:18"))
+		test(t, multiplePkgDir, "a.go:1:23", multipleOutput("a.go:1:17-1:18"))
 	})
 
 	t.Run("go root", func(t *testing.T) {
-		test(t, gorootPkgDir, "a.go:1:40", "func Println(a ...interface{}) (n int, err error); Println formats using the default formats for its operands and writes to standard output. Spaces are always added between operands and a newline is appended. It returns the number of bytes written and any write error encountered. \n\n")
+		test(t, gorootPkgDir, "a.go:1:40", gorootOutput("src/fmt/print.go:263:6-263:13"))
 	})
 
 	t.Run("go project", func(t *testing.T) {
-		test(t, goprojectPkgDir, "a/a.go:1:17", "func A()")
-		test(t, goprojectPkgDir, "b/b.go:1:101", "func A()")
+		test(t, goprojectPkgDir, "a/a.go:1:17", goprojectOutput("a/a.go:1:17-1:18"))
+		test(t, goprojectPkgDir, "b/b.go:1:101", goprojectOutput("a/a.go:1:17-1:18"))
 	})
 
 	t.Run("go module", func(t *testing.T) {
-		test(t, gomodulePkgDir, "a.go:1:57", "func D()")
-		test(t, gomodulePkgDir, "b.go:1:63", "func D()")
-		test(t, gomodulePkgDir, "c.go:1:63", "func D1() D2")
-		test(t, gomodulePkgDir, "c.go:1:68", "struct field D2 int")
+		test(t, gomodulePkgDir, "a.go:1:57", gomoduleOutput("d.go:1:19-1:20"))
+		test(t, gomodulePkgDir, "b.go:1:63", gomoduleOutput("subp/d.go:1:20-1:21"))
+		test(t, gomodulePkgDir, "c.go:1:63", gomoduleOutput("dep1/d1.go:1:58-1:60"))
+		test(t, gomodulePkgDir, "c.go:1:68", gomoduleOutput("dep2/d2.go:1:32-1:34"))
+	})
+
+	t.Run("type definition lookup", func(t *testing.T) {
+		test(t, lookupPkgDir, "b/b.go:1:127", lookupOutput("b/b.go:1:107-1:108"))
 	})
 }
 

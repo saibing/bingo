@@ -37,10 +37,12 @@ const (
 	gomodulePkgDir     = "test/pkg/gomodule"
 	hoverDocsPkgDir    = "test/pkg/docs"
 	issuePkgDir        = "test/pkg/issue"
+	lookupPkgDir       = "test/pkg/lookup"
 )
 
 var (
 	workspaceDir = ""
+	gopathDir = ""
 )
 
 func TestMain(m *testing.M) {
@@ -57,6 +59,8 @@ func TestMain(m *testing.M) {
 		log.Fatal("TestMain", err)
 	}
 	workspaceDir = "file://" + workspaceDir + "/"
+
+	gopathDir = getGOPATH()
 
 	Init(util.PathToURI(dir))
 
@@ -103,7 +107,7 @@ func Init(root lsp.DocumentURI) {
 		BuildContext: &InitializeBuildContextParams{
 			GOOS:     runtime.GOOS,
 			GOARCH:   runtime.GOARCH,
-			GOPATH:   os.Getenv("GOPATH"),
+			GOPATH:   gopathDir,
 			GOROOT:   runtime.GOROOT(),
 			Compiler: runtime.Compiler,
 		},
@@ -215,6 +219,37 @@ func subdirectoryOutput(suffix string) string {
 	return genOutput(subdirectoryPkgDir, suffix)
 }
 
+func multipleOutput(suffix string) string {
+	return genOutput(multiplePkgDir, suffix)
+}
+
+func gorootOutput(suffix string) string {
+	return "file://" + runtime.GOROOT() + "/" + suffix
+}
+
+func goprojectOutput(suffix string) string {
+	return genOutput(goprojectPkgDir, suffix)
+}
+
+func gomoduleOutput(suffix string) string {
+	depPath := filepath.Join(gopathDir, "pkg/mod/github.com/saibing/dep@v1.0.2")
+	return "file://" + depPath + "/" + suffix
+}
+
+func lookupOutput(suffix string) string {
+	return genOutput(lookupPkgDir, suffix)
+}
+
 func genOutput(pkgDir, suffix string) string {
 	return workspaceDir + pkgDir + "/" + suffix
+}
+
+func getGOPATH() string {
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		return filepath.Join(os.Getenv("HOME"), "go")
+	}
+
+	paths := strings.Split(gopath, string(os.PathListSeparator))
+	return paths[0]
 }
