@@ -2,23 +2,19 @@ package langserver
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/caches"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"golang.org/x/tools/go/packages"
 	"math"
 	"strings"
 	"sync"
-	"time"
-
-	"github.com/saibing/bingo/langserver/internal/caches"
-	"golang.org/x/tools/go/packages"
 
 	"github.com/saibing/bingo/langserver/util"
 	"github.com/saibing/bingo/pkg/lsp"
-	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -135,50 +131,15 @@ func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonr
 		limit = math.MaxInt32
 	}
 
-	id := lsp.ID{
-		Num:      req.ID.Num,
-		Str:      req.ID.Str,
-		IsString: req.ID.IsString,
-	}
-	initial := json.RawMessage(`[{"op":"replace","path":"","value":[]}]`)
-	_ = conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
-		ID:    id,
-		Patch: &initial,
-	})
-
 	var (
 		locs []lsp.Location
-		pos  int
 	)
-	send := func() {
-		if pos >= len(locs) {
-			return
-		}
-		patch := make([]referenceAddOp, 0, len(locs)-pos)
-		for _, l := range locs[pos:] {
-			patch = append(patch, referenceAddOp{
-				OP:    "add",
-				Path:  "/-",
-				Value: l,
-			})
-		}
-		pos = len(locs)
-		_ = conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
-			ID: id,
-			// We use referencePatch so the build server can rewrite URIs
-			Patch: referencePatch(patch),
-		})
-	}
-
-	tick := time.NewTicker(100 * time.Millisecond)
-	defer tick.Stop()
 
 	for {
 		select {
 		case n, ok := <-refs:
 			if !ok {
 				// send a final update
-				send()
 				return locs
 			}
 			if len(locs) >= limit {
@@ -186,8 +147,6 @@ func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonr
 				continue
 			}
 			locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
-		case <-tick.C:
-			send()
 		}
 	}
 }

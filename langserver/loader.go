@@ -351,17 +351,17 @@ func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, f
 		return nil, start, err
 	}
 
-	isIgnoredFile := true
-	for _, f := range pkg.CompiledGoFiles {
-		if path.Base(filename) == path.Base(f) {
-			isIgnoredFile = false
-			break
-		}
-	}
-
-	if isIgnoredFile {
-		return nil, start, fmt.Errorf("file %s is ignored by the build", filename)
-	}
+	//isIgnoredFile := true
+	//for _, f := range pkg.CompiledGoFiles {
+	//	if path.Base(filename) == path.Base(f) {
+	//		isIgnoredFile = false
+	//		break
+	//	}
+	//}
+	//
+	//if isIgnoredFile {
+	//	return nil, start, fmt.Errorf("file %s is ignored by the build", filename)
+	//}
 
 	// collect all loaded files, required to remove existing diagnostics from our cache
 	files := fsetToFiles(pkg.Fset)

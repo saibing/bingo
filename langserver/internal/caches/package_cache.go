@@ -51,7 +51,7 @@ func (c *PackageCache) Load(pkgDir string) (*packages.Package, error) {
 	cacheKey := loadDir
 
 	if runtime.GOOS == windowsOS {
-		cacheKey = strings.Replace(loadDir, "\\", "/", -1)
+		cacheKey = getCacheKeyFromDir(loadDir)
 	}
 
 	log.Printf("load dir %s\n", loadDir)
@@ -118,7 +118,7 @@ func (c *PackageCache) cache(pkg *packages.Package) {
 		return
 	}
 
-	cacheKey := getCacheKey(pkg.CompiledGoFiles[0])
+	cacheKey := getCacheKeyFromFile(pkg.CompiledGoFiles[0])
 
 	if _, ok := c.pool[cacheKey]; ok {
 		return
@@ -155,8 +155,12 @@ func getLoadDir(dir string) string {
 	return dir
 }
 
-func getCacheKey(filename string) string {
+func getCacheKeyFromFile(filename string) string {
 	dir := filepath.Dir(filename)
+	return getCacheKeyFromDir(dir)
+}
+
+func getCacheKeyFromDir(dir string) string {
 	if runtime.GOOS != windowsOS {
 		return dir
 	}
