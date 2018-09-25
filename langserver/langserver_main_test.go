@@ -226,7 +226,7 @@ func multipleOutput(suffix string) string {
 }
 
 func gorootOutput(suffix string) string {
-	return runtime.GOROOT() + "/" + suffix
+	return getPlatformPath(runtime.GOROOT() + "/" + suffix)
 }
 
 func goprojectOutput(suffix string) string {
@@ -235,7 +235,7 @@ func goprojectOutput(suffix string) string {
 
 func gomoduleDepOutput(suffix string) string {
 	depPath := filepath.Join(gopathDir, "pkg/mod/github.com/saibing/dep@v1.0.2")
-	return depPath + "/" + suffix
+	return getPlatformPath(depPath + "/" + suffix)
 }
 
 func gomoduleOutput(suffix string) string {
@@ -251,7 +251,7 @@ func implementationsOutput(suffix string) string {
 }
 
 func genOutput(pkgDir, suffix string) string {
-	return currentWorkDir + pkgDir + "/" + suffix
+	return getPlatformPath(currentWorkDir + pkgDir + "/" + suffix)
 }
 
 func getGOPATH() string {
@@ -262,4 +262,14 @@ func getGOPATH() string {
 
 	paths := strings.Split(gopath, string(os.PathListSeparator))
 	return paths[0]
+}
+
+
+func getPlatformPath(path string) string {
+	s := filepath.ToSlash(path)
+	if runtime.GOOS == "windows" {
+		return "/" + s
+	}
+
+	return s
 }

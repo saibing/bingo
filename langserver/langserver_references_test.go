@@ -61,10 +61,10 @@ type referencesTestCase struct {
 }
 
 func testReferences(tb testing.TB, c *referencesTestCase) {
-	tbRun(tb, fmt.Sprintf("hover-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
+	tbRun(tb, fmt.Sprintf("references-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
 		dir, err := filepath.Abs(c.pkgDir)
 		if err != nil {
-			log.Fatal("testHover", err)
+			log.Fatal("testReferences", err)
 		}
 		doReferencesTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
 	})
