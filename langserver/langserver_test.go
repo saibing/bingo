@@ -800,7 +800,7 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 
 		for pos, want := range cases.wantCompletion {
 			tbRun(t, fmt.Sprintf("completion-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				completionTest(t, ctx, c, util.PathToURI(tmpRootPath), pos, want)
+				doCompletionTest(t, ctx, c, util.PathToURI(tmpRootPath), pos, want)
 			})
 		}
 
@@ -843,19 +843,6 @@ func uriJoin(base lsp.DocumentURI, file string) lsp.DocumentURI {
 	return lsp.DocumentURI(string(base) + "/" + file)
 }
 
-func completionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
-	file, line, char, err := parsePos(pos)
-	if err != nil {
-		t.Fatal(err)
-	}
-	completion, err := callCompletion(ctx, c, uriJoin(rootURI, file), line, char)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if completion != want {
-		t.Fatalf("got %q, want %q", completion, want)
-	}
-}
 
 
 func symbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, file string, want []string) {
@@ -923,31 +910,6 @@ func formattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
-
-
-func callCompletion(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
-	var res lsp.CompletionList
-	err := c.Call(ctx, "textDocument/completion", lsp.CompletionParams{TextDocumentPositionParams: lsp.TextDocumentPositionParams{
-		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
-		Position:     lsp.Position{Line: line, Character: char},
-	}}, &res)
-	if err != nil {
-		return "", err
-	}
-	var str string
-	for i, it := range res.Items {
-		if i != 0 {
-			str += ", "
-		} else {
-			e := it.TextEdit.Range
-			str += fmt.Sprintf("%d:%d-%d:%d ", e.Start.Line+1, e.Start.Character+1, e.End.Line+1, e.End.Character+1)
-		}
-		str += fmt.Sprintf("%s %s %s", it.Label, it.Kind, it.Detail)
-	}
-	return str, nil
-}
-
-
 
 
 func callSymbols(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI) ([]string, error) {
