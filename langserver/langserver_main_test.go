@@ -40,6 +40,7 @@ const (
 	lookupPkgDir          = "test/pkg/lookup"
 	implementationsPkgDir = "test/pkg/implementations"
 	typealiasPkgDir       = "test/pkg/typealias"
+	completionPkgDir      = "test/pkg/completion"
 )
 
 var (

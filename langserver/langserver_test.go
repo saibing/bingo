@@ -5,12 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go/build"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -18,7 +15,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/saibing/bingo/langserver/internal/gocode"
 	"github.com/saibing/bingo/langserver/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
@@ -42,10 +38,6 @@ var serverTestCases = map[string]serverTestCase{
 			"b.go": "package p; func B() { A() }",
 		},
 		cases: lspTestCases{
-			wantCompletion: map[string]string{
-				//"a.go:1:24": "1:23-1:24 A function func()", // returns empty list for unknown reason. Works if the two statements are in separate lines
-				"b.go:1:24": "1:23-1:24 A function func()",
-			},
 			wantSymbols: map[string][]string{
 				"a.go": {"/src/test/pkg/a.go:function:A:1:17"},
 				"b.go": {"/src/test/pkg/b.go:function:B:1:17"},
@@ -135,11 +127,6 @@ var serverTestCases = map[string]serverTestCase{
 			"b_test.go": "package p; func Y() int { return X }",
 		},
 		cases: lspTestCases{
-			wantCompletion: map[string]string{
-				"x_test.go:1:45": "1:44-1:45 panic function func(interface{}), print function func(...interface{}), println function func(...interface{}), p module ",
-				"x_test.go:1:46": "1:46-1:46 A variable int",
-				"b_test.go:1:35": "1:34-1:35 X variable int",
-			},
 			wantSymbols: map[string][]string{
 				"y_test.go": {"/src/test/pkg/y_test.go:function:Y:1:22"},
 				"b_test.go": {"/src/test/pkg/b_test.go:function:Y:1:17"},
@@ -152,15 +139,6 @@ var serverTestCases = map[string]serverTestCase{
 			},
 		},
 	},
-	"go test": {
-		rootURI: "file:///src/test/pkg",
-		fs: map[string]string{
-			"a.go":      "package p; var A int",
-			"a_test.go": `package p; import "test/pkg/b"; var X = b.B; func TestB() {}`,
-			"b/b.go":    "package b; var B int; func C() int { return B };",
-			"c/c.go":    `package c; import "test/pkg/b"; var X = b.B;`,
-		},
-	},
 	"go subdirectory in repo": {
 		rootURI: "file:///src/test/pkg/d",
 		fs: map[string]string{
@@ -168,10 +146,6 @@ var serverTestCases = map[string]serverTestCase{
 			"d2/b.go": `package d2; import "test/pkg/d"; func B() { d.A(); B() }`,
 		},
 		cases: lspTestCases{
-			wantCompletion: map[string]string{
-				"d2/b.go:1:47": "1:47-1:47 A function func()",
-				//"d2/b.go:1:52": "1:52-1:52 d module , B function func()", // B not presented, see test case "go simple"
-			},
 			wantSymbols: map[string][]string{
 				"a.go":    {"/src/test/pkg/d/a.go:function:A:1:17"},
 				"d2/b.go": {"/src/test/pkg/d/d2/b.go:function:B:1:39"},
@@ -272,11 +246,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			wantCompletion: map[string]string{
-				// use default GOROOT, since gocode needs package binaries
-				"a.go:1:21": "1:20-1:21 flag module , fmt module ",
-				"a.go:1:44": "1:38-1:44 Println function func(a ...interface{}) (n int, err error)",
-			},
 			wantSymbols: map[string][]string{
 				"a.go": {
 					"/src/test/pkg/a.go:variable:x:1:51",
@@ -304,10 +273,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			"b/b.go": `package b; import "test/pkg/a"; var _ = a.A`,
 		},
 		cases: lspTestCases{
-			wantCompletion: map[string]string{
-				"b/b.go:1:26": "1:20-1:26 test/pkg/a module , test/pkg/b module ",
-				"b/b.go:1:43": "1:43-1:43 A function func()",
-			},
 			wantSymbols: map[string][]string{
 				"a/a.go": {"/src/test/pkg/a/a.go:function:A:1:17"},
 				"b/b.go": {},
@@ -335,10 +300,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			wantCompletion: map[string]string{
-				"a.go:1:34": "1:20-1:34 github.com/d/dep module ",
-				"a.go:1:51": "1:51-1:51 D function func()",
-			},
 			wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 				{Query: lspext.SymbolDescriptor{}}: {
 					"/src/test/pkg/a.go:1:19-1:37 -> id:github.com/d/dep name: package:github.com/d/dep packageName:dep recv: vendor:false",
@@ -359,10 +320,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			wantCompletion: map[string]string{
-				"a.go:1:34": "1:20-1:34 github.com/d/dep/subp module ",
-				"a.go:1:57": "1:57-1:57 D function func()",
-			},
 			wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 				{Query: lspext.SymbolDescriptor{}}: {
 					"/src/test/pkg/a.go:1:19-1:42 -> id:github.com/d/dep/subp name: package:github.com/d/dep/subp packageName:subp recv: vendor:false",
@@ -385,10 +342,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		cases: lspTestCases{
-			wantCompletion: map[string]string{
-				//"a.go:1:53": "1:53-1:53 D1 function func() D2", // gocode does not handle D2 correctly
-				"a.go:1:58": "1:58-1:58 D2 variable int",
-			},
 			wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 				{Query: lspext.SymbolDescriptor{}}: {
 					"/src/test/pkg/a.go:1:19-1:38 -> id:github.com/d/dep1 name: package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
@@ -514,31 +467,6 @@ func yza() {}
 				"b.go:1:51": "func(x int, y int) int Comments for C\n 0",
 				"b.go:1:53": "func(x int, y int) int Comments for C\n 1",
 				"b.go:1:54": "func(x int, y int) int Comments for C\n 1",
-			},
-		},
-	},
-	"completion": {
-		rootURI: "file:///src/test/pkg",
-		fs: map[string]string{
-			"a.go": `package p
-
-import "strings"
-
-func s2() {
-	_ = strings.Title("s")
-	_ = new(strings.Replacer)
-}
-
-const s1 = 42
-
-var s3 int
-var s4 func()`,
-		},
-		cases: lspTestCases{
-			wantCompletion: map[string]string{
-				"a.go:6:7":   "6:6-6:7 s1 constant , s2 function func(), strings module , string class built-in, s3 variable int, s4 variable func()",
-				"a.go:7:7":   "7:6-7:7 nil constant , new function func(type) *type",
-				"a.go:12:11": "12:8-12:11 int class built-in, int16 class built-in, int32 class built-in, int64 class built-in, int8 class built-in",
 			},
 		},
 	},
@@ -762,52 +690,6 @@ func copyDirToOS(ctx context.Context, fs *AtomicFS, targetDir, srcDir string) er
 
 // lspTests runs all test suites for LSP functionality.
 func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, cases lspTestCases) {
-
-	if len(cases.wantCompletion) > 0 {
-		h.config.UseBinaryPkgCache = true
-
-		// Copy the VFS into a temp directory, which will be our $GOPATH.
-		tmpDir, err := ioutil.TempDir("", "godef-definition")
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer os.RemoveAll(tmpDir)
-		if err := copyDirToOS(ctx, h.FS, tmpDir, "/"); err != nil {
-			t.Fatal(err)
-		}
-
-		// Important: update build.Default.GOPATH, since it is compiled into
-		// the binary we must update it here at runtime. Otherwise, godef would
-		// look for $GOPATH/pkg .a files inside the $GOPATH that was set during
-		// 'go test' instead of our tmp directory.
-		build.Default.GOPATH = tmpDir
-		gocode.SetBuildContext(&build.Default)
-		tmpRootPath := filepath.Join(tmpDir, util.UriToPath(rootURI))
-
-		// Install all Go packages in the $GOPATH.
-		oldGOPATH := os.Getenv("GOPATH")
-		os.Setenv("GOPATH", tmpDir)
-		out, err := exec.Command("go", "install", "-v", "all").CombinedOutput()
-		os.Setenv("GOPATH", oldGOPATH)
-		t.Logf("$ GOPATH='%s' go install -v all\n%s", tmpDir, out)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		testOSToVFSPath = func(osPath string) string {
-			return strings.TrimPrefix(osPath, util.UriToPath(util.PathToURI(tmpDir)))
-		}
-
-		for pos, want := range cases.wantCompletion {
-			tbRun(t, fmt.Sprintf("completion-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				doCompletionTest(t, ctx, c, util.PathToURI(tmpRootPath), pos, want)
-			})
-		}
-
-		h.config.UseBinaryPkgCache = false
-	}
-
-
 	for file, want := range cases.wantSymbols {
 		tbRun(t, fmt.Sprintf("symbols-%s", file), func(t testing.TB) {
 			symbolsTest(t, ctx, c, rootURI, file, want)
@@ -1042,75 +924,6 @@ func (v *locations) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &(*v)[0])
 }
 
-// testRequest is a simplified version of jsonrpc2.Request for easier
-// test expectation definition and checking of the fields that matter.
-type testRequest struct {
-	Method string
-	Params interface{}
-}
-
-func (r testRequest) String() string {
-	b, err := json.Marshal(r.Params)
-	if err != nil {
-		panic(err)
-	}
-	return fmt.Sprintf("%s(%s)", r.Method, b)
-}
-
-func testRequestEqual(a, b testRequest) bool {
-	if a.Method != b.Method {
-		return false
-	}
-
-	// We want to see if a and b have identical canonical JSON
-	// representations. They are NOT identical Go structures, since
-	// one comes from the wire (as raw JSON) and one is an interface{}
-	// of a concrete struct/slice type provided as a test expectation.
-	ajson, err := json.Marshal(a.Params)
-	if err != nil {
-		panic(err)
-	}
-	bjson, err := json.Marshal(b.Params)
-	if err != nil {
-		panic(err)
-	}
-	var a2, b2 interface{}
-	if err := json.Unmarshal(ajson, &a2); err != nil {
-		panic(err)
-	}
-	if err := json.Unmarshal(bjson, &b2); err != nil {
-		panic(err)
-	}
-	return reflect.DeepEqual(a2, b2)
-}
-
-func testRequestsEqual(as, bs []testRequest) bool {
-	if len(as) != len(bs) {
-		return false
-	}
-	for i, a := range as {
-		if !testRequestEqual(a, bs[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-type testRequests []testRequest
-
-func (v testRequests) Len() int      { return len(v) }
-func (v testRequests) Swap(i, j int) { v[i], v[j] = v[j], v[i] }
-func (v testRequests) Less(i, j int) bool {
-	ii, err := json.Marshal(v[i])
-	if err != nil {
-		panic(err)
-	}
-	jj, err := json.Marshal(v[j])
-	if err != nil {
-		panic(err)
-	}
-	return string(ii) < string(jj)
-}
 
 // mapFS lets us easily instantiate a VFS with a map[string]string
 // (which is less noisy than map[string][]byte in test fixtures).
