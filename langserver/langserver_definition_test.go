@@ -60,6 +60,13 @@ func TestDefinition(t *testing.T) {
 	t.Run("type definition lookup", func(t *testing.T) {
 		test(t, lookupPkgDir, "b/b.go:1:115", lookupOutput("b/b.go:1:95-1:96"))
 	})
+
+	t.Run("go1.9 type alias", func(t *testing.T) {
+		test(t, typealiasPkgDir, "a.go:1:17", typealiasOutput("a.go:1:17-1:18"))
+		test(t, typealiasPkgDir, "b.go:1:17", typealiasOutput("b.go:1:17-1:18"))
+		test(t, typealiasPkgDir, "b.go:1:20", "")
+		test(t, typealiasPkgDir, "b.go:1:21", typealiasOutput("a.go:1:17-1:18"))
+	})
 }
 
 type definitionTestCase struct {

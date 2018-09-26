@@ -97,6 +97,13 @@ func TestHover(t *testing.T) {
 		test(t, issuePkgDir, "223.go:13:17", "func (*Hello).Bye() int")
 		test(t, issuePkgDir, "261.go:11:15", "var t T")
 	})
+
+	t.Run("go1.9 type alias", func(t *testing.T) {
+		test(t, typealiasPkgDir, "a.go:1:17", "type A struct; struct {\n    a int\n}")
+		test(t, typealiasPkgDir, "b.go:1:17", "type B struct; struct {\n    a int\n}")
+		test(t, typealiasPkgDir, "b.go:1:20", "")
+		test(t, typealiasPkgDir, "b.go:1:21", "type A struct; struct {\n    a int\n}")
+	})
 }
 
 type hoverTestCase struct {

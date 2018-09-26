@@ -1,0 +1,1 @@
+package p; type B = A

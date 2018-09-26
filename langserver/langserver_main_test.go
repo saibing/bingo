@@ -39,6 +39,7 @@ const (
 	issuePkgDir           = "test/pkg/issue"
 	lookupPkgDir          = "test/pkg/lookup"
 	implementationsPkgDir = "test/pkg/implementations"
+	typealiasPkgDir       = "test/pkg/typealias"
 )
 
 var (
@@ -244,6 +245,10 @@ func gomoduleOutput(suffix string) string {
 
 func lookupOutput(suffix string) string {
 	return genOutput(lookupPkgDir, suffix)
+}
+
+func typealiasOutput(suffix string) string {
+	return genOutput(typealiasPkgDir, suffix)
 }
 
 func implementationsOutput(suffix string) string {
