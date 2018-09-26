@@ -19,5 +19,5 @@ require (
 	github.com/sourcegraph/ctxvfs v0.0.0-20180418081416-2b65f1b1ea81
 	github.com/sourcegraph/jsonrpc2 v0.0.0-20180831160525-549eb959f029
 	golang.org/x/net v0.0.0-20180921000356-2f5d2388922f
-	golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e
+	golang.org/x/tools v0.0.0-20180926130641-c756801b0141
 )
