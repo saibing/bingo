@@ -15,6 +15,7 @@ type packagePool map[string]*packages.Package
 type PackageCache struct {
 	mu   sync.RWMutex
 	pool packagePool
+	rootDir string
 }
 
 func New() *PackageCache {
@@ -24,26 +25,8 @@ func New() *PackageCache {
 const windowsOS = "windows"
 
 func (c *PackageCache) Init(ctx context.Context, root string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	log.Printf("root dir: %s\n", root)
-	loadDir := getLoadDir(root)
-	log.Printf("load dir: %s\n", loadDir)
-	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context:ctx, Tests: true}
-	//err := os.Chdir(loadDir)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//
-	//pkgList, err := packages.Load(cfg, "./...")
-	pkgList, err := packages.Load(cfg, loadDir + "/...")
-	if err != nil {
-		return err
-	}
-	c.push(pkgList)
-	return nil
+	c.rootDir = root
+	return c.buildCache(ctx)
 }
 
 func (c *PackageCache) Load(pkgDir string) (*packages.Package, error) {
@@ -65,26 +48,27 @@ func (c *PackageCache) Load(pkgDir string) (*packages.Package, error) {
 	}
 
 	c.mu.RUnlock()
+	c.buildCache(context.Background())
 
-	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context:context.Background(), Tests: true}
-	//err := os.Chdir(loadDir)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//pkgList, err := packages.Load(cfg, ".")
-	pkgList, err := packages.Load(cfg, loadDir)
+	return c.pool[cacheKey], nil
+}
+
+func (c *PackageCache) buildCache(ctx context.Context) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.pool = packagePool{}
+
+	log.Printf("root dir: %s\n", c.rootDir)
+	loadDir := getLoadDir(c.rootDir)
+	log.Printf("load dir: %s\n", loadDir)
+	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context:ctx, Tests: true}
+	pkgList, err := packages.Load(cfg, loadDir + "/...")
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	if len(pkgList) == 0 {
-		return nil, nil
-	}
-
-	go c.pushWithLock(pkgList)
-
-	return pkgList[0], nil
+	c.push(pkgList)
+	return nil
 }
 
 func (c *PackageCache) Iterate(visit func (p *packages.Package) error) error {
