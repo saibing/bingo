@@ -41,6 +41,10 @@ const (
 	implementationsPkgDir = "test/pkg/implementations"
 	typealiasPkgDir       = "test/pkg/typealias"
 	completionPkgDir      = "test/pkg/completion"
+	exportedPkgDir 		  = "test/pkg/exported_on_unexported"
+	symbolsPkgDir		  = "test/pkg/symbols"
+	unexpectedPkgDir	  = "test/pkg/unexpected_paths"
+	differentPkgDir       = "test/pkg/different"
 )
 
 var (
