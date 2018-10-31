@@ -10,14 +10,14 @@ require (
 	github.com/opentracing/basictracer-go v1.0.0
 	github.com/opentracing/opentracing-go v1.0.2
 	github.com/pmezard/go-difflib v1.0.0
-	github.com/prometheus/client_golang v0.8.0
+	github.com/prometheus/client_golang v0.9.0
 	github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910 // indirect
-	github.com/prometheus/common v0.0.0-20180801064454-c7de2306084e // indirect
+	github.com/prometheus/common v0.0.0-20181020173914-7e9e6cabbd39 // indirect
 	github.com/prometheus/procfs v0.0.0-20181005140218-185b4288413d // indirect
 	github.com/saibing/dep v1.0.2
 	github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3
 	github.com/sourcegraph/ctxvfs v0.0.0-20180418081416-2b65f1b1ea81
 	github.com/sourcegraph/jsonrpc2 v0.0.0-20180831160525-549eb959f029
-	golang.org/x/net v0.0.0-20181011144130-49bb7cea24b1
-	golang.org/x/tools v0.0.0-20181013182035-5e66757b835f
+	golang.org/x/net v0.0.0-20181029044818-c44066c5c816
+	golang.org/x/tools v0.0.0-20181030221726-6c7e314b6563
 )
