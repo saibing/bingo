@@ -343,11 +343,8 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 				return ctx.Err()
 			}
 
-			if len(pkg.CompiledGoFiles) == 0 {
-				return nil
-			}
-
-			if !strings.HasPrefix(pkg.CompiledGoFiles[0], h.packageCache.Root()) {
+			if len(pkg.CompiledGoFiles) == 0 || !strings.HasPrefix(pkg.CompiledGoFiles[0], h.packageCache.Root()) {
+				par.Release()
 				return nil
 			}
 

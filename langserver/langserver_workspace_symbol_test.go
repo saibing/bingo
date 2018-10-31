@@ -63,10 +63,10 @@ func TestWorkspaceSymbol(t *testing.T) {
 
 	t.Run("detailed workspace symbol", func(t *testing.T) {
 		test(t, detailedPkgDir, map[*lspext.WorkspaceSymbolParams][]string{
-			{Query: ""}:            {"/src/test/pkg/a.go:class:T:1:17", "/src/test/pkg/a.go:field:T.F:1:28"},
-			{Query: "T"}:           {"/src/test/pkg/a.go:class:T:1:17", "/src/test/pkg/a.go:field:T.F:1:28"},
-			{Query: "F"}:           {"/src/test/pkg/a.go:field:T.F:1:28"},
-			{Query: "is:exported"}: {"/src/test/pkg/a.go:class:T:1:17", "/src/test/pkg/a.go:field:T.F:1:28"},
+			{Query: ""}:            {detailOutput("a.go:class:T:1:17"), detailOutput("a.go:field:T.F:1:28")},
+			{Query: "T"}:           {detailOutput("a.go:class:T:1:17"), detailOutput("a.go:field:T.F:1:28")},
+			{Query: "F"}:           {detailOutput("a.go:field:T.F:1:28")},
+			{Query: "is:exported"}: {detailOutput("a.go:class:T:1:17"), detailOutput("a.go:field:T.F:1:28")},
 		})
 	})
 
@@ -78,15 +78,15 @@ func TestWorkspaceSymbol(t *testing.T) {
 
 	t.Run("subdirectory workspace symbol", func(t *testing.T) {
 		test(t, subdirectoryPkgDir, map[*lspext.WorkspaceSymbolParams][]string{
-			{Query: ""}:            {"/src/test/pkg/d/a.go:function:A:1:17", "/src/test/pkg/d/d2/b.go:function:B:1:39"},
-			{Query: "is:exported"}: {"/src/test/pkg/d/a.go:function:A:1:17", "/src/test/pkg/d/d2/b.go:function:B:1:39"},
-			{Query: "dir:"}:        {"/src/test/pkg/d/a.go:function:A:1:17"},
-			{Query: "dir:/"}:       {"/src/test/pkg/d/a.go:function:A:1:17"},
-			{Query: "dir:."}:       {"/src/test/pkg/d/a.go:function:A:1:17"},
-			{Query: "dir:./"}:      {"/src/test/pkg/d/a.go:function:A:1:17"},
-			{Query: "dir:/d2"}:     {"/src/test/pkg/d/d2/b.go:function:B:1:39"},
-			{Query: "dir:./d2"}:    {"/src/test/pkg/d/d2/b.go:function:B:1:39"},
-			{Query: "dir:d2/"}:     {"/src/test/pkg/d/d2/b.go:function:B:1:39"},
+			{Query: ""}:            {subdirectoryOutput("a.go:function:A:1:17"), subdirectoryOutput("d2/b.go:function:B:1:86")},
+			{Query: "is:exported"}: {subdirectoryOutput("a.go:function:A:1:17"), subdirectoryOutput("d2/b.go:function:B:1:86")},
+			{Query: "dir:"}:        {subdirectoryOutput("a.go:function:A:1:17")},
+			{Query: "dir:/"}:       {subdirectoryOutput("a.go:function:A:1:17")},
+			{Query: "dir:."}:       {subdirectoryOutput("a.go:function:A:1:17")},
+			{Query: "dir:./"}:      {subdirectoryOutput("a.go:function:A:1:17")},
+			{Query: "dir:/d2"}:     {subdirectoryOutput("d2/b.go:function:B:1:86")},
+			{Query: "dir:./d2"}:    {subdirectoryOutput("d2/b.go:function:B:1:86")},
+			{Query: "dir:d2/"}:     {subdirectoryOutput("d2/b.go:function:B:1:86")},
 		})
 	})
 
@@ -101,17 +101,17 @@ func TestWorkspaceSymbol(t *testing.T) {
 	t.Run("go root", func(t *testing.T) {
 		test(t, gorootPkgDir, map[*lspext.WorkspaceSymbolParams][]string{
 			{Query: ""}: {
-				"/src/test/pkg/a.go:variable:x:1:51",
+				gorootOutput2("a.go:variable:x:1:51"),
 			},
 			{Query: "is:exported"}: {},
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "x", "packageName": "p", "recv": "", "vendor": false}}: {"/src/test/pkg/a.go:variable:x:1:51"},
+			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "x", "packageName": "p", "recv": "", "vendor": false}}: {gorootOutput2("a.go:variable:x:1:51")},
 		})
 	})
 
 	t.Run("go project", func(t *testing.T) {
 		test(t, goprojectPkgDir, map[*lspext.WorkspaceSymbolParams][]string{
-			{Query: ""}:            {goprojectOutput("a.go:function:A:1:17")},
-			{Query: "is:exported"}: {goprojectOutput("a.go:function:A:1:17")},
+			{Query: ""}:            {goprojectOutput("a/a.go:function:A:1:17")},
+			{Query: "is:exported"}: {goprojectOutput("a/a.go:function:A:1:17")},
 		})
 	})
 
@@ -149,11 +149,18 @@ func doWorkspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn,
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	rootDir := util.UriToPath(rootURI)
+
+	var results []string
 	for i := range symbols {
-		symbols[i] = util.UriToPath(lsp.DocumentURI(symbols[i]))
+		symbol := util.UriToPath(lsp.DocumentURI(symbols[i]))
+		if strings.HasPrefix(symbol, rootDir) {
+			results = append(results, symbol)
+		}
 	}
-	if !reflect.DeepEqual(symbols, want) {
-		t.Errorf("got %#v, want %q", symbols, want)
+	if !reflect.DeepEqual(results, want) {
+		t.Errorf("got %#v, want %q", results, want)
 	}
 }
 
