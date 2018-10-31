@@ -7,10 +7,10 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
+	"golang.org/x/tools/go/packages"
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -21,7 +21,6 @@ import (
 	"github.com/saibing/bingo/langserver/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
-	"github.com/saibing/bingo/pkg/tools"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -254,12 +253,12 @@ func score(q Query, s symbolPair) (scor int) {
 
 // toSym returns a SymbolInformation value derived from values we get
 // from visiting the Go ast.
-func toSym(name string, bpkg *build.Package, container string, recv string, kind lsp.SymbolKind, fs *token.FileSet, pos token.Pos) symbolPair {
+func toSym(name string, pkg *packages.Package, container string, recv string, kind lsp.SymbolKind, fs *token.FileSet, pos token.Pos) symbolPair {
 	var id string
 	if container == "" {
-		id = fmt.Sprintf("%s/-/%s", path.Clean(bpkg.ImportPath), name)
+		id = fmt.Sprintf("%s/-/%s", path.Clean(pkg.PkgPath), name)
 	} else {
-		id = fmt.Sprintf("%s/-/%s/%s", path.Clean(bpkg.ImportPath), container, name)
+		id = fmt.Sprintf("%s/-/%s/%s", path.Clean(pkg.PkgPath), container, name)
 	}
 
 	return symbolPair{
@@ -271,9 +270,9 @@ func toSym(name string, bpkg *build.Package, container string, recv string, kind
 		},
 		// NOTE: fields must be kept in sync with workspace_refs.go:defSymbolDescriptor
 		desc: symbolDescriptor{
-			Vendor:      util.IsVendorDir(bpkg.Dir),
-			Package:     path.Clean(bpkg.ImportPath),
-			PackageName: bpkg.Name,
+			Vendor:      false,
+			Package:     path.Clean(pkg.PkgPath),
+			PackageName: pkg.Name,
 			Recv:        recv,
 			Name:        name,
 			ID:          id,
@@ -290,21 +289,14 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 			Message: fmt.Sprintf("textDocument/documentSymbol not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
 		}
 	}
-	path := util.UriToPath(params.TextDocument.URI)
+	filename := util.UriToPath(params.TextDocument.URI)
 
-	fset := token.NewFileSet()
-	bctx := h.BuildContext(ctx)
-	src, err := buildutil.ParseFile(fset, bctx, nil, filepath.Dir(path), filepath.Base(path), 0)
+	pkg, err := h.packageCache.Load(path.Dir(filename))
 	if err != nil {
 		return nil, err
 	}
-	pkg := &ast.Package{
-		Name:  src.Name.Name,
-		Files: map[string]*ast.File{},
-	}
-	pkg.Files[filepath.Base(path)] = src
 
-	symbols := astPkgToSymbols(fset, pkg, &build.Package{})
+	symbols := astFileToSymbols(pkg, filename)
 	res := make([]lsp.SymbolInformation, len(symbols))
 	for i, s := range symbols {
 		res[i] = s.SymbolInformation
@@ -338,29 +330,9 @@ func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn jsonrpc2.J
 func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, query Query, limit int) ([]lsp.SymbolInformation, error) {
 	results := resultSorter{Query: query, results: make([]scoredSymbol, 0)}
 	{
-		rootPath := h.FilePath(h.init.Root())
-		bctx := h.BuildContext(ctx)
-
 		par := parallel.NewRun(h.config.MaxParallelism)
-		for _, pkg := range tools.ListPkgsUnderDir(bctx, rootPath) {
-			// If we're restricting results to a single file or dir, ensure the
-			// package dir matches to avoid doing unnecessary work.
-			if results.Query.File != "" {
-				filePkgPath := path.Dir(results.Query.File)
-				if util.PathHasPrefix(filePkgPath, bctx.GOROOT) {
-					filePkgPath = util.PathTrimPrefix(filePkgPath, bctx.GOROOT)
-				} else {
-					filePkgPath = util.PathTrimPrefix(filePkgPath, bctx.GOPATH)
-				}
-				filePkgPath = util.PathTrimPrefix(filePkgPath, "src")
-				if !util.PathEqual(pkg, filePkgPath) {
-					continue
-				}
-			}
-			if results.Query.Filter == FilterDir && !util.PathEqual(pkg, results.Query.Dir) {
-				continue
-			}
 
+		f := func(pkg *packages.Package) error {
 			par.Acquire()
 
 			// If the context is cancelled, breaking the loop here
@@ -368,10 +340,18 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 			// avoiding starting new computations.
 			if ctx.Err() != nil {
 				par.Release()
-				break
+				return ctx.Err()
 			}
 
-			go func(pkg string) {
+			if len(pkg.CompiledGoFiles) == 0 {
+				return nil
+			}
+
+			if !strings.HasPrefix(pkg.CompiledGoFiles[0], h.packageCache.Root()) {
+				return nil
+			}
+
+			go func(pkg *packages.Package) {
 				// Prevent any uncaught panics from taking the
 				// entire server down. For an example see
 				// https://github.com/golang/go/issues/17788
@@ -379,9 +359,14 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 					par.Release()
 					_ = util.Panicf(recover(), "%v for pkg %v", req.Method, pkg)
 				}()
-				h.collectFromPkg(ctx, bctx, pkg, rootPath, &results)
+				h.collectFromPkg(pkg, &results)
 			}(pkg)
+
+			return nil
 		}
+
+		h.packageCache.Iterate(f)
+
 		_ = par.Wait()
 	}
 	sort.Sort(&results)
@@ -400,27 +385,9 @@ type pkgSymResult struct {
 // collectFromPkg collects all the symbols from the specified package
 // into the results. It uses LangHandler's package symbol cache to
 // speed up repeated calls.
-func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, pkg string, rootPath string, results *resultSorter) {
+func (h *LangHandler) collectFromPkg(pkg *packages.Package,  results *resultSorter) {
 	symbols := h.symbolCache.Get(pkg, func() interface{} {
-		findPackage := h.getFindPackageFunc()
-		buildPkg, err := findPackage(ctx, bctx, pkg, rootPath, 0)
-		if err != nil {
-			maybeLogImportError(pkg, err)
-			return nil
-		}
-
-		fs := token.NewFileSet()
-		astPkgs, err := parseDir(fs, bctx, buildPkg.Dir, nil, 0)
-		if err != nil {
-			log.Printf("failed to parse directory %s: %s", buildPkg.Dir, err)
-			return nil
-		}
-		astPkg := astPkgs[buildPkg.Name]
-		if astPkg == nil {
-			return nil
-		}
-
-		return astPkgToSymbols(fs, astPkg, buildPkg)
+		return astPkgToSymbols(pkg)
 	})
 
 	if symbols == nil {
@@ -438,7 +405,7 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 // SymbolCollector stores symbol information for an AST
 type SymbolCollector struct {
 	pkgSyms  []symbolPair
-	buildPkg *build.Package
+	pkg *packages.Package
 	fs       *token.FileSet
 }
 
@@ -464,7 +431,7 @@ func specNames(specs []ast.Spec) []string {
 }
 
 func (c *SymbolCollector) addSymbol(name string, recv string, container string, kind lsp.SymbolKind, pos token.Pos) {
-	c.pkgSyms = append(c.pkgSyms, toSym(name, c.buildPkg, recv, container, kind, c.fs, pos))
+	c.pkgSyms = append(c.pkgSyms, toSym(name, c.pkg, recv, container, kind, c.fs, pos))
 }
 
 func (c *SymbolCollector) addFuncDecl(fun *ast.FuncDecl) {
@@ -532,12 +499,26 @@ func (c *SymbolCollector) Visit(n ast.Node) (w ast.Visitor) {
 	return c
 }
 
-func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Package) []symbolPair {
+func astPkgToSymbols(pkg *packages.Package) []symbolPair {
 	var pkgSyms []symbolPair
-	symbolCollector := &SymbolCollector{pkgSyms, buildPkg, fs}
+	symbolCollector := &SymbolCollector{pkgSyms, pkg, pkg.Fset}
 
-	for _, src := range astPkg.Files {
+	for _, src := range pkg.Syntax {
 		ast.Walk(symbolCollector, src)
+	}
+
+	return symbolCollector.pkgSyms
+}
+
+func astFileToSymbols(pkg *packages.Package, filename string) []symbolPair {
+	var pkgSyms []symbolPair
+	symbolCollector := &SymbolCollector{pkgSyms, pkg, pkg.Fset}
+
+	for i, src := range pkg.Syntax {
+		if pkg.CompiledGoFiles[i] == filename {
+			ast.Walk(symbolCollector, src)
+			break
+		}
 	}
 
 	return symbolCollector.pkgSyms

@@ -29,6 +29,10 @@ func (c *PackageCache) Init(ctx context.Context, root string) error {
 	return c.buildCache(ctx)
 }
 
+func (c *PackageCache) Root() string {
+	return c.rootDir
+}
+
 func (c *PackageCache) Load(pkgDir string) (*packages.Package, error) {
 	loadDir := getLoadDir(pkgDir)
 	cacheKey := loadDir

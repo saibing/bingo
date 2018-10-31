@@ -110,8 +110,8 @@ func TestWorkspaceSymbol(t *testing.T) {
 
 	t.Run("go project", func(t *testing.T) {
 		test(t, goprojectPkgDir, map[*lspext.WorkspaceSymbolParams][]string{
-			{Query: ""}:            {"/src/test/pkg/a/a.go:function:A:1:17"},
-			{Query: "is:exported"}: {"/src/test/pkg/a/a.go:function:A:1:17"},
+			{Query: ""}:            {goprojectOutput("a.go:function:A:1:17")},
+			{Query: "is:exported"}: {goprojectOutput("a.go:function:A:1:17")},
 		})
 	})
 
