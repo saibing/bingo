@@ -47,6 +47,103 @@ const (
 	differentPkgDir       = "test/pkg/different"
 )
 
+func basicOutput(suffix string) string {
+	return genOutput(basicPkgDir, suffix)
+}
+
+func detailOutput(suffix string) string {
+	return genOutput(detailedPkgDir, suffix)
+}
+
+func exportedOutput(suffix string) string {
+	return genOutput(exportedPkgDir, suffix)
+}
+
+func xtestOutput(suffix string) string {
+	return genOutput(xtestPkgDir, suffix)
+}
+
+func testOutput(suffix string) string {
+	return genOutput(testPkgDir, suffix)
+}
+
+func subdirectoryOutput(suffix string) string {
+	return genOutput(subdirectoryPkgDir, suffix)
+}
+
+func multipleOutput(suffix string) string {
+	return genOutput(multiplePkgDir, suffix)
+}
+
+func gorootOutput(suffix string) string {
+	return getPlatformPath(runtime.GOROOT() + "/" + suffix)
+}
+
+func gorootOutput2(suffix string) string {
+	return genOutput(gorootPkgDir, suffix)
+}
+
+func unexpectedOutput(suffix string) string {
+	return genOutput(unexpectedPkgDir, suffix)
+}
+
+func differentOutput(suffix string) string {
+	return genOutput(differentPkgDir, suffix)
+}
+
+func goprojectOutput(suffix string) string {
+	return genOutput(goprojectPkgDir, suffix)
+}
+
+func gomoduleDepOutput(suffix string) string {
+	depPath := filepath.Join(gopathDir, "pkg/mod/github.com/saibing/dep@v1.0.2")
+	return getPlatformPath(depPath + "/" + suffix)
+}
+
+func gomoduleOutput(suffix string) string {
+	return genOutput(gomodulePkgDir, suffix)
+}
+
+func symbolsOutput(suffix string) string {
+	return genOutput(symbolsPkgDir, suffix)
+}
+
+func lookupOutput(suffix string) string {
+	return genOutput(lookupPkgDir, suffix)
+}
+
+func typealiasOutput(suffix string) string {
+	return genOutput(typealiasPkgDir, suffix)
+}
+
+func implementationsOutput(suffix string) string {
+	return genOutput(implementationsPkgDir, suffix)
+}
+
+func genOutput(pkgDir, suffix string) string {
+	return getPlatformPath(currentWorkDir + pkgDir + "/" + suffix)
+}
+
+func getGOPATH() string {
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		return filepath.Join(os.Getenv("HOME"), "go")
+	}
+
+	paths := strings.Split(gopath, string(os.PathListSeparator))
+	return paths[0]
+}
+
+
+func getPlatformPath(path string) string {
+	s := filepath.ToSlash(path)
+	if runtime.GOOS == "windows" {
+		return "/" + s
+	}
+
+	return s
+}
+
 var (
 	currentWorkDir = ""
 	gopathDir      = ""
@@ -211,75 +308,3 @@ func parsePos(s string) (file string, line, char int, err error) {
 	return file, line - 1, char - 1, nil // LSP is 0-indexed
 }
 
-func basicOutput(suffix string) string {
-	return genOutput(basicPkgDir, suffix)
-}
-
-func xtestOutput(suffix string) string {
-	return genOutput(xtestPkgDir, suffix)
-}
-
-func testOutput(suffix string) string {
-	return genOutput(testPkgDir, suffix)
-}
-
-func subdirectoryOutput(suffix string) string {
-	return genOutput(subdirectoryPkgDir, suffix)
-}
-
-func multipleOutput(suffix string) string {
-	return genOutput(multiplePkgDir, suffix)
-}
-
-func gorootOutput(suffix string) string {
-	return getPlatformPath(runtime.GOROOT() + "/" + suffix)
-}
-
-func goprojectOutput(suffix string) string {
-	return genOutput(goprojectPkgDir, suffix)
-}
-
-func gomoduleDepOutput(suffix string) string {
-	depPath := filepath.Join(gopathDir, "pkg/mod/github.com/saibing/dep@v1.0.2")
-	return getPlatformPath(depPath + "/" + suffix)
-}
-
-func gomoduleOutput(suffix string) string {
-	return genOutput(gomodulePkgDir, suffix)
-}
-
-func lookupOutput(suffix string) string {
-	return genOutput(lookupPkgDir, suffix)
-}
-
-func typealiasOutput(suffix string) string {
-	return genOutput(typealiasPkgDir, suffix)
-}
-
-func implementationsOutput(suffix string) string {
-	return genOutput(implementationsPkgDir, suffix)
-}
-
-func genOutput(pkgDir, suffix string) string {
-	return getPlatformPath(currentWorkDir + pkgDir + "/" + suffix)
-}
-
-func getGOPATH() string {
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		return filepath.Join(os.Getenv("HOME"), "go")
-	}
-
-	paths := strings.Split(gopath, string(os.PathListSeparator))
-	return paths[0]
-}
-
-
-func getPlatformPath(path string) string {
-	s := filepath.ToSlash(path)
-	if runtime.GOOS == "windows" {
-		return "/" + s
-	}
-
-	return s
-}

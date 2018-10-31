@@ -23,77 +23,77 @@ func TestDocumentSymbol(t *testing.T) {
 
 	t.Run("basic document symbol", func(t *testing.T) {
 		test(t, basicPkgDir, map[string][]string{
-			"a.go": {"/src/test/pkg/a.go:function:A:1:17"},
-			"b.go": {"/src/test/pkg/b.go:function:B:1:17"},
+			"a.go": {basicOutput("a.go:function:A:1:17")},
+			"b.go": {basicOutput("b.go:function:B:1:17")},
 		})
 	})
 
 	t.Run("detailed document symbol", func(t *testing.T) {
 		test(t, detailedPkgDir, map[string][]string{
-			"a.go": {"/src/test/pkg/a.go:field:T.F:1:28", "/src/test/pkg/a.go:class:T:1:17"},
+			"a.go": {detailOutput("a.go:field:T.F:1:28"), detailOutput("a.go:class:T:1:17")},
 		})
 	})
 
 	t.Run("exported defs unexported type", func(t *testing.T) {
 		test(t, exportedPkgDir, map[string][]string{
-			"a.go": {"/src/test/pkg/a.go:field:t.F:1:28", "/src/test/pkg/a.go:class:t:1:17"},
+			"a.go": {exportedOutput("a.go:field:t.F:1:28"), exportedOutput("a.go:class:t:1:17")},
 		})
 	})
 
 	t.Run("xtest", func(t *testing.T) {
 		test(t, xtestPkgDir, map[string][]string{
-			"y_test.go": {"/src/test/pkg/y_test.go:function:Y:1:22"},
-			"b_test.go": {"/src/test/pkg/b_test.go:function:Y:1:17"},
+			"y_test.go": {xtestOutput("y_test.go:function:Y:1:22")},
+			"b_test.go": {xtestOutput("b_test.go:function:Y:1:17")},
 		})
 	})
 
 	t.Run("subdirectory document symbol", func(t *testing.T) {
 		test(t, subdirectoryPkgDir, map[string][]string{
-			"a.go":    {"/src/test/pkg/d/a.go:function:A:1:17"},
-			"d2/b.go": {"/src/test/pkg/d/d2/b.go:function:B:1:39"},
+			"a.go":    {subdirectoryOutput("a.go:function:A:1:17")},
+			"d2/b.go": {subdirectoryOutput("d2/b.go:function:B:1:86")},
 		})
 	})
 
 	t.Run("multiple packages in dir", func(t *testing.T) {
 		test(t, multiplePkgDir, map[string][]string{
-			"a.go": {"/src/test/pkg/a.go:function:A:1:17"},
+			"a.go": {multipleOutput("a.go:function:A:1:17")},
 		})
 	})
 
 	t.Run("go root", func(t *testing.T) {
 		test(t, gorootPkgDir, map[string][]string{
 			"a.go": {
-				"/src/test/pkg/a.go:variable:x:1:51",
+				gorootOutput2("a.go:variable:x:1:51"),
 			},
 		})
 	})
 
 	t.Run("go project", func(t *testing.T) {
 		test(t, goprojectPkgDir, map[string][]string{
-			"a/a.go": {"/src/test/pkg/a/a.go:function:A:1:17"},
+			"a/a.go": {goprojectOutput("a/a.go:function:A:1:17")},
 			"b/b.go": {},
 		})
 	})
 
 	t.Run("go symbols", func(t *testing.T) {
 		test(t, symbolsPkgDir, map[string][]string{
-			"abc.go": {"/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/abc.go:variable:A:8:2", "/src/test/pkg/abc.go:constant:B:12:2", "/src/test/pkg/abc.go:class:C:17:2", "/src/test/pkg/abc.go:interface:UVW:20:6", "/src/test/pkg/abc.go:class:T:22:6"},
-			"bcd.go": {"/src/test/pkg/bcd.go:class:YZA:3:6", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
-			"cde.go": {"/src/test/pkg/cde.go:variable:a:4:2", "/src/test/pkg/cde.go:variable:b:4:5", "/src/test/pkg/cde.go:variable:c:5:2"},
-			"xyz.go": {"/src/test/pkg/xyz.go:function:yza:3:6"},
+			"abc.go": {symbolsOutput("abc.go:class:XYZ:3:6"), symbolsOutput("abc.go:method:XYZ.ABC:5:14"), symbolsOutput("abc.go:variable:A:8:2"), symbolsOutput("abc.go:constant:B:12:2"), symbolsOutput("abc.go:class:C:17:2"), symbolsOutput("abc.go:interface:UVW:20:6"), symbolsOutput("abc.go:class:T:22:6")},
+			"bcd.go": {symbolsOutput("bcd.go:class:YZA:3:6"), symbolsOutput("bcd.go:method:YZA.BCD:5:14")},
+			"cde.go": {symbolsOutput("cde.go:variable:a:4:2"), symbolsOutput("cde.go:variable:b:4:5"), symbolsOutput("cde.go:variable:c:5:2")},
+			"xyz.go": {symbolsOutput("xyz.go:function:yza:3:6")},
 		})
 	})
 
 	t.Run("unexpected paths", func(t *testing.T) {
 		test(t, unexpectedPkgDir, map[string][]string{
-			"a.go": {"/src/t:est/@hello/pkg/a.go:function:A:1:17"},
+			"a.go": {unexpectedOutput("a.go:function:A:1:17")},
 		})
 	})
 
 	t.Run("recv in different file", func(t *testing.T) {
 		test(t, differentPkgDir, map[string][]string{
-			"abc.go": {"/src/test/pkg/abc.go:class:XYZ:2:6"},
-			"bcd.go": {"/src/test/pkg/bcd.go:method:XYZ.ABC:2:14"},
+			"abc.go": {differentOutput("abc.go:class:XYZ:2:6")},
+			"bcd.go": {differentOutput("bcd.go:method:XYZ.ABC:2:14")},
 		})
 	})
 }
