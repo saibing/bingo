@@ -43,6 +43,7 @@ const (
 	completionPkgDir      = "test/pkg/completion"
 	exportedPkgDir 		  = "test/pkg/exported_on_unexported"
 	symbolsPkgDir		  = "test/pkg/symbols"
+	xreferencesPkgDir     = "test/pkg/xreferences"
 	unexpectedPkgDir	  = "test/pkg/unexpected_paths"
 	differentPkgDir       = "test/pkg/different"
 	signatruePkgDir       = "test/pkg/signature"
@@ -90,6 +91,10 @@ func gorootOutput2(suffix string) string {
 
 func unexpectedOutput(suffix string) string {
 	return genOutput(unexpectedPkgDir, suffix)
+}
+
+func xreferences(suffix string) string {
+	return genOutput(xreferencesPkgDir, suffix)
 }
 
 func differentOutput(suffix string) string {
