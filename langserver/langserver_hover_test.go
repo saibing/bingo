@@ -104,6 +104,10 @@ func TestHover(t *testing.T) {
 		test(t, typealiasPkgDir, "b.go:1:20", "")
 		test(t, typealiasPkgDir, "b.go:1:21", "type A struct; struct {\n    a int\n}")
 	})
+
+	t.Run("unexpected paths hover", func(t *testing.T) {
+		test(t, unexpectedPkgDir,"a.go", "func A()")
+	})
 }
 
 type hoverTestCase struct {

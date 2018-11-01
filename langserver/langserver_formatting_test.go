@@ -7,81 +7,61 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 	"log"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/saibing/bingo/langserver/util"
 )
 
-func TestSignature(t *testing.T) {
-	test := func(t *testing.T, pkgDir string, data map[string]string) {
-		for k, v := range data {
-			testSignature(t, &signatureTestCase{pkgDir: pkgDir, input: k, output: v})
-		}
+func TestFormatting(t *testing.T) {
+	test := func(t *testing.T, pkgDir string, input string, output map[string]string) {
+		testFormatting(t, &formattingTestCase{pkgDir: pkgDir, input: input, output: output})
 	}
 
-	t.Run("signature help", func(t *testing.T) {
-		test(t, signatruePkgDir, map[string]string{
-			"b.go:1:28": "func() 0",
-			"b.go:1:33": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
-			"b.go:1:40": "func(foo int, bar func(baz int) int) int Comments for A\n 1",
-			"b.go:1:46": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
-			"b.go:1:51": "func(x int, y int) int Comments for C\n 0",
-			"b.go:1:53": "func(x int, y int) int Comments for C\n 1",
-			"b.go:1:54": "func(x int, y int) int Comments for C\n 1",
-		})
+	t.Run("basic", func(t *testing.T) {
+		test(t, basicPkgDir, "a.go", map[string]string{
+				"0:0-1:0": "package p\n\nfunc A() { A() }\n",
+			})
 	})
 }
 
-type signatureTestCase struct {
+type formattingTestCase struct {
 	pkgDir string
 	input  string
-	output string
+	output map[string]string
 }
 
-func testSignature(tb testing.TB, c *signatureTestCase) {
-	tbRun(tb, fmt.Sprintf("signature-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
+func testFormatting(tb testing.TB, c *formattingTestCase) {
+	tbRun(tb, fmt.Sprintf("formatting-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
 		dir, err := filepath.Abs(c.pkgDir)
 		if err != nil {
-			log.Fatal("testSignature", err)
+			log.Fatal("testFormatting", err)
 		}
-		doSignatureTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+		doFormattingTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
 	})
 }
 
-func doSignatureTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
-	file, line, char, err := parsePos(pos)
+func doFormattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, file string, want map[string]string) {
+	edits, err := callFormatting(ctx, c, uriJoin(rootURI, file))
 	if err != nil {
 		t.Fatal(err)
 	}
-	signature, err := callSignature(ctx, c, uriJoin(rootURI, file), line, char)
-	if err != nil {
-		t.Fatal(err)
+
+	got := map[string]string{}
+	for _, edit := range edits {
+		got[edit.Range.String()] = edit.NewText
 	}
-	if signature != want {
-		t.Fatalf("got %q, want %q", signature, want)
+
+	if reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
 
-func callSignature(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
-	var res lsp.SignatureHelp
-	err := c.Call(ctx, "textDocument/signatureHelp", lsp.TextDocumentPositionParams{
+func callFormatting(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI) ([]lsp.TextEdit, error) {
+	var edits []lsp.TextEdit
+	err := c.Call(ctx, "textDocument/formatting", lsp.DocumentFormattingParams{
 		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
-		Position:     lsp.Position{Line: line, Character: char},
-	}, &res)
-	if err != nil {
-		return "", err
-	}
-	var str string
-	for i, si := range res.Signatures {
-		if i != 0 {
-			str += "; "
-		}
-		str += si.Label
-		if si.Documentation != "" {
-			str += " " + si.Documentation
-		}
-	}
-	str += fmt.Sprintf(" %d", res.ActiveParameter)
-	return str, nil
+	}, &edits)
+	return edits, err
 }

@@ -28,20 +28,6 @@ type serverTestCase struct {
 }
 
 var serverTestCases = map[string]serverTestCase{
-	"go basic": {
-		rootURI: "file:///src/test/pkg",
-		fs: map[string]string{
-			"a.go": "package p; func A() { A() }",
-			"b.go": "package p; func B() { A() }",
-		},
-		cases: lspTestCases{
-			wantFormatting: map[string]map[string]string{
-				"a.go": map[string]string{
-					"0:0-1:0": "package p\n\nfunc A() { A() }\n",
-				},
-			},
-		},
-	},
 	"go xtest": {
 		rootURI: "file:///src/test/pkg",
 		fs: map[string]string{
@@ -246,25 +232,6 @@ var serverTestCases = map[string]serverTestCase{
 			},
 		},
 	},
-	"unexpected paths": {
-		// notice the : and @ symbol
-		rootURI: "file:///src/t:est/@hello/pkg",
-		skip:    runtime.GOOS == "windows", // this test is not supported on windows
-		fs: map[string]string{
-			"a.go": "package p; func A() { A() }",
-		},
-		cases: lspTestCases{
-			wantHover: map[string]string{
-				"a.go:1:17": "func A()",
-			},
-			wantReferences: map[string][]string{
-				"a.go:1:17": {
-					"/src/t:est/@hello/pkg/a.go:1:17",
-					"/src/t:est/@hello/pkg/a.go:1:23",
-				},
-			},
-		},
-	},
 }
 
 func TestServer(t *testing.T) {
@@ -406,12 +373,6 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 			workspaceReferencesTest(t, ctx, c, rootURI, *params, want)
 		})
 	}
-
-	for file, want := range cases.wantFormatting {
-		tbRun(t, fmt.Sprintf("formatting-%s", file), func(t testing.TB) {
-			formattingTest(t, ctx, c, rootURI, file, want)
-		})
-	}
 }
 
 func uriJoin(base lsp.DocumentURI, file string) lsp.DocumentURI {
@@ -428,21 +389,7 @@ func workspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn
 	}
 }
 
-func formattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, file string, want map[string]string) {
-	edits, err := callFormatting(ctx, c, uriJoin(rootURI, file))
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	got := map[string]string{}
-	for _, edit := range edits {
-		got[edit.Range.String()] = edit.NewText
-	}
-
-	if reflect.DeepEqual(got, want) {
-		t.Errorf("got %v, want %v", got, want)
-	}
-}
 
 
 
@@ -467,14 +414,6 @@ func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn, params lspex
 		refs[i] = fmt.Sprintf("%s:%d:%d-%d:%d -> %v", locationURI, start.Line+1, start.Character+1, end.Line+1, end.Character+1, r.Symbol)
 	}
 	return refs, nil
-}
-
-func callFormatting(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI) ([]lsp.TextEdit, error) {
-	var edits []lsp.TextEdit
-	err := c.Call(ctx, "textDocument/formatting", lsp.DocumentFormattingParams{
-		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
-	}, &edits)
-	return edits, err
 }
 
 type markedStrings []lsp.MarkedString

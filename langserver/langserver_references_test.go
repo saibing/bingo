@@ -28,7 +28,6 @@ func TestReferences(t *testing.T) {
 		test(t, basicPkgDir, "b.go:1:23", []string{basicOutput("a.go:1:17"), basicOutput("a.go:1:23"), basicOutput("b.go:1:23")})
 	})
 
-
 	t.Run("xtest", func(t *testing.T) {
 		test(t, xtestPkgDir, "a.go:1:16", []string{xtestOutput("a.go:1:16"), xtestOutput("a_test.go:1:20"), xtestOutput("x_test.go:1:46")})
 		test(t, xtestPkgDir, "x_test.go:1:46", []string{xtestOutput("a.go:1:16"), xtestOutput("a_test.go:1:20"), xtestOutput("x_test.go:1:46")})
@@ -51,6 +50,10 @@ func TestReferences(t *testing.T) {
 
 	t.Run("go module", func(t *testing.T) {
 		test(t, gomodulePkgDir, "a.go:1:57", []string{gomoduleOutput("a.go:1:57"), gomoduleOutput("a.go:1:72")})
+	})
+
+	t.Run("unexpected paths", func(t *testing.T) {
+		test(t, unexpectedPkgDir, "a.go", []string{"/src/t:est/@hello/pkg/a.go:1:17", "/src/t:est/@hello/pkg/a.go:1:23"})
 	})
 }
 
