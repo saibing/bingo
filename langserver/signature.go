@@ -20,18 +20,19 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 		}
 	}
 
-	fset, _, nodes, prog, pkg, start, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, start, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		if _, ok := err.(*invalidNodeError); !ok {
 			return nil, err
 		}
 	}
 
-	call := callExpr(fset, nodes)
+	pathNodes, _ := pathEnclosingInterval(pkg, start, start)
+	call := callExpr(pkg.Fset, pathNodes)
 	if call == nil {
 		return nil, nil
 	}
-	t := pkg.TypeOf(call.Fun)
+	t := pkg.TypesInfo.TypeOf(call.Fun)
 	signature, ok := t.(*types.Signature)
 	if !ok {
 		return nil, nil
@@ -44,7 +45,7 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	}
 	activeParameter := len(call.Args)
 	for index, arg := range call.Args {
-		if arg.End() >= *start {
+		if arg.End() >= start {
 			activeParameter = index
 			break
 		}
@@ -59,8 +60,8 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 		}
 	}
 	if funcIdent != nil && funcOk {
-		funcObj := pkg.ObjectOf(funcIdent)
-		_, path, _ := prog.PathEnclosingInterval(funcObj.Pos(), funcObj.Pos())
+		funcObj := pkg.TypesInfo.ObjectOf(funcIdent)
+		path, _, _ := getObjectPathNode(pkg, funcObj)
 		for i := 0; i < len(path); i++ {
 			a, b := path[i].(*ast.FuncDecl)
 			if b && a.Doc != nil {

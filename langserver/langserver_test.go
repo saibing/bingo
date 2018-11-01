@@ -246,37 +246,6 @@ var serverTestCases = map[string]serverTestCase{
 			},
 		},
 	},
-	"signatures": {
-		rootURI: "file:///src/test/pkg",
-		fs: map[string]string{
-			"a.go": `package p
-
-				// Comments for A
-				func A(foo int, bar func(baz int) int) int {
-					return bar(foo)
-				}
-
-
-				func B() {}
-
-				// Comments for C
-				func C(x int, y int) int {
-					return x+y
-				}`,
-			"b.go": "package p; func main() { B(); A(); A(0,); A(0); C(1,2) }",
-		},
-		cases: lspTestCases{
-			wantSignatures: map[string]string{
-				"b.go:1:28": "func() 0",
-				"b.go:1:33": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
-				"b.go:1:40": "func(foo int, bar func(baz int) int) int Comments for A\n 1",
-				"b.go:1:46": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
-				"b.go:1:51": "func(x int, y int) int Comments for C\n 0",
-				"b.go:1:53": "func(x int, y int) int Comments for C\n 1",
-				"b.go:1:54": "func(x int, y int) int Comments for C\n 1",
-			},
-		},
-	},
 	"unexpected paths": {
 		// notice the : and @ symbol
 		rootURI: "file:///src/t:est/@hello/pkg",
@@ -432,12 +401,6 @@ type lspTestCases struct {
 
 // lspTests runs all test suites for LSP functionality.
 func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, cases lspTestCases) {
-	for pos, want := range cases.wantSignatures {
-		tbRun(t, fmt.Sprintf("signature-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			signatureTest(t, ctx, c, rootURI, pos, want)
-		})
-	}
-
 	for params, want := range cases.wantWorkspaceReferences {
 		tbRun(t, fmt.Sprintf("workspaceReferences"), func(t testing.TB) {
 			workspaceReferencesTest(t, ctx, c, rootURI, *params, want)
@@ -453,21 +416,6 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 
 func uriJoin(base lsp.DocumentURI, file string) lsp.DocumentURI {
 	return lsp.DocumentURI(string(base) + "/" + file)
-}
-
-
-func signatureTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
-	file, line, char, err := parsePos(pos)
-	if err != nil {
-		t.Fatal(err)
-	}
-	signature, err := callSignature(ctx, c, uriJoin(rootURI, file), line, char)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if signature != want {
-		t.Fatalf("got %q, want %q", signature, want)
-	}
 }
 
 func workspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, params lspext.WorkspaceReferencesParams, want []string) {
@@ -519,29 +467,6 @@ func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn, params lspex
 		refs[i] = fmt.Sprintf("%s:%d:%d-%d:%d -> %v", locationURI, start.Line+1, start.Character+1, end.Line+1, end.Character+1, r.Symbol)
 	}
 	return refs, nil
-}
-
-func callSignature(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
-	var res lsp.SignatureHelp
-	err := c.Call(ctx, "textDocument/signatureHelp", lsp.TextDocumentPositionParams{
-		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
-		Position:     lsp.Position{Line: line, Character: char},
-	}, &res)
-	if err != nil {
-		return "", err
-	}
-	var str string
-	for i, si := range res.Signatures {
-		if i != 0 {
-			str += "; "
-		}
-		str += si.Label
-		if si.Documentation != "" {
-			str += " " + si.Documentation
-		}
-	}
-	str += fmt.Sprintf(" %d", res.ActiveParameter)
-	return str, nil
 }
 
 func callFormatting(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI) ([]lsp.TextEdit, error) {

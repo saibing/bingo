@@ -45,6 +45,7 @@ const (
 	symbolsPkgDir		  = "test/pkg/symbols"
 	unexpectedPkgDir	  = "test/pkg/unexpected_paths"
 	differentPkgDir       = "test/pkg/different"
+	signatruePkgDir       = "test/pkg/signature"
 )
 
 func basicOutput(suffix string) string {
@@ -77,6 +78,10 @@ func multipleOutput(suffix string) string {
 
 func gorootOutput(suffix string) string {
 	return getPlatformPath(runtime.GOROOT() + "/" + suffix)
+}
+
+func signatrueOutput(suffix string) string {
+	return genOutput(signatruePkgDir, suffix)
 }
 
 func gorootOutput2(suffix string) string {
