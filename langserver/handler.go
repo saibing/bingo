@@ -229,7 +229,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			return nil, err
 		}
 
-		if err := h.packageCache.Init(ctx, h.FilePath(params.Root())); err != nil {
+		if err := h.packageCache.Init(ctx, conn, h.FilePath(params.Root())); err != nil {
 			return nil, err
 		}
 

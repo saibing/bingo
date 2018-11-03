@@ -2,8 +2,10 @@ package caches
 
 import (
 	"context"
+	"fmt"
+	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/jsonrpc2"
 	"golang.org/x/tools/go/packages"
-	"log"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -24,16 +26,16 @@ func New() *PackageCache {
 
 const windowsOS = "windows"
 
-func (c *PackageCache) Init(ctx context.Context, root string) error {
+func (c *PackageCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string) error {
 	c.rootDir = root
-	return c.buildCache(ctx)
+	return c.buildCache(ctx, conn)
 }
 
 func (c *PackageCache) Root() string {
 	return c.rootDir
 }
 
-func (c *PackageCache) Load(pkgDir string) (*packages.Package, error) {
+func (c *PackageCache) Load(ctx context.Context, conn jsonrpc2.JSONRPC2, pkgDir string) (*packages.Package, error) {
 	loadDir := getLoadDir(pkgDir)
 	cacheKey := loadDir
 
@@ -41,8 +43,9 @@ func (c *PackageCache) Load(pkgDir string) (*packages.Package, error) {
 		cacheKey = getCacheKeyFromDir(loadDir)
 	}
 
-	log.Printf("load dir %s\n", loadDir)
-	log.Printf("cache key %s\n", cacheKey)
+	msg := fmt.Sprintf("begin cache dir package: %s ...", loadDir)
+	conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
+
 	c.mu.RLock()
 
 	pkg := c.pool[cacheKey]
@@ -52,26 +55,33 @@ func (c *PackageCache) Load(pkgDir string) (*packages.Package, error) {
 	}
 
 	c.mu.RUnlock()
-	c.buildCache(context.Background())
+	c.buildCache(context.Background(), conn)
+
+
+	msg = fmt.Sprintf("end cache dir package: %s ...", loadDir)
+	conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
 
 	return c.pool[cacheKey], nil
 }
 
-func (c *PackageCache) buildCache(ctx context.Context) error {
+func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.pool = packagePool{}
 
-	log.Printf("root dir: %s\n", c.rootDir)
 	loadDir := getLoadDir(c.rootDir)
-	log.Printf("load dir: %s\n", loadDir)
+	msg := fmt.Sprintf("begin cache root package: %s ...", loadDir)
+	conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
 	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context:ctx, Tests: true}
 	pkgList, err := packages.Load(cfg, loadDir + "/...")
 	if err != nil {
 		return err
 	}
-	c.push(pkgList)
+	c.push(ctx, conn, pkgList)
+
+	msg = fmt.Sprintf("emd cache root package: %s", loadDir)
+	conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
 	return nil
 }
 
@@ -88,20 +98,20 @@ func (c *PackageCache) Iterate(visit func (p *packages.Package) error) error {
 	return nil
 }
 
-func (c *PackageCache) pushWithLock(pkgList []*packages.Package) {
+func (c *PackageCache) pushWithLock(ctx context.Context, conn jsonrpc2.JSONRPC2, pkgList []*packages.Package) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.push(pkgList)
+	c.push(ctx, conn, pkgList)
 }
 
-func (c *PackageCache) push(pkgList []*packages.Package) {
+func (c *PackageCache) push(ctx context.Context, conn jsonrpc2.JSONRPC2, pkgList []*packages.Package) {
 	for _, pkg := range pkgList {
-		c.cache(pkg)
+		c.cache(ctx, conn, pkg)
 	}
 }
 
-func (c *PackageCache) cache(pkg *packages.Package) {
+func (c *PackageCache) cache(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg *packages.Package) {
 	if len(pkg.CompiledGoFiles) == 0 {
 		return
 	}
@@ -113,9 +123,11 @@ func (c *PackageCache) cache(pkg *packages.Package) {
 	}
 
 	c.pool[cacheKey] = pkg
-	log.Printf("cached package %s\n", cacheKey)
+
+	msg := fmt.Sprintf("cached package %s", cacheKey)
+	conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
 	for _, importPkg := range pkg.Imports {
-		c.cache(importPkg)
+		c.cache(ctx, conn, importPkg)
 	}
 }
 

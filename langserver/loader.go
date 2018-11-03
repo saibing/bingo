@@ -341,7 +341,7 @@ func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, f
 	}
 
 	bctx := h.BuildContext(ctx)
-	pkg, err := h.load(bctx, filename)
+	pkg, err := h.load(ctx, bctx, conn, filename)
 	if mpErr, ok := err.(*build.MultiplePackageError); ok {
 		pkg, err = buildPackageForNamedFileInMultiPackageDir(pkg, mpErr, path.Base(filename))
 		if err != nil {
@@ -386,13 +386,13 @@ func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, f
 //   workspace's code, not its deps).
 // * if the file is in the xtest package (package p_test not package p),
 //   it returns build.Package only representing that xtest package
-func (h *LangHandler) load(bctx *build.Context, filename string) (*packages.Package, error) {
+func (h *LangHandler) load(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2, filename string) (*packages.Package, error) {
 	pkgDir := filename
 	if !bctx.IsDir(filename) {
 		pkgDir = path.Dir(filename)
 	}
 
-	return h.packageCache.Load(pkgDir)
+	return h.packageCache.Load(ctx, conn, pkgDir)
 }
 
 func error2Diagnostics(errorList []packages.Error) (diags diagnostics) {

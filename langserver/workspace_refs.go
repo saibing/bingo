@@ -3,16 +3,17 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/caches"
+	"github.com/opentracing/opentracing-go"
 	"go/build"
-	"golang.org/x/tools/go/packages"
 	"log"
 	"math"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
+	"github.com/saibing/bingo/langserver/internal/caches"
+	"golang.org/x/tools/go/packages"
+
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/saibing/bingo/langserver/internal/refs"
 	"github.com/saibing/bingo/pkg/lspext"
@@ -88,7 +89,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 		Info:     pkg.TypesInfo,
 	}
 	refsErr := cfg.Refs(func(r *refs.Ref) {
-		symDesc, err := defSymbolDescriptor(h.packageCache, rootPath, r.Def, findPackage)
+		symDesc, err := defSymbolDescriptor(ctx, conn, h.packageCache, rootPath, r.Def, findPackage)
 		if err != nil {
 			// Log the error, and flag it as one in the trace -- but do not
 			// halt execution (hopefully, it is limited to a small subset of
@@ -119,11 +120,11 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 	return nil
 }
 
-func defModuleSymbolDescriptor(pkg *packages.Package, packageCache *caches.PackageCache, rootPath string, def refs.Def, findPackage FindModulePackageFunc) (*symbolDescriptor, error) {
+func defModuleSymbolDescriptor(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg *packages.Package, packageCache *caches.PackageCache, rootPath string, def refs.Def, findPackage FindModulePackageFunc) (*symbolDescriptor, error) {
 	var err error
 	defPkg, _ := pkg.Imports[def.ImportPath]
 	if defPkg == nil {
-		defPkg, err = findPackage(packageCache, def.ImportPath, rootPath)
+		defPkg, err = findPackage(ctx, conn, packageCache, def.ImportPath, rootPath)
 		if err != nil {
 			return nil, err
 		}
@@ -157,8 +158,8 @@ func defModuleSymbolDescriptor(pkg *packages.Package, packageCache *caches.Packa
 	return desc, nil
 }
 
-func defSymbolDescriptor(cache *caches.PackageCache, rootPath string, def refs.Def, findPackage FindModulePackageFunc) (*symbolDescriptor, error) {
-	defPkg, err := findPackage(cache, def.ImportPath, rootPath)
+func defSymbolDescriptor(ctx context.Context, conn jsonrpc2.JSONRPC2, cache *caches.PackageCache, rootPath string, def refs.Def, findPackage FindModulePackageFunc) (*symbolDescriptor, error) {
+	defPkg, err := findPackage(ctx, conn, cache, def.ImportPath, rootPath)
 	if err != nil {
 		return nil, err
 	}

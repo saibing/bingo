@@ -291,7 +291,7 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 	}
 	filename := util.UriToPath(params.TextDocument.URI)
 
-	pkg, err := h.packageCache.Load(path.Dir(filename))
+	pkg, err := h.packageCache.Load(ctx, conn, path.Dir(filename))
 	if err != nil {
 		return nil, err
 	}
