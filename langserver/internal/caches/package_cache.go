@@ -43,9 +43,6 @@ func (c *PackageCache) Load(ctx context.Context, conn jsonrpc2.JSONRPC2, pkgDir 
 		cacheKey = getCacheKeyFromDir(loadDir)
 	}
 
-	msg := fmt.Sprintf("begin cache dir package: %s ...", loadDir)
-	conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
-
 	c.mu.RLock()
 
 	pkg := c.pool[cacheKey]
@@ -57,10 +54,6 @@ func (c *PackageCache) Load(ctx context.Context, conn jsonrpc2.JSONRPC2, pkgDir 
 	c.mu.RUnlock()
 	c.buildCache(context.Background(), conn)
 
-
-	msg = fmt.Sprintf("end cache dir package: %s ...", loadDir)
-	conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
-
 	return c.pool[cacheKey], nil
 }
 
@@ -71,8 +64,8 @@ func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2) e
 	c.pool = packagePool{}
 
 	loadDir := getLoadDir(c.rootDir)
-	msg := fmt.Sprintf("begin cache root package: %s ...", loadDir)
-	conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
+	msg := fmt.Sprintf("cache root package: %s ...", loadDir)
+	conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: msg})
 	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context:ctx, Tests: true}
 	pkgList, err := packages.Load(cfg, loadDir + "/...")
 	if err != nil {
@@ -80,8 +73,8 @@ func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2) e
 	}
 	c.push(ctx, conn, pkgList)
 
-	msg = fmt.Sprintf("emd cache root package: %s", loadDir)
-	conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
+	msg = fmt.Sprintf("cache root package: %s successfully!", loadDir)
+	conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: msg})
 	return nil
 }
 
