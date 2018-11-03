@@ -22,12 +22,12 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 
 	pkg, start, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
-		if _, ok := err.(*invalidNodeError); !ok {
+		if _, ok := err.(*util.InvalidNodeError); !ok {
 			return nil, err
 		}
 	}
 
-	pathNodes, _ := pathEnclosingInterval(pkg, start, start)
+	pathNodes, _ := util.PathEnclosingInterval(pkg, start, start)
 	call := callExpr(pkg.Fset, pathNodes)
 	if call == nil {
 		return nil, nil
@@ -61,7 +61,7 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	}
 	if funcIdent != nil && funcOk {
 		funcObj := pkg.TypesInfo.ObjectOf(funcIdent)
-		path, _, _ := getObjectPathNode(pkg, funcObj)
+		path, _, _ := util.GetObjectPathNode(pkg, funcObj)
 		for i := 0; i < len(path); i++ {
 			a, b := path[i].(*ast.FuncDecl)
 			if b && a.Doc != nil {

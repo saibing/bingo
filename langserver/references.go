@@ -30,13 +30,13 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
-		if _, ok := err.(*invalidNodeError); ok {
+		if _, ok := err.(*util.InvalidNodeError); ok {
 			return []lsp.Location{}, nil
 		}
 		return nil, err
 	}
 
-	_, node, err := getPathNode(pkg, start, start)
+	_, node, err := util.GetPathNode(pkg, start, start)
 	if err != nil {
 		return nil, err
 	}

@@ -9,13 +9,11 @@ import (
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
-	"log"
 	"path"
 	"path/filepath"
-	"reflect"
 	"strings"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/saibing/bingo/langserver/util"
 
@@ -25,87 +23,6 @@ import (
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
 )
-
-func (h *LangHandler) typecheck(ctx context.Context, conn jsonrpc2.JSONRPC2, fileURI lsp.DocumentURI, position lsp.Position) (*token.FileSet, *ast.Ident, []ast.Node, *loader.Program, *loader.PackageInfo, *token.Pos, error) {
-	parentSpan := opentracing.SpanFromContext(ctx)
-	span := parentSpan.Tracer().StartSpan("langserver-go: load program",
-		opentracing.Tags{"fileURI": fileURI},
-		opentracing.ChildOf(parentSpan.Context()),
-	)
-	ctx = opentracing.ContextWithSpan(ctx, span)
-	defer span.Finish()
-
-	if !util.IsURI(fileURI) {
-		return nil, nil, nil, nil, nil, nil, fmt.Errorf("typechecking of out-of-workspace URI (%q) is not yet supported", fileURI)
-	}
-
-	filename := h.FilePath(fileURI)
-
-	contents, err := h.readFile(ctx, fileURI)
-	if err != nil {
-		return nil, nil, nil, nil, nil, nil, err
-	}
-	offset, valid, why := offsetForPosition(contents, position)
-	if !valid {
-		return nil, nil, nil, nil, nil, nil, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, position.Line, position.Character, why)
-	}
-
-	bctx := h.BuildContext(ctx)
-
-	bpkg, err := ContainingPackage(bctx, filename)
-	if err != nil {
-		return nil, nil, nil, nil, nil, nil, err
-	}
-
-	for _, ignoredGoFile := range bpkg.IgnoredGoFiles {
-		if path.Base(filename) == ignoredGoFile {
-			return nil, nil, nil, nil, nil, nil, fmt.Errorf("file %s is ignored by the build", filename)
-		}
-	}
-
-	// TODO(sqs): do all pkgs in workspace together?
-	fset, prog, diags, err := h.cachedTypecheck(ctx, bctx, bpkg)
-	if err != nil {
-		return nil, nil, nil, nil, nil, nil, err
-	}
-
-	// collect all loaded files, required to remove existing diagnostics from our cache
-	files := fsetToFiles(fset)
-	if err := h.publishDiagnostics(ctx, conn, diags, files); err != nil {
-		log.Printf("warning: failed to send diagnostics: %s.", err)
-	}
-
-	start := posForFileOffset(fset, filename, offset)
-	if start == token.NoPos {
-		return nil, nil, nil, nil, nil, nil, fmt.Errorf("invalid location: %s:#%d", filename, offset)
-	}
-
-	pkg, nodes, _ := prog.PathEnclosingInterval(start, start)
-	if len(nodes) == 0 {
-		return nil, nil, nil, nil, nil, nil, fmt.Errorf("no node found at %s offset %d", fset.Position(start), offset)
-	}
-	node, ok := nodes[0].(*ast.Ident)
-	if !ok {
-		lineCol := func(p token.Pos) string {
-			pp := fset.Position(p)
-			return fmt.Sprintf("%d:%d", pp.Line, pp.Column)
-		}
-		return fset, nil, nodes, prog, pkg, &start, &invalidNodeError{
-			Node: nodes[0],
-			msg:  fmt.Sprintf("invalid node: %s (%s-%s)", reflect.TypeOf(nodes[0]).Elem(), lineCol(nodes[0].Pos()), lineCol(nodes[0].End())),
-		}
-	}
-	return fset, node, nodes, prog, pkg, &start, nil
-}
-
-type invalidNodeError struct {
-	Node ast.Node
-	msg  string
-}
-
-func (e *invalidNodeError) Error() string {
-	return e.msg
-}
 
 func posForFileOffset(fset *token.FileSet, filename string, offset int) token.Pos {
 	var f *token.File
@@ -331,15 +248,6 @@ func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, f
 
 	filename := h.FilePath(fileURI)
 
-	contents, err := h.readFile(ctx, fileURI)
-	if err != nil {
-		return nil, start, err
-	}
-	offset, valid, why := offsetForPosition(contents, position)
-	if !valid {
-		return nil, start, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, position.Line, position.Character, why)
-	}
-
 	bctx := h.BuildContext(ctx)
 	pkg, err := h.load(ctx, bctx, conn, filename)
 	if mpErr, ok := err.(*build.MultiplePackageError); ok {
@@ -364,9 +272,18 @@ func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, f
 	//}
 
 	// collect all loaded files, required to remove existing diagnostics from our cache
-	files := fsetToFiles(pkg.Fset)
-	if err := h.publishDiagnostics(ctx, conn, error2Diagnostics(pkg.Errors), files); err != nil {
-		log.Printf("warning: failed to send diagnostics: %s.", err)
+	//files := fsetToFiles(pkg.Fset)
+	//if err := h.publishDiagnostics(ctx, conn, error2Diagnostics(pkg.Errors), files); err != nil {
+	//	log.Printf("warning: failed to send diagnostics: %s.", err)
+	//}
+
+	contents, err := h.readFile(ctx, fileURI)
+	if err != nil {
+		return nil, start, err
+	}
+	offset, valid, why := offsetForPosition(contents, position)
+	if !valid {
+		return nil, start, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, position.Line, position.Character, why)
 	}
 
 	start = posForFileOffset(pkg.Fset, filename, offset)

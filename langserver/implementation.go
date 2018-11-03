@@ -31,14 +31,14 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
-		if _, ok := err.(*invalidNodeError); ok {
+		if _, ok := err.(*util.InvalidNodeError); ok {
 			return []*lspext.ImplementationLocation{}, nil
 		}
 		return nil, err
 	}
 
 	pos := posForFileOffset(pkg.Fset, pkg.Fset.Position(start).Filename, pkg.Fset.Position(start).Offset)
-	path, _, _ := getPathNode(pkg, pos, pos)
+	path, _, _ := util.GetPathNode(pkg, pos, pos)
 	path, action := findInterestingNode(pkg, path)
 
 	return implements(h.packageCache, pkg, path, action)
@@ -156,7 +156,7 @@ func implements(packageCache *caches.PackageCache, pkg *packages.Package, path [
 		var obj types.Object
 		if method == nil {
 			// t is a type
-			nt, ok := deref(t).(*types.Named)
+			nt, ok := util.Deref(t).(*types.Named)
 			if !ok {
 				return nil // t is non-named
 			}

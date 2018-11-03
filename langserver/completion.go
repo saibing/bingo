@@ -3,6 +3,7 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"go/build"
 	"regexp"
 	"strings"
 
@@ -46,7 +47,24 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		return nil, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, params.Position.Line, params.Position.Character, why)
 	}
 
-	ca, rangelen := gocode.AutoComplete(contents, filename, offset)
+	pkg, start, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
+	if err != nil {
+		// Invalid nodes means we tried to click on something which is
+		// not an ident (eg comment/string/etc). Return no information.
+		if _, ok := err.(*util.InvalidNodeError); ok {
+			return nil, nil
+		}
+		// This is a common error we get in production when a user is
+		// browsing a go pkg which only contains files we can't
+		// analyse (usually due to build tags). To reduce signal of
+		// actual bad errors, we return no error in this case.
+		if _, ok := err.(*build.NoGoError); ok {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	ca, rangelen := gocode.AutoComplete(pkg, start, contents, filename, offset)
 	citems := make([]lsp.CompletionItem, len(ca))
 	for i, it := range ca {
 		var kind lsp.CompletionItemKind

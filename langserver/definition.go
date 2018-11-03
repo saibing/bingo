@@ -48,10 +48,6 @@ type foundNode struct {
 	typ   *types.TypeName // the object for a named type, if present
 }
 
-type dereferencable interface {
-	Elem() types.Type
-}
-
 
 func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]symbolLocationInformation, error) {
 	if !util.IsURI(params.TextDocument.URI) {
@@ -65,13 +61,13 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no locations.
-		if _, ok := err.(*invalidNodeError); ok {
+		if _, ok := err.(*util.InvalidNodeError); ok {
 			return []symbolLocationInformation{}, nil
 		}
 		return nil, err
 	}
 
-	pathNodes, node, err := getPathNode(pkg, start, start)
+	pathNodes, node, err := util.GetPathNode(pkg, start, start)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +81,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		if p := obj.Pos(); p.IsValid() {
 			nodes = append(nodes, foundNode{
 				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
-				typ:   typeLookup(pkg.TypesInfo.TypeOf(node)),
+				typ:   util.TypeLookup(pkg.TypesInfo.TypeOf(node)),
 			})
 		} else {
 			// Builtins have an invalid Pos. Just don't emit a definition for

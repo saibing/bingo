@@ -69,6 +69,7 @@ func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2) e
 	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context:ctx, Tests: true}
 	pkgList, err := packages.Load(cfg, loadDir + "/...")
 	if err != nil {
+		conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: err.Error()})
 		return err
 	}
 	c.push(ctx, conn, pkgList)

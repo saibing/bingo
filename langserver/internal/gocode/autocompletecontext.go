@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"golang.org/x/tools/go/packages"
 )
 
 //-------------------------------------------------------------------------
@@ -32,12 +34,12 @@ type out_buffers struct {
 	tmpbuf            *bytes.Buffer
 	candidates        []candidate
 	canonical_aliases map[string]string
-	ctx               *auto_complete_context
+	ctx               *autoCompleteContext
 	tmpns             map[string]bool
 	ignorecase        bool
 }
 
-func new_out_buffers(ctx *auto_complete_context) *out_buffers {
+func new_out_buffers(ctx *autoCompleteContext) *out_buffers {
 	b := new(out_buffers)
 	b.tmpbuf = bytes.NewBuffer(make([]byte, 0, 1024))
 	b.candidates = make([]candidate, 0, 64)
@@ -139,30 +141,37 @@ func (b *out_buffers) append_embedded(p string, decl *decl, pkg string, class de
 }
 
 //-------------------------------------------------------------------------
-// auto_complete_context
+// autoCompleteContext
 //
 // Context that holds cache structures for autocompletion needs. It
 // includes cache for packages and for main package files.
 //-------------------------------------------------------------------------
 
-type auto_complete_context struct {
-	current *auto_complete_file // currently edited file
-	others  []*decl_file_cache  // other files of the current package
+type autoCompleteContext struct {
+	current *autoCompleteFile  // currently edited file
+	others  []*decl_file_cache // other files of the current package
 	pkg     *scope
 
 	pcache    package_cache // packages cache
 	declcache *decl_cache   // top-level declarations cache
+
+	p *packages.Package
+	start token.Pos
 }
 
-func new_auto_complete_context(pcache package_cache, declcache *decl_cache) *auto_complete_context {
-	c := new(auto_complete_context)
-	c.current = new_auto_complete_file("", declcache.context)
+func newAutoCompleteContext(pkg *packages.Package, start token.Pos, pcache package_cache, declcache *decl_cache) *autoCompleteContext {
+	c := new(autoCompleteContext)
+	c.current = newAutoCompleteFile("", declcache.context)
 	c.pcache = pcache
 	c.declcache = declcache
+	c.p = pkg
+	c.start = start
+	c.current.pkg = pkg
+	c.current.start = start
 	return c
 }
 
-func (c *auto_complete_context) update_caches() {
+func (c *autoCompleteContext) update_caches() {
 	// temporary map for packages that we need to check for a cache expiration
 	// map is used as a set of unique items to prevent double checks
 	ps := make(map[string]*package_file_cache)
@@ -187,7 +196,7 @@ func (c *auto_complete_context) update_caches() {
 	c.merge_decls()
 }
 
-func (c *auto_complete_context) merge_decls() {
+func (c *autoCompleteContext) merge_decls() {
 	c.pkg = new_scope(g_universe_scope)
 	merge_decls(c.current.filescope, c.pkg, c.current.decls)
 	merge_decls_from_packages(c.pkg, c.current.packages, c.pcache)
@@ -203,13 +212,13 @@ func (c *auto_complete_context) merge_decls() {
 	propagate_type_alias_methods(c.pkg)
 }
 
-func (c *auto_complete_context) make_decl_set(scope *scope) map[string]*decl {
+func (c *autoCompleteContext) make_decl_set(scope *scope) map[string]*decl {
 	set := make(map[string]*decl, len(c.pkg.entities)*2)
 	make_decl_set_recursive(set, scope)
 	return set
 }
 
-func (c *auto_complete_context) get_candidates_from_set(set map[string]*decl, partial string, class decl_class, b *out_buffers) {
+func (c *autoCompleteContext) get_candidates_from_set(set map[string]*decl, partial string, class decl_class, b *out_buffers) {
 	for key, value := range set {
 		if value == nil {
 			continue
@@ -223,7 +232,7 @@ func (c *auto_complete_context) get_candidates_from_set(set map[string]*decl, pa
 	}
 }
 
-func (c *auto_complete_context) get_candidates_from_decl_alias(cc cursor_context, class decl_class, b *out_buffers) {
+func (c *autoCompleteContext) get_candidates_from_decl_alias(cc cursor_context, class decl_class, b *out_buffers) {
 	if cc.decl.is_visited() {
 		return
 	}
@@ -240,7 +249,7 @@ func (c *auto_complete_context) get_candidates_from_decl_alias(cc cursor_context
 	return
 }
 
-func (c *auto_complete_context) decl_package_import_path(decl *decl) string {
+func (c *autoCompleteContext) decl_package_import_path(decl *decl) string {
 	if decl == nil || decl.scope == nil {
 		return ""
 	}
@@ -250,7 +259,7 @@ func (c *auto_complete_context) decl_package_import_path(decl *decl) string {
 	return ""
 }
 
-func (c *auto_complete_context) get_candidates_from_decl(cc cursor_context, class decl_class, b *out_buffers) {
+func (c *autoCompleteContext) get_candidates_from_decl(cc cursor_context, class decl_class, b *out_buffers) {
 	if cc.decl.is_alias() {
 		c.get_candidates_from_decl_alias(cc, class, b)
 		return
@@ -282,7 +291,7 @@ func (c *auto_complete_context) get_candidates_from_decl(cc cursor_context, clas
 	b.append_embedded(cc.partial, cc.decl, c.decl_package_import_path(cc.decl), class)
 }
 
-func (c *auto_complete_context) get_import_candidates(partial string, b *out_buffers) {
+func (c *autoCompleteContext) get_import_candidates(partial string, b *out_buffers) {
 	currentPackagePath, pkgdirs := g_daemon.context.pkg_dirs()
 	resultSet := map[string]struct{}{}
 	for _, pkgdir := range pkgdirs {
@@ -333,7 +342,7 @@ func get_import_candidates_dir(root, partial string, ignorecase bool, currentPac
 // 2. apropos types (pretty-printed)
 // 3. apropos classes
 // and length of the part that should be replaced (if any)
-func (c *auto_complete_context) apropos(file []byte, filename string, cursor int) ([]candidate, int) {
+func (c *autoCompleteContext) apropos(file []byte, filename string, cursor int) ([]candidate, int) {
 	c.current.cursor = cursor
 	c.current.name = filename
 
@@ -351,7 +360,7 @@ func (c *auto_complete_context) apropos(file []byte, filename string, cursor int
 
 	// Does full processing of the currently edited file (top-level declarations plus
 	// active function).
-	c.current.process_data(filesemi)
+	c.current.processData(filesemi)
 
 	// Updates cache of other files and packages. See the function for details of
 	// the process. At the end merges all the top-level declarations into the package
@@ -713,7 +722,7 @@ var g_decl_class_to_string_status = [...]string{
 	decl_methods_stub: "   stub",
 }
 
-func (c *auto_complete_context) status() string {
+func (c *autoCompleteContext) status() string {
 
 	buf := bytes.NewBuffer(make([]byte, 0, 4096))
 	fmt.Fprintf(buf, "Server's GOMAXPROCS == %d\n", runtime.GOMAXPROCS(0))

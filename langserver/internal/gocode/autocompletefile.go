@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"golang.org/x/tools/go/packages"
 	"log"
 )
 
@@ -32,10 +33,10 @@ func log_parse_error(intro string, err error) {
 }
 
 //-------------------------------------------------------------------------
-// auto_complete_file
+// autoCompleteFile
 //-------------------------------------------------------------------------
 
-type auto_complete_file struct {
+type autoCompleteFile struct {
 	name         string
 	package_name string
 
@@ -47,10 +48,13 @@ type auto_complete_file struct {
 	cursor  int // for current file buffer only
 	fset    *token.FileSet
 	context *package_lookup_context
+
+	pkg *packages.Package
+	start token.Pos
 }
 
-func new_auto_complete_file(name string, context *package_lookup_context) *auto_complete_file {
-	p := new(auto_complete_file)
+func newAutoCompleteFile(name string, context *package_lookup_context) *autoCompleteFile {
+	p := new(autoCompleteFile)
 	p.name = name
 	p.cursor = -1
 	p.fset = token.NewFileSet()
@@ -58,13 +62,13 @@ func new_auto_complete_file(name string, context *package_lookup_context) *auto_
 	return p
 }
 
-func (f *auto_complete_file) offset(p token.Pos) int {
+func (f *autoCompleteFile) offset(p token.Pos) int {
 	const fixlen = len("package p;")
 	return f.fset.Position(p).Offset - fixlen
 }
 
 // this one is used for current file buffer exclusively
-func (f *auto_complete_file) process_data(data []byte) {
+func (f *autoCompleteFile) processData(data []byte) {
 	cur, filedata, block := rip_off_decl(data, f.cursor)
 	file, err := parser.ParseFile(f.fset, "", filedata, parser.AllErrors)
 	if err != nil && *g_debug {
@@ -109,7 +113,7 @@ func (f *auto_complete_file) process_data(data []byte) {
 
 }
 
-func (f *auto_complete_file) process_decl_locals(decl ast.Decl) {
+func (f *autoCompleteFile) process_decl_locals(decl ast.Decl) {
 	switch t := decl.(type) {
 	case *ast.FuncDecl:
 		if f.cursor_in(t.Body) {
@@ -128,7 +132,7 @@ func (f *auto_complete_file) process_decl_locals(decl ast.Decl) {
 	}
 }
 
-func (f *auto_complete_file) process_decl(decl ast.Decl) {
+func (f *autoCompleteFile) process_decl(decl ast.Decl) {
 	if t, ok := decl.(*ast.GenDecl); ok && f.offset(t.TokPos) > f.cursor {
 		return
 	}
@@ -151,7 +155,7 @@ func (f *auto_complete_file) process_decl(decl ast.Decl) {
 	})
 }
 
-func (f *auto_complete_file) process_block_stmt(block *ast.BlockStmt) {
+func (f *autoCompleteFile) process_block_stmt(block *ast.BlockStmt) {
 	if block != nil && f.cursor_in(block) {
 		f.scope, _ = advance_scope(f.scope)
 
@@ -167,7 +171,7 @@ func (f *auto_complete_file) process_block_stmt(block *ast.BlockStmt) {
 }
 
 type func_lit_visitor struct {
-	ctx *auto_complete_file
+	ctx *autoCompleteFile
 }
 
 func (v *func_lit_visitor) Visit(node ast.Node) ast.Visitor {
@@ -184,7 +188,7 @@ func (v *func_lit_visitor) Visit(node ast.Node) ast.Visitor {
 	return v
 }
 
-func (f *auto_complete_file) process_stmt(stmt ast.Stmt) {
+func (f *autoCompleteFile) process_stmt(stmt ast.Stmt) {
 	switch t := stmt.(type) {
 	case *ast.DeclStmt:
 		f.process_decl(t.Decl)
@@ -223,7 +227,7 @@ func (f *auto_complete_file) process_stmt(stmt ast.Stmt) {
 	}
 }
 
-func (f *auto_complete_file) process_select_stmt(a *ast.SelectStmt) {
+func (f *autoCompleteFile) process_select_stmt(a *ast.SelectStmt) {
 	if !f.cursor_in(a.Body) {
 		return
 	}
@@ -254,7 +258,7 @@ func (f *auto_complete_file) process_select_stmt(a *ast.SelectStmt) {
 	}
 }
 
-func (f *auto_complete_file) process_type_switch_stmt(a *ast.TypeSwitchStmt) {
+func (f *autoCompleteFile) process_type_switch_stmt(a *ast.TypeSwitchStmt) {
 	if !f.cursor_in(a.Body) {
 		return
 	}
@@ -294,7 +298,7 @@ func (f *auto_complete_file) process_type_switch_stmt(a *ast.TypeSwitchStmt) {
 	}
 }
 
-func (f *auto_complete_file) process_switch_stmt(a *ast.SwitchStmt) {
+func (f *autoCompleteFile) process_switch_stmt(a *ast.SwitchStmt) {
 	if !f.cursor_in(a.Body) {
 		return
 	}
@@ -314,7 +318,7 @@ func (f *auto_complete_file) process_switch_stmt(a *ast.SwitchStmt) {
 	}
 }
 
-func (f *auto_complete_file) process_range_stmt(a *ast.RangeStmt) {
+func (f *autoCompleteFile) process_range_stmt(a *ast.RangeStmt) {
 	if !f.cursor_in(a.Body) {
 		return
 	}
@@ -344,7 +348,7 @@ func (f *auto_complete_file) process_range_stmt(a *ast.RangeStmt) {
 	f.process_block_stmt(a.Body)
 }
 
-func (f *auto_complete_file) process_assign_stmt(a *ast.AssignStmt) {
+func (f *autoCompleteFile) process_assign_stmt(a *ast.AssignStmt) {
 	if a.Tok != token.DEFINE || f.offset(a.TokPos) > f.cursor {
 		return
 	}
@@ -374,7 +378,7 @@ func (f *auto_complete_file) process_assign_stmt(a *ast.AssignStmt) {
 	}
 }
 
-func (f *auto_complete_file) process_field_list(field_list *ast.FieldList, s *scope) {
+func (f *autoCompleteFile) process_field_list(field_list *ast.FieldList, s *scope) {
 	if field_list != nil {
 		decls := ast_field_list_to_decls(field_list, decl_var, 0, s, false)
 		for _, d := range decls {
@@ -383,16 +387,16 @@ func (f *auto_complete_file) process_field_list(field_list *ast.FieldList, s *sc
 	}
 }
 
-func (f *auto_complete_file) cursor_in_if_head(s *ast.IfStmt) bool {
+func (f *autoCompleteFile) cursor_in_if_head(s *ast.IfStmt) bool {
 	if f.cursor > f.offset(s.If) && f.cursor <= f.offset(s.Body.Lbrace) {
 		return true
 	}
 	return false
 }
 
-func (f *auto_complete_file) cursor_in_if_stmt(s *ast.IfStmt) bool {
+func (f *autoCompleteFile) cursor_in_if_stmt(s *ast.IfStmt) bool {
 	if f.cursor > f.offset(s.If) {
-		// magic -10 comes from auto_complete_file.offset method, see
+		// magic -10 comes from autoCompleteFile.offset method, see
 		// len() expr in there
 		if f.offset(s.End()) == -10 || f.cursor < f.offset(s.End()) {
 			return true
@@ -401,14 +405,14 @@ func (f *auto_complete_file) cursor_in_if_stmt(s *ast.IfStmt) bool {
 	return false
 }
 
-func (f *auto_complete_file) cursor_in_for_head(s *ast.ForStmt) bool {
+func (f *autoCompleteFile) cursor_in_for_head(s *ast.ForStmt) bool {
 	if f.cursor > f.offset(s.For) && f.cursor <= f.offset(s.Body.Lbrace) {
 		return true
 	}
 	return false
 }
 
-func (f *auto_complete_file) cursor_in(block *ast.BlockStmt) bool {
+func (f *autoCompleteFile) cursor_in(block *ast.BlockStmt) bool {
 	if f.cursor == -1 || block == nil {
 		return false
 	}

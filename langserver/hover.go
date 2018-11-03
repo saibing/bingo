@@ -30,7 +30,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
-		if _, ok := err.(*invalidNodeError); ok {
+		if _, ok := err.(*util.InvalidNodeError); ok {
 			return nil, nil
 		}
 		// This is a common error we get in production when a user is
@@ -43,7 +43,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		return nil, err
 	}
 
-	_, node, err := getPathNode(pkg, start, start)
+	_, node, err := util.GetPathNode(pkg, start, start)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		}
 
 		// Resolve the object o into its respective ast.Node
-		pathNodes, _, _ := getObjectPathNode(pkg, o)
+		pathNodes, _, _ := util.GetObjectPathNode(pkg, o)
 		if len(pathNodes) == 0 {
 			return "", nil
 		}

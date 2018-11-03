@@ -263,7 +263,7 @@ func token_items_to_string(tokens []token_item) string {
 
 // this function is called when the cursor is at the '.' and you need to get the
 // declaration before that dot
-func (c *auto_complete_context) deduce_cursor_decl(iter *token_iterator) (*decl, ast.Expr) {
+func (c *autoCompleteContext) deduce_cursor_decl(iter *token_iterator) (*decl, ast.Expr) {
 	expr, err := parser.ParseExpr(iter.extract_go_expr())
 	if err != nil {
 		return nil, nil
@@ -272,7 +272,7 @@ func (c *auto_complete_context) deduce_cursor_decl(iter *token_iterator) (*decl,
 }
 
 // try to find and extract the surrounding struct literal type
-func (c *auto_complete_context) deduce_struct_type_decl(iter *token_iterator) *decl {
+func (c *autoCompleteContext) deduce_struct_type_decl(iter *token_iterator) *decl {
 	typ := iter.extract_struct_type()
 	if typ == "" {
 		return nil
@@ -302,7 +302,7 @@ func (c *auto_complete_context) deduce_struct_type_decl(iter *token_iterator) *d
 // Entry point from autocompletion, the function looks at text before the cursor
 // and figures out the declaration the cursor is on. This declaration is
 // used in filtering the resulting set of autocompletion suggestions.
-func (c *auto_complete_context) deduce_cursor_context(file []byte, cursor int) (cursor_context, bool) {
+func (c *autoCompleteContext) deduce_cursor_context(file []byte, cursor int) (cursor_context, bool) {
 	if cursor <= 0 {
 		return cursor_context{}, true
 	}
