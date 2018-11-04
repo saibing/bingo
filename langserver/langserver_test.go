@@ -43,7 +43,7 @@ const (
 	lookupPkgDir          = "test/pkg/lookup"
 	implementationsPkgDir = "test/pkg/implementations"
 	typealiasPkgDir       = "test/pkg/typealias"
-	completionPkgDir      = "test/pkg/completion"
+	completionPkgDir      = "test/pkg/complete"
 	exportedPkgDir        = "test/pkg/exported_on_unexported"
 	symbolsPkgDir         = "test/pkg/symbols"
 	xreferencesPkgDir     = "test/pkg/xreferences"

@@ -18,13 +18,13 @@ var (
 // InitializationOptions in the README.
 type Config struct {
 	// FuncSnippetEnabled enables the returning of argument snippets on `func`
-	// completions, eg. func(foo string, arg2 bar). Requires code completion
+	// completions, eg. func(foo string, arg2 bar). Requires code complete
 	// to be enabled.
 	//
 	// Defaults to true if not specified.
 	FuncSnippetEnabled bool
 
-	// GocodeCompletionEnabled enables code completion feature (using gocode)
+	// GocodeCompletionEnabled enables code complete feature (using gocode)
 	//
 	// Defaults to false if not specified.
 	GocodeCompletionEnabled bool

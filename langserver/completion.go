@@ -3,11 +3,14 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"go/ast"
 	"go/build"
+	"go/token"
+	"go/types"
+	"golang.org/x/tools/go/packages"
 	"regexp"
 	"strings"
 
-	"github.com/saibing/bingo/langserver/internal/gocode"
 	"github.com/saibing/bingo/langserver/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
@@ -22,31 +25,14 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 	if !util.IsURI(params.TextDocument.URI) {
 		return nil, &jsonrpc2.Error{
 			Code:    jsonrpc2.CodeInvalidParams,
-			Message: fmt.Sprintf("textDocument/completion not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
+			Message: fmt.Sprintf("textDocument/complete not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
 		}
 	}
 
-	// In the case of testing, our OS paths and VFS paths do not match. In the
-	// real world, this is never the case. Give the test suite the opportunity
-	// to correct the path now.
-	vfsURI := params.TextDocument.URI
-	if testOSToVFSPath != nil {
-		vfsURI = util.PathToURI(testOSToVFSPath(util.UriToPath(vfsURI)))
-	}
+	return h.complete(ctx, conn, req, params)
+}
 
-	// Read file contents and calculate byte offset.
-	contents, err := h.readFile(ctx, vfsURI)
-	if err != nil {
-		return nil, err
-	}
-	// convert the path into a real path because 3rd party tools
-	// might load additional code based on the file's package
-	filename := util.UriToRealPath(params.TextDocument.URI)
-	offset, valid, why := offsetForPosition(contents, params.Position)
-	if !valid {
-		return nil, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, params.Position.Line, params.Position.Character, why)
-	}
-
+func (h *LangHandler) complete(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.CompletionParams) (*lsp.CompletionList, error) {
 	pkg, start, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
@@ -64,45 +50,89 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		return nil, err
 	}
 
-	ca, rangelen := gocode.AutoComplete(pkg, start, contents, filename, offset)
-	citems := make([]lsp.CompletionItem, len(ca))
-	for i, it := range ca {
-		var kind lsp.CompletionItemKind
-		switch it.Class.String() {
-		case "const":
-			kind = CIKConstantSupported
-		case "func":
-			kind = lsp.CIKFunction
-		case "import":
-			kind = lsp.CIKModule
-		case "package":
-			kind = lsp.CIKModule
-		case "type":
-			kind = lsp.CIKClass
-		case "var":
-			kind = lsp.CIKVariable
-		}
+	pathNodes, _ := util.PathEnclosingInterval(pkg, start, start)
+	if len(pathNodes) == 0 {
+		return nil, nil
+	}
 
-		itf, newText := h.getNewText(kind, it.Name, it.Type)
-		citems[i] = lsp.CompletionItem{
-			Label:            it.Name,
-			Kind:             kind,
-			Detail:           it.Type,
-			InsertTextFormat: itf,
-			// InsertText is deprecated in favour of TextEdit, but added here for legacy client support
-			InsertText: newText,
-			TextEdit: &lsp.TextEdit{
-				Range: lsp.Range{
-					Start: lsp.Position{Line: params.Position.Line, Character: params.Position.Character - rangelen},
-					End:   lsp.Position{Line: params.Position.Line, Character: params.Position.Character},
-				},
-				NewText: newText,
-			},
+	node := pathNodes[0]
+
+	switch node := node.(type) {
+	case *ast.CallExpr:
+		return h.completeCallExpr(params, pkg, start, node)
+	case *ast.Ident:
+		if len(pathNodes) >= 3 {
+			if _, ok := pathNodes[1].(*ast.SelectorExpr); ok {
+				return h.completeCallExpr(params, pkg, start, pathNodes[2].(*ast.CallExpr))
+			}
 		}
 	}
+
+	return nil, nil
+}
+
+func (h *LangHandler) completeCallExpr(params lsp.CompletionParams, pkg *packages.Package, start token.Pos, call *ast.CallExpr) (*lsp.CompletionList, error) {
+
+	var items []lsp.CompletionItem
+	item := lsp.CompletionItem{}
+
+	t := pkg.TypesInfo.TypeOf(call.Fun)
+	signature, ok := t.(*types.Signature)
+	if !ok {
+		return nil, nil
+	}
+
+	item.Detail = signature.String()
+
+
+	item.Kind = lsp.CIKFunction
+	funcIdent, funcOk := call.Fun.(*ast.Ident)
+	if !funcOk {
+		selExpr, selOk := call.Fun.(*ast.SelectorExpr)
+		if selOk {
+			funcIdent = selExpr.Sel
+			funcOk = true
+			selIdent := selExpr.X.(*ast.Ident)
+			selObj := pkg.TypesInfo.ObjectOf(selIdent)
+			if _, ok := selObj.Type().(*types.Struct); ok {
+				item.Kind = lsp.CIKMethod
+			}
+		}
+	}
+
+	rangeLen := 0
+
+	if funcIdent != nil && funcOk {
+		item.Label = funcIdent.Name
+		funcObj := pkg.TypesInfo.ObjectOf(funcIdent)
+		path, _, _ := util.GetObjectPathNode(pkg, funcObj)
+		for i := 0; i < len(path); i++ {
+			a, b := path[i].(*ast.FuncDecl)
+			if b && a.Doc != nil {
+				item.Documentation = a.Doc.Text()
+				break
+			}
+		}
+	}
+
+	itf, newText := h.getNewText(item.Kind, item.Label, item.Detail)
+	item.InsertTextFormat = itf
+	item.InsertText = newText
+
+	rangeLen = len(item.Label)
+
+	item.TextEdit = &lsp.TextEdit{
+		Range: lsp.Range{
+			Start: lsp.Position{Line: params.Position.Line, Character: params.Position.Character - rangeLen},
+			End:   lsp.Position{Line: params.Position.Line, Character: params.Position.Character},
+		},
+		NewText: newText,
+	}
+	items = append(items, item)
+
 	return &lsp.CompletionList{
 		IsIncomplete: false,
-		Items:        citems,
+		Items:        items,
 	}, nil
 }
 

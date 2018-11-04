@@ -52,7 +52,7 @@ func TestCompletion(t *testing.T) {
 		test(t, gomodulePkgDir, "c.go:1:68", "1:58-1:58 D2 variable int")
 	})
 
-	t.Run("completion", func(t *testing.T) {
+	t.Run("complete", func(t *testing.T) {
 		test(t, completionPkgDir, "a.go:6:7", "6:6-6:7 s1 constant , s2 function func(), strings module , string class built-in, s3 variable int, s4 variable func()")
 		test(t, completionPkgDir, "a.go:7:7", "7:6-7:7 nil constant , new function func(type) *type")
 		test(t, completionPkgDir, "a.go:12:11", "12:8-12:11 int class built-in, int16 class built-in, int32 class built-in, int64 class built-in, int8 class built-in")
@@ -66,7 +66,7 @@ type completionTestCase struct {
 }
 
 func testCompletion(tb testing.TB, c *completionTestCase) {
-	tbRun(tb, fmt.Sprintf("completion-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
+	tbRun(tb, fmt.Sprintf("complete-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
 		dir, err := filepath.Abs(c.pkgDir)
 		if err != nil {
 			log.Fatal("testCompletion", err)
@@ -91,7 +91,7 @@ func doCompletionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 
 func callCompletion(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
 	var res lsp.CompletionList
-	err := c.Call(ctx, "textDocument/completion", lsp.CompletionParams{TextDocumentPositionParams: lsp.TextDocumentPositionParams{
+	err := c.Call(ctx, "textDocument/complete", lsp.CompletionParams{TextDocumentPositionParams: lsp.TextDocumentPositionParams{
 		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
 		Position:     lsp.Position{Line: line, Character: char},
 	}}, &res)
