@@ -3,9 +3,9 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/caches"
 	"go/ast"
 	"go/build"
-	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
 	"regexp"
@@ -57,13 +57,22 @@ func (h *LangHandler) complete(ctx context.Context, conn jsonrpc2.JSONRPC2, req 
 
 	node := pathNodes[0]
 
+	rangeLen := int(start - node.Pos())
 	switch node := node.(type) {
 	case *ast.CallExpr:
-		return h.completeCallExpr(params, pkg, start, node)
+		return h.completeCallExpr(params, pkg, rangeLen, node)
 	case *ast.Ident:
 		if len(pathNodes) >= 3 {
 			if _, ok := pathNodes[1].(*ast.SelectorExpr); ok {
-				return h.completeCallExpr(params, pkg, start, pathNodes[2].(*ast.CallExpr))
+				return h.completeCallExpr(params, pkg, rangeLen, pathNodes[2].(*ast.CallExpr))
+			}
+		}
+	case *ast.BasicLit:
+		if len(pathNodes) >= 3 {
+			if _, ok := pathNodes[1].(*ast.ImportSpec); ok {
+				if _, ok := pathNodes[2].(*ast.GenDecl); ok {
+					return h.completeImport(params, h.packageCache, rangeLen, node)
+				}
 			}
 		}
 	}
@@ -71,7 +80,42 @@ func (h *LangHandler) complete(ctx context.Context, conn jsonrpc2.JSONRPC2, req 
 	return nil, nil
 }
 
-func (h *LangHandler) completeCallExpr(params lsp.CompletionParams, pkg *packages.Package, start token.Pos, call *ast.CallExpr) (*lsp.CompletionList, error) {
+func (h *LangHandler) completeImport(params lsp.CompletionParams, packageCache *caches.PackageCache, rangeLen int, basicLit *ast.BasicLit) (*lsp.CompletionList, error) {
+	var items []lsp.CompletionItem
+
+	value := strings.Trim(basicLit.Value, `"`)
+	rangeLen--
+
+	value = value[0:rangeLen]
+
+	f := func(pkg *packages.Package) error {
+		if strings.HasPrefix(pkg.PkgPath, value) {
+			item := lsp.CompletionItem{}
+			item.Label = pkg.PkgPath
+			item.Kind = lsp.CIKModule
+			item.TextEdit = &lsp.TextEdit{
+				Range: lsp.Range{
+					Start: lsp.Position{Line: params.Position.Line, Character: params.Position.Character - rangeLen},
+					End:   lsp.Position{Line: params.Position.Line, Character: params.Position.Character},
+				},
+				NewText: "",
+			}
+
+			items = append(items, item)
+		}
+
+		return nil
+	}
+
+	err := packageCache.Iterate(f)
+
+	return &lsp.CompletionList{
+		IsIncomplete: false,
+		Items:        items,
+	}, err
+}
+
+func (h *LangHandler) completeCallExpr(params lsp.CompletionParams, pkg *packages.Package, rangeLen int, call *ast.CallExpr) (*lsp.CompletionList, error) {
 
 	var items []lsp.CompletionItem
 	item := lsp.CompletionItem{}
@@ -99,8 +143,6 @@ func (h *LangHandler) completeCallExpr(params lsp.CompletionParams, pkg *package
 			}
 		}
 	}
-
-	rangeLen := 0
 
 	if funcIdent != nil && funcOk {
 		item.Label = funcIdent.Name
