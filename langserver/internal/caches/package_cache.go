@@ -37,7 +37,7 @@ func (c *PackageCache) Root() string {
 }
 
 func (c *PackageCache) Load(ctx context.Context, conn jsonrpc2.JSONRPC2, pkgDir string, overlay map[string][]byte) (*packages.Package, error) {
-	loadDir := getLoadDir(pkgDir)
+	loadDir := GetLoadDir(pkgDir)
 	cacheKey := loadDir
 
 	if runtime.GOOS == windowsOS {
@@ -64,7 +64,7 @@ func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2, o
 
 	c.pool = packagePool{}
 
-	loadDir := getLoadDir(c.rootDir)
+	loadDir := GetLoadDir(c.rootDir)
 	msg := fmt.Sprintf("cache root package: %s ...", loadDir)
 	conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: msg})
 	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context: ctx, Tests: true, Overlay: overlay}
@@ -138,7 +138,7 @@ func (c *PackageCache) Lookup(pkgPath string) *packages.Package {
 	return nil
 }
 
-func getLoadDir(dir string) string {
+func GetLoadDir(dir string) string {
 	if runtime.GOOS != windowsOS {
 		return dir
 	}

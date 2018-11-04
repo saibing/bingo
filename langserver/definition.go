@@ -56,7 +56,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		}
 	}
 
-	pkg, start, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, ctok, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no locations.
@@ -66,7 +66,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		return nil, err
 	}
 
-	pathNodes, node, err := util.GetPathNode(pkg, start, start)
+	pathNodes, node, err := util.GetPathNode(pkg, ctok.pos, ctok.pos)
 	if err != nil {
 		return nil, err
 	}

@@ -27,7 +27,7 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 	}
 
 	// Do initial cached, standard typecheck pass to get position arg.
-	pkg, start, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, ctok, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
@@ -37,7 +37,7 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 		return nil, err
 	}
 
-	pos := util.PosForFileOffset(pkg.Fset, pkg.Fset.Position(start).Filename, pkg.Fset.Position(start).Offset)
+	pos := util.PosForFileOffset(pkg.Fset, pkg.Fset.Position(ctok.pos).Filename, pkg.Fset.Position(ctok.pos).Offset)
 	path, _, _ := util.GetPathNode(pkg, pos, pos)
 	path, action := findInterestingNode(pkg, path)
 

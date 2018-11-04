@@ -1,1 +1,1 @@
-package p;
+package p; import "fmt"; var _ = fmt.Printl

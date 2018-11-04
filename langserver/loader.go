@@ -3,7 +3,9 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/caches"
 	"go/build"
+	"go/scanner"
 	"go/token"
 	"golang.org/x/tools/go/packages"
 	"path"
@@ -82,7 +84,14 @@ func isMultiplePackageError(err error) bool {
 	return ok
 }
 
-func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
+
+type cursorToken struct {
+	pos token.Pos
+	tok token.Token
+	lit string
+}
+
+func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, cursorToken, error) {
 	parentSpan := opentracing.SpanFromContext(ctx)
 	span := parentSpan.Tracer().StartSpan("langserver-go: load program",
 		opentracing.Tags{"fileURI": fileURI},
@@ -91,9 +100,9 @@ func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, f
 	ctx = opentracing.ContextWithSpan(ctx, span)
 	defer span.Finish()
 
-	start := token.NoPos
+	ctok := cursorToken{}
 	if !util.IsURI(fileURI) {
-		return nil, start, fmt.Errorf("typechecking of out-of-workspace URI (%q) is not yet supported", fileURI)
+		return nil, ctok, fmt.Errorf("typechecking of out-of-workspace URI (%q) is not yet supported", fileURI)
 	}
 
 	filename := h.FilePath(fileURI)
@@ -103,12 +112,15 @@ func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, f
 	if mpErr, ok := err.(*build.MultiplePackageError); ok {
 		pkg, err = buildPackageForNamedFileInMultiPackageDir(pkg, mpErr, path.Base(filename))
 		if err != nil {
-			return nil, start, err
+			return nil, ctok, err
 		}
 	} else if err != nil {
-		return nil, start, err
+		return nil, ctok, err
 	}
 
+
+	ctok, err = h.startPos(ctx, pkg, fileURI, position)
+	return pkg, ctok, err
 	//isIgnoredFile := true
 	//for _, f := range pkg.CompiledGoFiles {
 	//	if path.Base(filename) == path.Base(f) {
@@ -118,7 +130,7 @@ func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, f
 	//}
 	//
 	//if isIgnoredFile {
-	//	return nil, start, fmt.Errorf("file %s is ignored by the build", filename)
+	//	return nil, ctok, fmt.Errorf("file %s is ignored by the build", filename)
 	//}
 
 	// collect all loaded files, required to remove existing diagnostics from our cache
@@ -126,22 +138,97 @@ func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, f
 	//if err := h.publishDiagnostics(ctx, conn, error2Diagnostics(pkg.Errors), files); err != nil {
 	//	log.Printf("warning: failed to send diagnostics: %s.", err)
 	//}
+}
+
+func (h *LangHandler) loadRealTimePackage(ctx context.Context, conn jsonrpc2.JSONRPC2, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package,cursorToken, error) {
+	parentSpan := opentracing.SpanFromContext(ctx)
+	span := parentSpan.Tracer().StartSpan("langserver-go: load program",
+		opentracing.Tags{"fileURI": fileURI},
+		opentracing.ChildOf(parentSpan.Context()),
+	)
+	ctx = opentracing.ContextWithSpan(ctx, span)
+	defer span.Finish()
+
+	ctok := cursorToken{}
+	if !util.IsURI(fileURI) {
+		return nil, ctok, fmt.Errorf("typechecking of out-of-workspace URI (%q) is not yet supported", fileURI)
+	}
+
+	filename := h.FilePath(fileURI)
+
+	bctx := h.BuildContext(ctx)
+	pkg, err := h.loadRealTime(ctx, bctx, conn, filename)
+	if mpErr, ok := err.(*build.MultiplePackageError); ok {
+		pkg, err = buildPackageForNamedFileInMultiPackageDir(pkg, mpErr, path.Base(filename))
+		if err != nil {
+			return nil, ctok, err
+		}
+	} else if err != nil {
+		return nil, ctok, err
+	}
+
+	ctok, err = h.startPos(ctx, pkg, fileURI, position)
+	return pkg, ctok, err
+}
+
+func (h *LangHandler) startPos(ctx context.Context, pkg *packages.Package, fileURI lsp.DocumentURI, position lsp.Position) (cursorToken, error) {
+
+	ctok := cursorToken{pos:token.NoPos}
 
 	contents, err := h.readFile(ctx, fileURI)
 	if err != nil {
-		return nil, start, err
+		return ctok, err
 	}
+
+	filename := h.FilePath(fileURI)
 	offset, valid, why := offsetForPosition(contents, position)
 	if !valid {
-		return nil, start, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, position.Line, position.Character, why)
+		return ctok, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, position.Line, position.Character, why)
 	}
 
-	start = util.PosForFileOffset(pkg.Fset, filename, offset)
-	if start == token.NoPos {
-		return nil, start, fmt.Errorf("invalid location: %s:#%d", filename, offset)
+	ctok.pos = util.PosForFileOffset(pkg.Fset, filename, offset)
+	if ctok.pos == token.NoPos {
+		return ctok, fmt.Errorf("invalid location: %s:#%d", filename, offset)
 	}
 
-	return pkg, start, nil
+	ctok.tok, ctok.lit = scanCursorToken(contents, offset)
+	return ctok, nil
+}
+
+func scanCursorToken(file []byte, offset int) (token.Token, string) {
+	fset := token.NewFileSet()
+	var s scanner.Scanner
+	s.Init(fset.AddFile("", fset.Base(), len(file)), file, nil, scanner.ScanComments)
+
+	var foundTok token.Token
+	var foundLit string
+	for {
+		pos, tok, lit := s.Scan()
+		if tok == token.EOF || fset.Position(pos).Offset >= offset {
+			break
+		}
+
+		foundTok = tok
+		foundLit = lit
+	}
+
+	return foundTok, foundLit
+}
+
+
+func (h *LangHandler) loadRealTime(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2, filename string) (*packages.Package, error) {
+	pkgDir := filename
+	if !bctx.IsDir(filename) {
+		pkgDir = path.Dir(filename)
+	}
+
+	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context: ctx, Tests: true, Overlay: h.overlay.m}
+	pkgList, err := packages.Load(cfg, caches.GetLoadDir(pkgDir))
+	if err != nil {
+		return nil, err
+	}
+
+	return pkgList[0], nil
 }
 
 // ContainingPackageModule returns the package that contains the given

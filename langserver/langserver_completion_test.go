@@ -53,10 +53,10 @@ func TestCompletion(t *testing.T) {
 	})
 
 	t.Run("complete", func(t *testing.T) {
-		//test(t, completionPkgDir, "a.go:6:7", "6:6-6:7 s1 constant , s2 function func(), strings module , string class built-in, s3 variable int, s4 variable func()")
-		//test(t, completionPkgDir, "a.go:7:7", "7:6-7:7 nil constant , new function func(type) *type")
-		//test(t, completionPkgDir, "a.go:12:11", "12:8-12:11 int class built-in, int16 class built-in, int32 class built-in, int64 class built-in, int8 class built-in")
-		test(t, completionPkgDir, "b.go:1:21", "1:20-1:21 flag module , fmt module ")
+		test(t, completionPkgDir, "a.go:6:7", "6:6-6:7 s1 constant , s2 function func(), strings module , string class built-in, s3 variable int, s4 variable func()")
+		test(t, completionPkgDir, "a.go:7:7", "7:6-7:7 nil constant , new function func(type) *type")
+		test(t, completionPkgDir, "a.go:12:11", "12:8-12:11 int class built-in, int16 class built-in, int32 class built-in, int64 class built-in, int8 class built-in")
+		test(t, completionPkgDir, "b.go:1:44", "1:38-1:44 Println function func(a ...interface{}) (n int, err error)")
 	})
 }
 

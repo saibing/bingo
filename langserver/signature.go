@@ -19,14 +19,14 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 		}
 	}
 
-	pkg, start, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, ctok, err := h.loadRealTimePackage(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		if _, ok := err.(*util.InvalidNodeError); !ok {
 			return nil, err
 		}
 	}
 
-	pathNodes, _ := util.PathEnclosingInterval(pkg, start, start)
+	pathNodes, _ := util.PathEnclosingInterval(pkg, ctok.pos, ctok.pos)
 	call := util.CallExpr(pkg.Fset, pathNodes)
 	if call == nil {
 		return nil, nil
@@ -44,7 +44,7 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	}
 	activeParameter := len(call.Args)
 	for index, arg := range call.Args {
-		if arg.End() >= start {
+		if arg.End() >= ctok.pos {
 			activeParameter = index
 			break
 		}
