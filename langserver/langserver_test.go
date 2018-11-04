@@ -43,7 +43,7 @@ const (
 	lookupPkgDir          = "test/pkg/lookup"
 	implementationsPkgDir = "test/pkg/implementations"
 	typealiasPkgDir       = "test/pkg/typealias"
-	completionPkgDir      = "test/pkg/complete"
+	completionPkgDir      = "test/pkg/completion"
 	exportedPkgDir        = "test/pkg/exported_on_unexported"
 	symbolsPkgDir         = "test/pkg/symbols"
 	xreferencesPkgDir     = "test/pkg/xreferences"
@@ -198,8 +198,6 @@ func Init(root lsp.DocumentURI) {
 	fmt.Printf("root uri is %s\n", root)
 	cfg := NewDefaultConfig()
 	cfg.FuncSnippetEnabled = true
-	cfg.GocodeCompletionEnabled = true
-	cfg.UseBinaryPkgCache = false
 
 	h = &LangHandler{
 		DefaultConfig: cfg,

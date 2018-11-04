@@ -159,5 +159,5 @@ func (h *LangHandler) load(ctx context.Context, bctx *build.Context, conn jsonrp
 		pkgDir = path.Dir(filename)
 	}
 
-	return h.packageCache.Load(ctx, conn, pkgDir)
+	return h.packageCache.Load(ctx, conn, pkgDir, h.overlay.m)
 }

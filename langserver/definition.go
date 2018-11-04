@@ -48,7 +48,6 @@ type foundNode struct {
 	typ   *types.TypeName // the object for a named type, if present
 }
 
-
 func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]symbolLocationInformation, error) {
 	if !util.IsURI(params.TextDocument.URI) {
 		return nil, &jsonrpc2.Error{
@@ -111,7 +110,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		// Determine metadata information for the node.
 		if def, err := refs.DefInfo(pkg.Types, pkg.TypesInfo, pathNodes, found.ident.Pos()); err == nil {
 			rootPath := h.FilePath(h.init.Root())
-			symDesc, err := defModuleSymbolDescriptor(ctx, conn, pkg, h.packageCache, rootPath, *def, findPackage)
+			symDesc, err := defSymbolDescriptor(ctx, conn, pkg, h.packageCache, rootPath, *def, findPackage, h.overlay.m)
 			if err != nil {
 				// TODO: tracing
 				log.Println("refs.DefInfo:", err)

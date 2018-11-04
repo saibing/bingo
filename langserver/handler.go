@@ -16,7 +16,6 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
-	"github.com/saibing/bingo/langserver/internal/gocode"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -233,10 +232,6 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			return nil, err
 		}
 
-		if h.config.GocodeCompletionEnabled {
-			gocode.InitDaemon(h.BuildContext(ctx))
-		}
-
 		// PERF: Kick off a workspace/symbol in the background to warm up the server
 		if yes, _ := strconv.ParseBool(envWarmupOnInitialize); yes {
 			go func() {
@@ -250,10 +245,8 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		}
 
 		kind := lsp.TDSKIncremental
-		var completionOp *lsp.CompletionOptions
-		if h.config.GocodeCompletionEnabled {
-			completionOp = &lsp.CompletionOptions{TriggerCharacters: []string{"."}}
-		}
+		completionOp := &lsp.CompletionOptions{TriggerCharacters: []string{"."}}
+
 		return lsp.InitializeResult{
 			Capabilities: lsp.ServerCapabilities{
 				TextDocumentSync: &lsp.TextDocumentSyncOptionsOrKind{
@@ -349,10 +342,6 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		return h.handleXDefinition(ctx, conn, req, params)
 
 	case "textDocument/complete":
-		if !h.config.GocodeCompletionEnabled {
-			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeMethodNotFound,
-				Message: fmt.Sprintf("complete is disabled. Enable with flag `-gocodecompletion`")}
-		}
 		if req.Params == nil {
 			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 		}

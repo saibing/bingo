@@ -3,20 +3,21 @@ package caches
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/pkg/lsp"
-	"github.com/sourcegraph/jsonrpc2"
-	"golang.org/x/tools/go/packages"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/jsonrpc2"
+	"golang.org/x/tools/go/packages"
 )
 
 type packagePool map[string]*packages.Package
 
 type PackageCache struct {
-	mu   sync.RWMutex
-	pool packagePool
+	mu      sync.RWMutex
+	pool    packagePool
 	rootDir string
 }
 
@@ -28,14 +29,14 @@ const windowsOS = "windows"
 
 func (c *PackageCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string) error {
 	c.rootDir = root
-	return c.buildCache(ctx, conn)
+	return c.buildCache(ctx, conn, nil)
 }
 
 func (c *PackageCache) Root() string {
 	return c.rootDir
 }
 
-func (c *PackageCache) Load(ctx context.Context, conn jsonrpc2.JSONRPC2, pkgDir string) (*packages.Package, error) {
+func (c *PackageCache) Load(ctx context.Context, conn jsonrpc2.JSONRPC2, pkgDir string, overlay map[string][]byte) (*packages.Package, error) {
 	loadDir := getLoadDir(pkgDir)
 	cacheKey := loadDir
 
@@ -52,12 +53,12 @@ func (c *PackageCache) Load(ctx context.Context, conn jsonrpc2.JSONRPC2, pkgDir 
 	}
 
 	c.mu.RUnlock()
-	c.buildCache(context.Background(), conn)
+	c.buildCache(context.Background(), conn, overlay)
 
 	return c.pool[cacheKey], nil
 }
 
-func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2) error {
+func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2, overlay map[string][]byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -66,8 +67,8 @@ func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2) e
 	loadDir := getLoadDir(c.rootDir)
 	msg := fmt.Sprintf("cache root package: %s ...", loadDir)
 	conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: msg})
-	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context:ctx, Tests: true}
-	pkgList, err := packages.Load(cfg, loadDir + "/...")
+	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context: ctx, Tests: true, Overlay: overlay}
+	pkgList, err := packages.Load(cfg, loadDir+"/...")
 	if err != nil {
 		conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: err.Error()})
 		return err
@@ -79,7 +80,7 @@ func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2) e
 	return nil
 }
 
-func (c *PackageCache) Iterate(visit func (p *packages.Package) error) error {
+func (c *PackageCache) Iterate(visit func(p *packages.Package) error) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

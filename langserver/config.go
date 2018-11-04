@@ -24,11 +24,6 @@ type Config struct {
 	// Defaults to true if not specified.
 	FuncSnippetEnabled bool
 
-	// GocodeCompletionEnabled enables code complete feature (using gocode)
-	//
-	// Defaults to false if not specified.
-	GocodeCompletionEnabled bool
-
 	// FormatTool decides which tool is used to format documents. Supported: goimports and gofmt
 	//
 	// Defaults to goimports if not specified.
@@ -51,12 +46,6 @@ type Config struct {
 	//
 	// Defaults to half of your CPU cores if not specified.
 	MaxParallelism int
-
-	// UseBinaryPkgCache controls whether or not $GOPATH/pkg binary .a files should
-	// be used.
-	//
-	// Defaults to true if not specified.
-	UseBinaryPkgCache bool
 }
 
 // Apply sets the corresponding field in c for each non-nil field in o.
@@ -67,9 +56,7 @@ func (c Config) Apply(o *InitializationOptions) Config {
 	if o.FuncSnippetEnabled != nil {
 		c.FuncSnippetEnabled = *o.FuncSnippetEnabled
 	}
-	if o.GocodeCompletionEnabled != nil {
-		c.GocodeCompletionEnabled = *o.GocodeCompletionEnabled
-	}
+
 	if o.FormatTool != nil {
 		c.FormatTool = *o.FormatTool
 	}
@@ -79,9 +66,7 @@ func (c Config) Apply(o *InitializationOptions) Config {
 	if o.MaxParallelism != nil {
 		c.MaxParallelism = *o.MaxParallelism
 	}
-	if o.UseBinaryPkgCache != nil {
-		c.UseBinaryPkgCache = *o.UseBinaryPkgCache
-	}
+
 	return c
 }
 
@@ -96,9 +81,7 @@ func NewDefaultConfig() Config {
 
 	return Config{
 		FuncSnippetEnabled:      true,
-		GocodeCompletionEnabled: false,
 		FormatTool:              formatToolGoimports,
 		MaxParallelism:          maxparallelism,
-		UseBinaryPkgCache:       true,
 	}
 }

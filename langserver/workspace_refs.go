@@ -89,7 +89,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 		Info:     pkg.TypesInfo,
 	}
 	refsErr := cfg.Refs(func(r *refs.Ref) {
-		symDesc, err := defSymbolDescriptor(ctx, conn, h.packageCache, rootPath, r.Def, findPackage)
+		symDesc, err := defSymbolDescriptor(ctx, conn, pkg, h.packageCache, rootPath, r.Def, findPackage, h.overlay.m)
 		if err != nil {
 			// Log the error, and flag it as one in the trace -- but do not
 			// halt execution (hopefully, it is limited to a small subset of
@@ -120,52 +120,22 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 	return nil
 }
 
-func defModuleSymbolDescriptor(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg *packages.Package, packageCache *caches.PackageCache, rootPath string, def refs.Def, findPackage FindModulePackageFunc) (*symbolDescriptor, error) {
+func defSymbolDescriptor(
+	ctx context.Context,
+	conn jsonrpc2.JSONRPC2,
+	pkg *packages.Package,
+	packageCache *caches.PackageCache,
+	rootPath string, def refs.Def,
+	findPackage FindModulePackageFunc,
+	overlay map[string][]byte) (*symbolDescriptor, error) {
+
 	var err error
 	defPkg, _ := pkg.Imports[def.ImportPath]
 	if defPkg == nil {
-		defPkg, err = findPackage(ctx, conn, packageCache, def.ImportPath, rootPath)
+		defPkg, err = findPackage(ctx, conn, packageCache, def.ImportPath, rootPath, overlay)
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	// NOTE: fields must be kept in sync with symbol.go:symbolEqual
-	desc := &symbolDescriptor{
-		Vendor:      false,
-		Package:     defPkg.PkgPath,
-		PackageName: def.PackageName,
-		Recv:        "",
-		Name:        "",
-		ID:          "",
-	}
-
-	fields := strings.Fields(def.Path)
-	switch {
-	case len(fields) == 0:
-		// reference to just a package
-		desc.ID = fmt.Sprintf("%s", desc.Package)
-	case len(fields) >= 2:
-		desc.Recv = fields[0]
-		desc.Name = fields[1]
-		desc.ID = fmt.Sprintf("%s/-/%s/%s", desc.Package, desc.Recv, desc.Name)
-	case len(fields) >= 1:
-		desc.Name = fields[0]
-		desc.ID = fmt.Sprintf("%s/-/%s", desc.Package, desc.Name)
-	default:
-		panic("invalid def.Path response from internal/refs")
-	}
-	return desc, nil
-}
-
-func defSymbolDescriptor(ctx context.Context, conn jsonrpc2.JSONRPC2, cache *caches.PackageCache, rootPath string, def refs.Def, findPackage FindModulePackageFunc) (*symbolDescriptor, error) {
-	defPkg, err := findPackage(ctx, conn, cache, def.ImportPath, rootPath)
-	if err != nil {
-		return nil, err
-	}
-
-	if defPkg == nil {
-		return nil, nil
 	}
 
 	// NOTE: fields must be kept in sync with symbol.go:symbolEqual

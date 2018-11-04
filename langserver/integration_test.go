@@ -204,7 +204,6 @@ func TestIntegration_FileSystem_Diagnostics(t *testing.T) {
 	cfg := NewDefaultConfig()
 	// make the test more deterministic and only receive
 	// diagnostics when sending "textDocument/didSave"
-	cfg.UseBinaryPkgCache = true
 	cfg.DiagnosticsEnabled = true
 
 	integrationTest(t, files, &cfg, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
@@ -349,8 +348,6 @@ func integrationTest(
 
 	if cfg == nil {
 		c := NewDefaultConfig()
-		// do not use the pkg cache because integration tests won't install any pkgs
-		c.UseBinaryPkgCache = false
 		cfg = &c
 	}
 	h := NewHandler(*cfg)
