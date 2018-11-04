@@ -341,7 +341,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		}
 		return h.handleXDefinition(ctx, conn, req, params)
 
-	case "textDocument/complete":
+	case "textDocument/completion":
 		if req.Params == nil {
 			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 		}
