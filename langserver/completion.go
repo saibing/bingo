@@ -32,7 +32,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 	}
 
 	completeList, err := h.complete(ctx, conn, req, params)
-	if err != nil {
+	if err != nil || completeList.Items == nil {
 		return nil, err
 	}
 
@@ -92,6 +92,9 @@ func (h *LangHandler) complete(ctx context.Context, conn jsonrpc2.JSONRPC2, req 
 				}
 			}
 		}
+
+	case *ast.SelectorExpr:
+		return h.completeSelectorExpr(params, pkg, rangeLen, node)
 
 	case *ast.File:
 		if len(node.Unresolved) > 0 {
@@ -263,12 +266,20 @@ func (h *LangHandler) completeSelectorExpr(params lsp.CompletionParams, pkg *pac
 		p := obj.Imported()
 		scope := p.Scope()
 		names := scope.Names()
+		selName := selExpr.Sel.Name
+
+		value := selName
+		if value != "_"  && len(value) > rangeLen {
+			value = value[0:rangeLen]
+		}
 		for _, name := range names {
-			value := selExpr.Sel.Name[0:rangeLen]
-			if strings.HasPrefix(name, value) {
+			// fmt. or fmt.Printl
+			if value == "_" || strings.HasPrefix(name, value){
 				matchedObj := scope.Lookup(name)
-				item := h.createCompletionItem(matchedObj, params, rangeLen)
-				items = append(items, item)
+				if matchedObj.Exported() {
+					item := h.createCompletionItem(matchedObj, params, rangeLen)
+					items = append(items, item)
+				}
 			}
 		}
 	}
