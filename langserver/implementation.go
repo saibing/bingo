@@ -37,7 +37,7 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 		return nil, err
 	}
 
-	pos := posForFileOffset(pkg.Fset, pkg.Fset.Position(start).Filename, pkg.Fset.Position(start).Offset)
+	pos := util.PosForFileOffset(pkg.Fset, pkg.Fset.Position(start).Filename, pkg.Fset.Position(start).Offset)
 	path, _, _ := util.GetPathNode(pkg, pos, pos)
 	path, action := findInterestingNode(pkg, path)
 

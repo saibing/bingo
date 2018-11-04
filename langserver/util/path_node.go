@@ -139,3 +139,51 @@ func GetObjectPathNode(pkg *packages.Package, o types.Object) ([]ast.Node, *ast.
 
 	return nodes, node, err
 }
+
+func PosForFileOffset(fset *token.FileSet, filename string, offset int) token.Pos {
+	var f *token.File
+	fset.Iterate(func(ff *token.File) bool {
+		if PathEqual(ff.Name(), filename) {
+			f = ff
+			return false // break out of loop
+		}
+		return true
+	})
+	if f == nil {
+		return token.NoPos
+	}
+	return f.Pos(offset)
+}
+
+
+func GetSyntaxFile(pkg *packages.Package, filename string) *ast.File {
+	for _, file := range pkg.Syntax {
+		if PathEqual(file.Name.Name, filename) {
+			return file
+		}
+	}
+
+	return nil
+}
+
+// CallExpr climbs AST tree up until call expression
+func CallExpr(fset *token.FileSet, nodes []ast.Node) *ast.CallExpr {
+	for _, node := range nodes {
+		callExpr, ok := node.(*ast.CallExpr)
+		if ok {
+			return callExpr
+		}
+	}
+	return nil
+}
+
+func GetIdent(fset *token.FileSet, nodes []ast.Node) *ast.Ident {
+	for _, node := range nodes {
+		ident, ok := node.(*ast.Ident)
+		if ok {
+			return ident
+		}
+	}
+	return nil
+}
+

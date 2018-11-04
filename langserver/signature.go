@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
-	"go/token"
 	"go/types"
 
 	"github.com/saibing/bingo/langserver/util"
@@ -28,7 +27,7 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	}
 
 	pathNodes, _ := util.PathEnclosingInterval(pkg, start, start)
-	call := callExpr(pkg.Fset, pathNodes)
+	call := util.CallExpr(pkg.Fset, pathNodes)
 	if call == nil {
 		return nil, nil
 	}
@@ -72,17 +71,6 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	}
 
 	return &lsp.SignatureHelp{Signatures: []lsp.SignatureInformation{info}, ActiveSignature: 0, ActiveParameter: activeParameter}, nil
-}
-
-// callExpr climbs AST tree up until call expression
-func callExpr(fset *token.FileSet, nodes []ast.Node) *ast.CallExpr {
-	for _, node := range nodes {
-		callExpr, ok := node.(*ast.CallExpr)
-		if ok {
-			return callExpr
-		}
-	}
-	return nil
 }
 
 // shortTyoe returns shorthand type notation without specifying type's import path
