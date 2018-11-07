@@ -111,7 +111,7 @@ type overlay struct {
 }
 
 func newOverlay(conn *jsonrpc2.Conn) *overlay {
-	return &overlay{view: source.NewView()}
+	return &overlay{conn: conn, view: source.NewView()}
 }
 
 // FS returns a vfs for the overlay.
