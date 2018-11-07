@@ -6,15 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 
-	"github.com/sourcegraph/ctxvfs"
 	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/jsonrpc2"
 
 	"github.com/saibing/bingo/langserver/util"
@@ -66,7 +67,7 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 			return "", false, err
 		}
 		return do(params.TextDocument.URI, func() error {
-			overlay.didOpen(&params)
+			overlay.didOpen(ctx, &params)
 			return nil
 		})
 
@@ -76,7 +77,7 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 			return "", false, err
 		}
 		return do(params.TextDocument.URI, func() error {
-			return overlay.didChange(&params)
+			return overlay.didChange(ctx, &params)
 		})
 
 	case "textDocument/didClose":
@@ -105,24 +106,41 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 // overlay owns the overlay filesystem, as well as handling LSP filesystem
 // requests.
 type overlay struct {
-	mu sync.Mutex
-	m  map[string][]byte
+	conn *jsonrpc2.Conn
+	view *source.View
 }
 
-func newOverlay() *overlay {
-	return &overlay{m: make(map[string][]byte)}
+func newOverlay(conn *jsonrpc2.Conn) *overlay {
+	return &overlay{view: source.NewView()}
 }
 
 // FS returns a vfs for the overlay.
 func (h *overlay) FS() ctxvfs.FileSystem {
-	return ctxvfs.Sync(&h.mu, ctxvfs.Map(h.m))
+	return nil
 }
 
-func (h *overlay) didOpen(params *lsp.DidOpenTextDocumentParams) {
-	h.set(params.TextDocument.URI, []byte(params.TextDocument.Text))
+func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI, text string) {
+	h.view.GetFile(uri).SetContent([]byte(text))
+	go func() {
+		reports, err := diagnostics(h.view, uri)
+		if err == nil {
+			for filename, diagnostics := range reports {
+				params := &lsp.PublishDiagnosticsParams{
+					URI:         source.ToURI(filename),
+					Diagnostics: diagnostics,
+				}
+
+				h.conn.Notify(ctx, "textDocument/publishDiagnostics", params)
+			}
+		}
+	}()
 }
 
-func (h *overlay) didChange(params *lsp.DidChangeTextDocumentParams) error {
+func (h *overlay) didOpen(ctx context.Context, params *lsp.DidOpenTextDocumentParams) {
+	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, params.TextDocument.Text)
+}
+
+func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocumentParams) error {
 	contents, found := h.get(params.TextDocument.URI)
 	if !found {
 		return fmt.Errorf("received textDocument/didChange for unknown file %q", params.TextDocument.URI)
@@ -133,7 +151,7 @@ func (h *overlay) didChange(params *lsp.DidChangeTextDocumentParams) error {
 		return err
 	}
 
-	h.set(params.TextDocument.URI, contents)
+	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, string(contents))
 	return nil
 }
 
@@ -173,7 +191,7 @@ func applyContentChanges(uri lsp.DocumentURI, contents []byte, changes []lsp.Tex
 }
 
 func (h *overlay) didClose(params *lsp.DidCloseTextDocumentParams) {
-	h.del(params.TextDocument.URI)
+	h.view.GetFile(params.TextDocument.URI).SetContent(nil)
 }
 
 func uriToOverlayPath(uri lsp.DocumentURI) string {
@@ -183,26 +201,13 @@ func uriToOverlayPath(uri lsp.DocumentURI) string {
 	return string(uri)
 }
 
-func (h *overlay) get(uri lsp.DocumentURI) (contents []byte, found bool) {
-	path := uriToOverlayPath(uri)
-	h.mu.Lock()
-	contents, found = h.m[path]
-	h.mu.Unlock()
-	return
-}
-
-func (h *overlay) set(uri lsp.DocumentURI, contents []byte) {
-	path := uriToOverlayPath(uri)
-	h.mu.Lock()
-	h.m[path] = contents
-	h.mu.Unlock()
-}
-
-func (h *overlay) del(uri lsp.DocumentURI) {
-	path := uriToOverlayPath(uri)
-	h.mu.Lock()
-	delete(h.m, path)
-	h.mu.Unlock()
+func (h *overlay) get(uri lsp.DocumentURI) ([]byte, bool) {
+	file := h.view.GetFile(uri)
+	if file != nil {
+		contents, err := file.Read()
+		return contents, err == nil
+	}
+	return nil, false
 }
 
 func (h *HandlerShared) FilePath(uri lsp.DocumentURI) string {

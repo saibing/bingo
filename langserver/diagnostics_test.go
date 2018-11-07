@@ -1,95 +1,107 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package langserver
 
 import (
+	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/pkg/lsp"
+	"go/token"
+	"path/filepath"
 	"reflect"
+	"sort"
+	"strings"
 	"testing"
 
-	"github.com/saibing/bingo/pkg/lsp"
+	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/packages/packagestest"
 )
 
-type updateCachedDiagnosticsTestCase struct {
-	cache diagnostics
-	diags diagnostics
-	files []string
-
-	expectedCache diagnostics
-	expectedDiags diagnostics
+func TestDiagnostics(t *testing.T) {
+	packagestest.TestAll(t, testDiagnostics)
 }
 
-var updateCachedDiagnosticsTestCases = map[string]updateCachedDiagnosticsTestCase{
-	"add to cache": updateCachedDiagnosticsTestCase{
-		cache: diagnostics{},
-		diags: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo"}}},
-		files: []string{"a.go"},
-
-		expectedCache: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo"}}},
-		expectedDiags: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo"}}},
-	},
-	"update cache": updateCachedDiagnosticsTestCase{
-		cache: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo"}}},
-		diags: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "bar"}}},
-		files: []string{"a.go"},
-
-		expectedCache: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "bar"}}},
-		expectedDiags: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "bar"}}},
-	},
-	"remove from cache": updateCachedDiagnosticsTestCase{
-		cache: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo"}}},
-		diags: diagnostics{},
-		files: []string{"a.go"},
-
-		expectedCache: diagnostics{},
-		expectedDiags: diagnostics{"a.go": nil}, // clears the client cache
-	},
-	"add, change and remove from cache": updateCachedDiagnosticsTestCase{
-		cache: diagnostics{
-			"a.go": []*lsp.Diagnostic{{Message: "same"}},
-			"b.go": []*lsp.Diagnostic{{Message: "will be updated"}},
-			"c.go": []*lsp.Diagnostic{{Message: "will be removed"}},
-			// d.go no diagnostics yet
+func testDiagnostics(t *testing.T, exporter packagestest.Exporter) {
+	files := packagestest.MustCopyFileTree("testdata/diagnostics")
+	// TODO(rstambler): Stop hardcoding this if we have more files that don't parse.
+	files["noparse/noparse.go"] = packagestest.Copy("testdata/diagnostics/noparse/noparse.go.in")
+	modules := []packagestest.Module{
+		{
+			Name:  "golang.org/x/tools/internal/lsp",
+			Files: files,
 		},
-		diags: diagnostics{
-			"a.go": []*lsp.Diagnostic{{Message: "same"}},
-			"b.go": []*lsp.Diagnostic{{Message: "updated"}},
-			// c.go no diagnostics anymore
-			"d.go": []*lsp.Diagnostic{{Message: "added"}},
-		},
-		files: []string{"a.go", "c.go", "d.go"},
+	}
+	exported := packagestest.Export(t, exporter, modules)
+	defer exported.Cleanup()
 
-		expectedCache: diagnostics{
-			"a.go": []*lsp.Diagnostic{{Message: "same"}},
-			"b.go": []*lsp.Diagnostic{{Message: "updated"}},
-			"d.go": []*lsp.Diagnostic{{Message: "added"}},
-		},
-		expectedDiags: diagnostics{
-			"a.go": []*lsp.Diagnostic{{Message: "same"}},
-			"b.go": []*lsp.Diagnostic{{Message: "updated"}},
-			"c.go": nil, // clears the client cache
-			"d.go": []*lsp.Diagnostic{{Message: "added"}},
-		},
-	},
-	"do not set nil if not in cache": updateCachedDiagnosticsTestCase{
-		cache: diagnostics{},
-		diags: diagnostics{},
-		files: []string{"a.go", "b.go"},
-
-		expectedCache: diagnostics{},
-		expectedDiags: diagnostics{}, // nothing, because a.go and b.go are not part of the cache
-	},
-}
-
-func TestUpdateCachedDiagnosticsTestCases(t *testing.T) {
-	for label, test := range updateCachedDiagnosticsTestCases {
-		t.Run(label, func(t *testing.T) {
-			updatedCache := updateCachedDiagnostics(test.cache, test.diags, test.files)
-
-			if !reflect.DeepEqual(test.expectedCache, updatedCache) {
-				t.Errorf("Cached diagnostics does not match\nExpected: %v\nActual: %v", test.expectedCache, updatedCache)
+	dirs := make(map[string]bool)
+	wants := make(map[string][]lsp.Diagnostic)
+	for _, module := range modules {
+		for fragment := range module.Files {
+			if !strings.HasSuffix(fragment, ".go") {
+				continue
 			}
-
-			if !reflect.DeepEqual(test.expectedDiags, test.diags) {
-				t.Errorf("Reported diagnostics does not match\nExpected: %v\nActual: %v", test.expectedDiags, test.diags)
+			filename := exporter.Filename(exported, module.Name, fragment)
+			wants[filename] = []lsp.Diagnostic{}
+			dirs[filepath.Dir(filename)] = true
+		}
+	}
+	err := exported.Expect(map[string]interface{}{
+		"diag": func(pos token.Position, msg string) {
+			line := pos.Line - 1
+			col := pos.Column - 1
+			want := lsp.Diagnostic{
+				Range: lsp.Range{
+					Start: lsp.Position{
+						Line:      line,
+						Character: col,
+					},
+					End: lsp.Position{
+						Line:      line,
+						Character: col,
+					},
+				},
+				Severity: lsp.Error,
+				Source:   "LSP: Go compiler",
+				Message:  msg,
 			}
-		})
+			if _, ok := wants[pos.Filename]; ok {
+				wants[pos.Filename] = append(wants[pos.Filename], want)
+			} else {
+				t.Errorf("unexpected filename: %v", pos.Filename)
+			}
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var dirList []string
+	for dir := range dirs {
+		dirList = append(dirList, dir)
+	}
+	exported.Config.Mode = packages.LoadFiles
+	pkgs, err := packages.Load(exported.Config, dirList...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := source.NewView()
+	v.Config = exported.Config
+	v.Config.Mode = packages.LoadSyntax
+	for _, pkg := range pkgs {
+		for _, filename := range pkg.GoFiles {
+			diagnostics, err := diagnostics(v, source.ToURI(filename))
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := diagnostics[filename]
+			sort.Slice(got, func(i int, j int) bool {
+				return got[i].Range.Start.Line < got[j].Range.Start.Line
+			})
+			want := wants[filename]
+			if equal := reflect.DeepEqual(want, got); !equal {
+				t.Errorf("diagnostics failed for %s: (expected: %v), (got: %v)", filename, want, got)
+			}
+		}
 	}
 }

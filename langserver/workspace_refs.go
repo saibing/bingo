@@ -89,7 +89,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 		Info:     pkg.TypesInfo,
 	}
 	refsErr := cfg.Refs(func(r *refs.Ref) {
-		symDesc, err := defSymbolDescriptor(ctx, conn, pkg, h.packageCache, rootPath, r.Def, findPackage, h.overlay.m)
+		symDesc, err := defSymbolDescriptor(ctx, conn, pkg, h.packageCache, rootPath, r.Def, findPackage)
 		if err != nil {
 			// Log the error, and flag it as one in the trace -- but do not
 			// halt execution (hopefully, it is limited to a small subset of
@@ -126,13 +126,12 @@ func defSymbolDescriptor(
 	pkg *packages.Package,
 	packageCache *caches.PackageCache,
 	rootPath string, def refs.Def,
-	findPackage FindModulePackageFunc,
-	overlay map[string][]byte) (*symbolDescriptor, error) {
+	findPackage FindModulePackageFunc) (*symbolDescriptor, error) {
 
 	var err error
 	defPkg, _ := pkg.Imports[def.ImportPath]
 	if defPkg == nil {
-		defPkg, err = findPackage(ctx, conn, packageCache, def.ImportPath, rootPath, overlay)
+		defPkg, err = findPackage(ctx, conn, packageCache, def.ImportPath, rootPath)
 		if err != nil {
 			return nil, err
 		}

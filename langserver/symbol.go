@@ -291,7 +291,7 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 	}
 	filename := util.UriToPath(params.TextDocument.URI)
 
-	pkg, err := h.packageCache.Load(ctx, conn, path.Dir(filename), h.overlay.m)
+	pkg, err := h.packageCache.Load(ctx, conn, path.Dir(filename), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -383,15 +383,12 @@ type pkgSymResult struct {
 // into the results. It uses LangHandler's package symbol cache to
 // speed up repeated calls.
 func (h *LangHandler) collectFromPkg(pkg *packages.Package,  results *resultSorter) {
-	symbols := h.symbolCache.Get(pkg, func() interface{} {
-		return astPkgToSymbols(pkg)
-	})
-
+	symbols := astPkgToSymbols(pkg)
 	if symbols == nil {
 		return
 	}
 
-	for _, sym := range symbols.([]symbolPair) {
+	for _, sym := range symbols {
 		if results.Query.Filter == FilterExported && !isExported(&sym) {
 			continue
 		}

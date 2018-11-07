@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/tools/refactor/importgraph"
-
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
@@ -62,16 +60,7 @@ type LangHandler struct {
 	*HandlerShared
 	init *InitializeParams // set by "initialize" request
 
-	typecheckCache   cache
 	packageCache *caches.PackageCache
-	symbolCache      cache
-	diagnosticsCache *diagnosticsCache
-
-	// cache the reverse import graph. The sync.Once is a pointer since it
-	// is reset when we reset caches. If it was a value we would racily
-	// updated the internal mutex when assigning a new sync.Once.
-	importGraphOnce *sync.Once
-	importGraph     importgraph.Graph
 
 	cancel *cancel
 
@@ -86,7 +75,7 @@ type LangHandler struct {
 }
 
 // reset clears all internal state in h.
-func (h *LangHandler) reset(init *InitializeParams) error {
+func (h *LangHandler) reset(conn *jsonrpc2.Conn, init *InitializeParams) error {
 	for _, k := range init.Capabilities.TextDocument.Completion.CompletionItemKind.ValueSet {
 		if k == lsp.CIKConstant {
 			CIKConstantSupported = lsp.CIKConstant
@@ -106,7 +95,7 @@ func (h *LangHandler) reset(init *InitializeParams) error {
 	if !h.HandlerShared.Shared {
 		// Only reset the shared data if this lang server is running
 		// by itself.
-		if err := h.HandlerShared.Reset(!init.NoOSFileSystemAccess); err != nil {
+		if err := h.HandlerShared.Reset(conn, !init.NoOSFileSystemAccess); err != nil {
 			return err
 		}
 	}
@@ -123,27 +112,8 @@ func (h *LangHandler) resetCaches(lock bool) {
 		h.mu.Lock()
 	}
 
-	h.importGraphOnce = &sync.Once{}
-	h.importGraph = nil
-
-	if h.typecheckCache == nil {
-		h.typecheckCache = newTypecheckCache()
-	} else {
-		h.typecheckCache.Purge()
-	}
-
 	if h.packageCache == nil {
 		h.packageCache = caches.New()
-	}
-
-	if h.symbolCache == nil {
-		h.symbolCache = newSymbolCache()
-	} else {
-		h.symbolCache.Purge()
-	}
-
-	if h.diagnosticsCache == nil {
-		h.diagnosticsCache = newDiagnosticsCache()
 	}
 
 	if lock {
@@ -224,7 +194,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			params.RootPath = string(util.PathToURI(params.RootPath))
 		}
 
-		if err := h.reset(&params); err != nil {
+		if err := h.reset(conn.(*jsonrpc2.Conn), &params); err != nil {
 			return nil, err
 		}
 

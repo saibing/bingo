@@ -18,8 +18,6 @@ import (
 
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
-
-	"golang.org/x/tools/go/loader"
 )
 
 // buildPackageForNamedFileInMultiPackageDir returns a package that
@@ -71,12 +69,6 @@ func buildPackageForNamedFileInMultiPackageDir(bpkg *packages.Package, m *build.
 	}
 	bpkg.GoFiles = filterToFilesInPackage(bpkg.GoFiles, nonXTestPkgName)
 	return bpkg, nil
-}
-
-// TODO(sqs): allow typechecking just a specific file not in a package, too
-func typecheck(ctx context.Context, fset *token.FileSet, bctx *build.Context, bpkg *build.Package, findPackage FindPackageFunc) (*loader.Program, diagnostics, error) {
-
-	return nil, nil, nil
 }
 
 func isMultiplePackageError(err error) bool {
@@ -222,7 +214,7 @@ func (h *LangHandler) loadRealTime(ctx context.Context, bctx *build.Context, con
 		pkgDir = path.Dir(filename)
 	}
 
-	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context: ctx, Tests: true, Overlay: h.overlay.m}
+	cfg := &packages.Config{Mode: packages.LoadSyntax, Context: ctx, Tests: true}
 	pkgList, err := packages.Load(cfg, caches.GetLoadDir(pkgDir))
 	if err != nil {
 		return nil, err
@@ -246,5 +238,5 @@ func (h *LangHandler) load(ctx context.Context, bctx *build.Context, conn jsonrp
 		pkgDir = path.Dir(filename)
 	}
 
-	return h.packageCache.Load(ctx, conn, pkgDir, h.overlay.m)
+	return h.packageCache.Load(ctx, conn, pkgDir, nil)
 }

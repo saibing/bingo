@@ -1,21 +1,21 @@
 package langserver
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"go/ast"
-	"go/build"
-	"go/types"
-	"regexp"
-	"sort"
-	"strings"
-
-	"github.com/saibing/bingo/langserver/internal/caches"
-	"golang.org/x/tools/go/packages"
-
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"go/ast"
+	"go/format"
+	"go/token"
+	"go/types"
+	"regexp"
+	"strings"
+
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 var (
@@ -31,291 +31,710 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		}
 	}
 
-	completeList, err := h.complete(ctx, conn, req, params)
-	if err != nil || completeList.Items == nil {
-		return nil, err
-	}
-
-	sort.Slice(completeList.Items, func(i, j int) bool {
-		return completeList.Items[i].Label < completeList.Items[j].Label
-	})
-
-	return completeList, nil
-}
-
-func (h *LangHandler) complete(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.CompletionParams) (*lsp.CompletionList, error) {
-	pkg, ctok, err := h.loadRealTimePackage(ctx, conn, params.TextDocument.URI, params.Position)
+	items, err := completion(h.overlay.view, params.TextDocument.URI, params.Position)
 	if err != nil {
-		// Invalid nodes means we tried to click on something which is
-		// not an ident (eg comment/string/etc). Return no information.
-		if _, ok := err.(*util.InvalidNodeError); ok {
-			return nil, nil
-		}
-		// This is a common error we get in production when a user is
-		// browsing a go pkg which only contains files we can't
-		// analyse (usually due to build tags). To reduce signal of
-		// actual bad errors, we return no error in this case.
-		if _, ok := err.(*build.NoGoError); ok {
-			return nil, nil
-		}
 		return nil, err
 	}
 
-	pathNodes, _ := util.PathEnclosingInterval(pkg, ctok.pos, ctok.pos)
-	if len(pathNodes) == 0 {
-		return nil, nil
+	result := &lsp.CompletionList{Items:items, IsIncomplete:false}
+	return result, nil
+}
+
+
+func completion(v *source.View, uri lsp.DocumentURI, pos lsp.Position) (items []lsp.CompletionItem, err error) {
+	pkg, qfile, qpos, err := v.TypeCheckAtPosition(uri, pos)
+	if err != nil {
+		return nil, err
+	}
+	items, _, err = completions(pkg.Fset, qfile, qpos, pkg.Types, pkg.TypesInfo)
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+// Completions returns the map of possible candidates for completion,
+// given a position, a file AST, and type information. The prefix is
+// computed based on the preceding identifier and can be used by the
+// client to score the quality of the completion. For instance, some
+// clients may tolerate imperfect matches as valid completion results,
+// since users may make typos.
+func completions(fset *token.FileSet, file *ast.File, pos token.Pos, pkg *types.Package, info *types.Info) (completions []lsp.CompletionItem, prefix string, err error) {
+	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
+	if path == nil {
+		return nil, "", fmt.Errorf("cannot find node enclosing position")
+	}
+	// If the position is not an identifier but immediately follows
+	// an identifier or selector period (as is common when
+	// requesting a completion), use the path to the preceding node.
+	if _, ok := path[0].(*ast.Ident); !ok {
+		if p, _ := astutil.PathEnclosingInterval(file, pos-1, pos-1); p != nil {
+			switch p[0].(type) {
+			case *ast.Ident, *ast.SelectorExpr:
+				path = p // use preceding ident/selector
+			}
+		}
 	}
 
-	node := pathNodes[0]
+	expectedTyp := expectedType(path, pos, info)
+	enclosing := enclosingFunc(path, pos, info)
+	pkgStringer := qualifier(file, pkg, info)
 
-	rangeLen := int(ctok.pos - node.Pos())
+	seen := make(map[types.Object]bool)
+	const stdWeight = 1 // default rank for a completion result
 
-	switch node := node.(type) {
-	case *ast.CallExpr:
-		return h.completeCallExpr(params, pkg, rangeLen, node)
-	case *ast.Ident:
-		if len(pathNodes) >= 3 {
-			if selExpr, ok := pathNodes[1].(*ast.SelectorExpr); ok {
-				switch n := pathNodes[2].(type) {
-				case *ast.CallExpr:
-					return h.completeCallExpr(params, pkg, rangeLen, n)
-				default:
-					return h.completeSelectorExpr(params, pkg, rangeLen, selExpr)
+	// found adds a candidate completion.
+	// Only the first candidate of a given name is considered.
+	found := func(obj types.Object, weight float32) {
+		if obj.Pkg() != nil && obj.Pkg() != pkg && !obj.Exported() {
+			return // inaccessible
+		}
+		if !seen[obj] {
+			seen[obj] = true
+			if expectedTyp != nil && matchingTypes(expectedTyp, obj.Type()) {
+				weight *= 10
+			}
+			item := formatCompletion(obj, pkgStringer, weight, func(v *types.Var) bool {
+				return isParam(enclosing, v)
+			})
+			completions = append(completions, item)
+		}
+	}
+
+	// selector finds completions for
+	// the specified selector expression.
+	// TODO(rstambler): Set the prefix filter correctly for selectors.
+	selector := func(sel *ast.SelectorExpr) error {
+		// Is sel a qualified identifier?
+		if id, ok := sel.X.(*ast.Ident); ok {
+			if pkgname, ok := info.Uses[id].(*types.PkgName); ok {
+				// Enumerate package members.
+				// TODO(adonovan): can Imported() be nil?
+				scope := pkgname.Imported().Scope()
+				// TODO testcase: bad import
+				for _, name := range scope.Names() {
+					found(scope.Lookup(name), stdWeight)
 				}
-			}
-		}
-	case *ast.BasicLit:
-		if len(pathNodes) >= 3 {
-			if _, ok := pathNodes[1].(*ast.ImportSpec); ok {
-				if _, ok := pathNodes[2].(*ast.GenDecl); ok {
-					return h.completeImport(params, h.packageCache, rangeLen, node)
-				}
+				return nil
 			}
 		}
 
-	case *ast.SelectorExpr:
-		return h.completeSelectorExpr(params, pkg, rangeLen, node)
-
-	case *ast.File:
-		if len(node.Unresolved) > 0 {
-			rangeLen = len(ctok.lit)
-			return h.completeIdent(params, pkg, rangeLen, node.Unresolved[0], ctok)
+		// Inv: sel is a true selector.
+		tv, ok := info.Types[sel.X]
+		if !ok {
+			var buf bytes.Buffer
+			format.Node(&buf, fset, sel.X) // TODO check for error
+			return fmt.Errorf("cannot resolve %s", &buf)
 		}
-	}
 
-	return nil, nil
-}
+		// methods of T
+		mset := types.NewMethodSet(tv.Type)
+		for i := 0; i < mset.Len(); i++ {
+			found(mset.At(i).Obj(), stdWeight)
+		}
 
-func getLspRange(params lsp.CompletionParams, rangeLen int) lsp.Range {
-	return lsp.Range{
-		Start: lsp.Position{Line: params.Position.Line, Character: params.Position.Character - rangeLen},
-		End:   lsp.Position{Line: params.Position.Line, Character: params.Position.Character},
-	}
-}
-
-func (h *LangHandler) completeIdent(params lsp.CompletionParams, pkg *packages.Package, rangeLen int, ident *ast.Ident, ctok cursorToken) (*lsp.CompletionList, error) {
-	var items []lsp.CompletionItem
-
-	selObj := pkg.TypesInfo.ObjectOf(ident)
-
-	switch obj := selObj.(type) {
-	case *types.PkgName:
-		p := obj.Imported()
-		scope := p.Scope()
-		names := scope.Names()
-		for _, name := range names {
-			if strings.HasPrefix(name, ctok.lit) {
-				matchedObj := scope.Lookup(name)
-				item := h.createCompletionItem(matchedObj, params, rangeLen)
-				items = append(items, item)
+		// methods of *T
+		if tv.Addressable() && !types.IsInterface(tv.Type) && !isPointer(tv.Type) {
+			mset := types.NewMethodSet(types.NewPointer(tv.Type))
+			for i := 0; i < mset.Len(); i++ {
+				found(mset.At(i).Obj(), stdWeight)
 			}
 		}
-	}
 
-	return &lsp.CompletionList{
-		IsIncomplete: false,
-		Items:        items,
-	}, nil
-	return nil, nil
-}
-
-func (h *LangHandler) completeImport(params lsp.CompletionParams, packageCache *caches.PackageCache, rangeLen int, basicLit *ast.BasicLit) (*lsp.CompletionList, error) {
-	var items []lsp.CompletionItem
-
-	value := strings.Trim(basicLit.Value, `"`)
-	rangeLen--
-
-	value = value[0:rangeLen]
-
-	f := func(pkg *packages.Package) error {
-		if strings.HasPrefix(pkg.PkgPath, value) {
-			item := lsp.CompletionItem{}
-			item.Label = pkg.PkgPath
-			item.Kind = lsp.CIKModule
-			item.TextEdit = &lsp.TextEdit{
-				Range:   getLspRange(params, rangeLen),
-				NewText: "",
-			}
-
-			items = append(items, item)
+		// fields of T
+		for _, f := range fieldSelections(tv.Type) {
+			found(f, stdWeight)
 		}
 
 		return nil
 	}
 
-	err := packageCache.Iterate(f)
+	// lexical finds completions in the lexical environment.
+	lexical := func(path []ast.Node) {
+		var scopes []*types.Scope // scopes[i], where i<len(path), is the possibly nil Scope of path[i].
+		for _, n := range path {
+			switch node := n.(type) {
+			case *ast.FuncDecl:
+				n = node.Type
+			case *ast.FuncLit:
+				n = node.Type
+			}
+			scopes = append(scopes, info.Scopes[n])
+		}
+		scopes = append(scopes, pkg.Scope(), types.Universe)
 
-	return &lsp.CompletionList{
-		IsIncomplete: false,
-		Items:        items,
-	}, err
-}
+		// Process scopes innermost first.
+		for i, scope := range scopes {
+			if scope == nil {
+				continue
+			}
+			for _, name := range scope.Names() {
+				declScope, obj := scope.LookupParent(name, pos)
+				if declScope != scope {
+					continue // Name was declared in some enclosing scope, or not at all.
+				}
+				// If obj's type is invalid, find the AST node that defines the lexical block
+				// containing the declaration of obj. Don't resolve types for packages.
+				if _, ok := obj.(*types.PkgName); !ok && obj.Type() == types.Typ[types.Invalid] {
+					// Match the scope to its ast.Node. If the scope is the package scope,
+					// use the *ast.File as the starting node.
+					var node ast.Node
+					if i < len(path) {
+						node = path[i]
+					} else if i == len(path) { // use the *ast.File for package scope
+						node = path[i-1]
+					}
+					if node != nil {
+						if resolved := resolveInvalid(obj, node, info); resolved != nil {
+							obj = resolved
+						}
+					}
+				}
 
-func (h *LangHandler) completeCallExpr(params lsp.CompletionParams, pkg *packages.Package, rangeLen int, call *ast.CallExpr) (*lsp.CompletionList, error) {
-
-	var items []lsp.CompletionItem
-	item := lsp.CompletionItem{}
-
-	t := pkg.TypesInfo.TypeOf(call.Fun)
-	signature, ok := t.(*types.Signature)
-	if !ok {
-		return nil, nil
-	}
-
-	item.Detail = signature.String()
-
-	item.Kind = lsp.CIKFunction
-	funcIdent, funcOk := call.Fun.(*ast.Ident)
-	if !funcOk {
-		selExpr, selOk := call.Fun.(*ast.SelectorExpr)
-		if selOk {
-			funcIdent = selExpr.Sel
-			funcOk = true
-			selIdent := selExpr.X.(*ast.Ident)
-			selObj := pkg.TypesInfo.ObjectOf(selIdent)
-			if _, ok := selObj.Type().(*types.Struct); ok {
-				item.Kind = lsp.CIKMethod
+				score := float32(stdWeight)
+				// Rank builtins significantly lower than other results.
+				if scope == types.Universe {
+					score *= 0.1
+				}
+				found(obj, score)
 			}
 		}
 	}
 
-	if funcIdent != nil && funcOk {
-		item.Label = funcIdent.Name
-		funcObj := pkg.TypesInfo.ObjectOf(funcIdent)
-		path, _, _ := util.GetObjectPathNode(pkg, funcObj)
-		for i := 0; i < len(path); i++ {
-			a, b := path[i].(*ast.FuncDecl)
-			if b && a.Doc != nil {
-				item.Documentation = a.Doc.Text()
+	// complit finds completions for field names inside a composite literal.
+	// It reports whether the node was handled as part of a composite literal.
+	complit := func(node ast.Node) bool {
+		var lit *ast.CompositeLit
+
+		switch n := node.(type) {
+		case *ast.CompositeLit:
+			// The enclosing node will be a composite literal if the user has just
+			// opened the curly brace (e.g. &x{<>) or the completion request is triggered
+			// from an already completed composite literal expression (e.g. &x{foo: 1, <>})
+			//
+			// If the cursor position is within a key-value expression inside the composite
+			// literal, we try to determine if it is before or after the colon. If it is before
+			// the colon, we return field completions. If the cursor does not belong to any
+			// expression within the composite literal, we show composite literal completions.
+			var expr ast.Expr
+			for _, e := range n.Elts {
+				if e.Pos() <= pos && pos < e.End() {
+					expr = e
+					break
+				}
+			}
+			lit = n
+			// If the position belongs to a key-value expression and is after the colon,
+			// don't show composite literal completions.
+			if kv, ok := expr.(*ast.KeyValueExpr); ok && pos > kv.Colon {
+				lit = nil
+			}
+		case *ast.KeyValueExpr:
+			// If the enclosing node is a key-value expression (e.g. &x{foo: <>}),
+			// we show composite literal completions if the cursor position is before the colon.
+			if len(path) > 1 && pos < n.Colon {
+				if l, ok := path[1].(*ast.CompositeLit); ok {
+					lit = l
+				}
+			}
+		case *ast.Ident:
+			// If the enclosing node is an identifier, it can either be an identifier that is
+			// part of a composite literal (e.g. &x{fo<>}), or it can be an identifier that is
+			// part of a key-value expression, which is part of a composite literal (e.g. &x{foo: ba<>).
+			// We handle both of these cases, showing composite literal completions only if
+			// the cursor position for the key-value expression is before the colon.
+			if len(path) > 1 {
+				if l, ok := path[1].(*ast.CompositeLit); ok {
+					lit = l
+				} else if len(path) > 2 {
+					if l, ok := path[2].(*ast.CompositeLit); ok {
+						// Confirm that cursor position is inside curly braces.
+						if l.Lbrace <= pos && pos <= l.Rbrace {
+							lit = l
+							if kv, ok := path[1].(*ast.KeyValueExpr); ok {
+								if pos > kv.Colon {
+									lit = nil
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		if lit == nil {
+			return false
+		}
+		// Mark fields that have already been set, apart from the current field.
+		hasKeys := false // true if the composite literal already has key-value pairs
+		addedFields := make(map[*types.Var]bool)
+		for _, el := range lit.Elts {
+			if kv, ok := el.(*ast.KeyValueExpr); ok {
+				hasKeys = true
+				if kv.Pos() <= pos && pos <= kv.End() {
+					continue
+				}
+				if key, ok := kv.Key.(*ast.Ident); ok {
+					if used, ok := info.Uses[key]; ok {
+						if usedVar, ok := used.(*types.Var); ok {
+							addedFields[usedVar] = true
+						}
+					}
+				}
+			}
+		}
+		// If the underlying type of the composite literal is a struct,
+		// we show completions for the fields of this struct.
+		if tv, ok := info.Types[lit]; ok {
+			var structPkg *types.Package // package containing the struct type declaration
+			if s, ok := tv.Type.Underlying().(*types.Struct); ok {
+				for i := 0; i < s.NumFields(); i++ {
+					field := s.Field(i)
+					if i == 0 {
+						structPkg = field.Pkg()
+					}
+					if !addedFields[field] {
+						found(field, stdWeight*10)
+					}
+				}
+				// Add lexical completions if the user hasn't typed a key value expression
+				// and if the struct fields are defined in the same package as the user is in.
+				if !hasKeys && structPkg == pkg {
+					lexical(path)
+				}
+				return true
+			}
+		}
+		return false
+	}
+
+	if complit(path[0]) {
+		return completions, prefix, nil
+	}
+
+	switch n := path[0].(type) {
+	case *ast.Ident:
+		// Set the filter prefix.
+		prefix = n.Name[:pos-n.Pos()]
+
+		// Is this the Sel part of a selector?
+		if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
+			if err := selector(sel); err != nil {
+				return nil, prefix, err
+			}
+		} else {
+			// reject defining identifiers
+			if obj, ok := info.Defs[n]; ok {
+				if v, ok := obj.(*types.Var); ok && v.IsField() {
+					// An anonymous field is also a reference to a type.
+				} else {
+					of := ""
+					if obj != nil {
+						qual := types.RelativeTo(pkg)
+						of += ", of " + types.ObjectString(obj, qual)
+					}
+					return nil, "", fmt.Errorf("this is a definition%s", of)
+				}
+			}
+
+			lexical(path)
+		}
+
+	// Support completions when no letters of the function name have been
+	// typed yet, but the parens are there:
+	//   recv.‸(arg)
+	case *ast.TypeAssertExpr:
+		// Create a fake selector expression.
+		if err := selector(&ast.SelectorExpr{X: n.X}); err != nil {
+			return nil, prefix, err
+		}
+
+	case *ast.SelectorExpr:
+		if err := selector(n); err != nil {
+			return nil, prefix, err
+		}
+
+	default:
+		// TODO(adonovan): a lexical query may not be what the
+		// user expects when completing after the period of a
+		// type assertion.
+
+		lexical(path)
+	}
+
+	return completions, prefix, nil
+}
+
+// qualifier returns a function that appropriately formats a types.PkgName appearing in q.file.
+func qualifier(f *ast.File, pkg *types.Package, info *types.Info) types.Qualifier {
+	// Construct mapping of import paths to their defined or implicit names.
+	imports := make(map[*types.Package]string)
+	for _, imp := range f.Imports {
+		var obj types.Object
+		if imp.Name != nil {
+			obj = info.Defs[imp.Name]
+		} else {
+			obj = info.Implicits[imp]
+		}
+		if pkgname, ok := obj.(*types.PkgName); ok {
+			imports[pkgname.Imported()] = pkgname.Name()
+		}
+	}
+	// Define qualifier to replace full package paths with names of the imports.
+	return func(pkg *types.Package) string {
+		if pkg == pkg {
+			return ""
+		}
+		if name, ok := imports[pkg]; ok {
+			return name
+		}
+		return pkg.Name()
+	}
+}
+
+// enclosingFunc returns the signature of the function enclosing the position.
+func enclosingFunc(path []ast.Node, pos token.Pos, info *types.Info) *types.Signature {
+	for _, node := range path {
+		switch t := node.(type) {
+		case *ast.FuncDecl:
+			if obj, ok := info.Defs[t.Name]; ok {
+				return obj.Type().(*types.Signature)
+			}
+		case *ast.FuncLit:
+			if typ, ok := info.Types[t]; ok {
+				return typ.Type.(*types.Signature)
+			}
+		}
+	}
+	return nil
+}
+
+// formatCompletion returns the label, details, and kind for a types.Object,
+// fitting the format of a LSP completion item.
+func formatCompletion(obj types.Object, qualifier types.Qualifier, score float32, isParam func(*types.Var) bool) lsp.CompletionItem {
+	label := obj.Name()
+	detail := types.TypeString(obj.Type(), qualifier)
+
+	var kind lsp.CompletionItemKind
+
+	switch o := obj.(type) {
+	case *types.TypeName:
+		detail, kind = formatType(o.Type(), qualifier)
+		if obj.Parent() == types.Universe {
+			detail = ""
+		}
+	case *types.Const:
+		if obj.Parent() == types.Universe {
+			detail = ""
+		} else {
+			val := o.Val().ExactString()
+			if !strings.Contains(val, "\\n") { // skip any multiline constants
+				label += " = " + o.Val().ExactString()
+			}
+		}
+		kind = lsp.CIKConstant
+	case *types.Var:
+		if _, ok := o.Type().(*types.Struct); ok {
+			detail = "struct{...}" // for anonymous structs
+		}
+		if o.IsField() {
+			kind = lsp.CIKField
+		} else if isParam(o) {
+			kind = lsp.CIKTypeParameter
+		} else {
+			kind = lsp.CIKVariable
+		}
+	case *types.Func:
+		if sig, ok := o.Type().(*types.Signature); ok {
+			label += formatParams(sig.Params(), sig.Variadic(), qualifier)
+			detail = strings.Trim(types.TypeString(sig.Results(), qualifier), "()")
+			kind = lsp.CIKFunction
+			if sig.Recv() != nil {
+				kind = lsp.CIKMethod
+			}
+		}
+	case *types.Builtin:
+		item, ok := builtinDetails[obj.Name()]
+		if !ok {
+			break
+		}
+		label, detail = item.label, item.detail
+		kind = lsp.CIKFunction
+	case *types.PkgName:
+		kind = lsp.CIKModule // package??
+		detail = fmt.Sprintf("\"%s\"", o.Imported().Path())
+	case *types.Nil:
+		kind = lsp.CIKVariable
+		detail = ""
+	}
+
+	detail = strings.TrimPrefix(detail, "untyped ")
+
+	return lsp.CompletionItem{
+		Label:  label,
+		Detail: detail,
+		Kind:   kind,
+	}
+}
+
+// formatType returns the detail and kind for an object of type *types.TypeName.
+func formatType(typ types.Type, qualifier types.Qualifier) (detail string, kind lsp.CompletionItemKind) {
+	if types.IsInterface(typ) {
+		detail = "interface{...}"
+		kind = lsp.CIKInterface
+	} else if _, ok := typ.(*types.Struct); ok {
+		detail = "struct{...}"
+		kind = lsp.CIKStruct
+	} else if typ != typ.Underlying() {
+		detail, kind = formatType(typ.Underlying(), qualifier)
+	} else {
+		detail = types.TypeString(typ, qualifier)
+		kind = lsp.CIKTypeParameter // ???
+	}
+	return detail, kind
+}
+
+func formatParams(t *types.Tuple, variadic bool, qualifier types.Qualifier) string {
+	var b strings.Builder
+	b.WriteByte('(')
+	for i := 0; i < t.Len(); i++ {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		el := t.At(i)
+		typ := types.TypeString(el.Type(), qualifier)
+		// Handle a variadic parameter (can only be the final parameter).
+		if variadic && i == t.Len()-1 {
+			typ = strings.Replace(typ, "[]", "...", 1)
+		}
+		fmt.Fprintf(&b, "%v %v", el.Name(), typ)
+	}
+	b.WriteByte(')')
+	return b.String()
+}
+
+func isParam(sig *types.Signature, v *types.Var) bool {
+	if sig == nil {
+		return false
+	}
+	for i := 0; i < sig.Params().Len(); i++ {
+		if sig.Params().At(i) == v {
+			return true
+		}
+	}
+	return false
+}
+
+// expectedType returns the expected type for an expression at the query position.
+func expectedType(path []ast.Node, pos token.Pos, info *types.Info) types.Type {
+	for i, node := range path {
+		if i == 2 {
+			break
+		}
+		switch expr := node.(type) {
+		case *ast.BinaryExpr:
+			// Determine if query position comes from left or right of op.
+			e := expr.X
+			if pos < expr.OpPos {
+				e = expr.Y
+			}
+			if tv, ok := info.Types[e]; ok {
+				return tv.Type
+			}
+		case *ast.AssignStmt:
+			// Only rank completions if you are on the right side of the token.
+			if pos <= expr.TokPos {
 				break
 			}
-		}
-	}
-
-	itf, newText := h.getNewText(item.Kind, item.Label, item.Detail)
-	item.InsertTextFormat = itf
-	item.InsertText = newText
-
-	item.TextEdit = &lsp.TextEdit{
-		Range:   getLspRange(params, rangeLen),
-		NewText: newText,
-	}
-	items = append(items, item)
-
-	return &lsp.CompletionList{
-		IsIncomplete: false,
-		Items:        items,
-	}, nil
-}
-
-func (h *LangHandler) createCompletionItem(obj types.Object, params lsp.CompletionParams, rangeLen int) lsp.CompletionItem {
-	item := lsp.CompletionItem{}
-
-	item.Label = obj.Name()
-	item.Detail = obj.String()
-
-	switch t := obj.Type().(type) {
-	case *types.Signature:
-		item.Detail = t.String()
-		item.Kind = lsp.CIKFunction
-
-	case *types.Struct:
-		item.Kind = lsp.CIKClass
-	}
-
-	itf, newText := h.getNewText(item.Kind, item.Label, item.Detail)
-	item.InsertTextFormat = itf
-	item.InsertText = newText
-
-	item.TextEdit = &lsp.TextEdit{
-		Range:   getLspRange(params, rangeLen),
-		NewText: newText,
-	}
-
-	return item
-}
-
-func (h *LangHandler) completeSelectorExpr(params lsp.CompletionParams, pkg *packages.Package, rangeLen int, selExpr *ast.SelectorExpr) (*lsp.CompletionList, error) {
-	var items []lsp.CompletionItem
-
-	selIdent := selExpr.X.(*ast.Ident)
-	selObj := pkg.TypesInfo.ObjectOf(selIdent)
-
-	switch obj := selObj.(type) {
-	case *types.PkgName:
-		p := obj.Imported()
-		scope := p.Scope()
-		names := scope.Names()
-		selName := selExpr.Sel.Name
-
-		value := selName
-		if value != "_"  && len(value) > rangeLen {
-			value = value[0:rangeLen]
-		}
-		for _, name := range names {
-			// fmt. or fmt.Printl
-			if value == "_" || strings.HasPrefix(name, value){
-				matchedObj := scope.Lookup(name)
-				if matchedObj.Exported() {
-					item := h.createCompletionItem(matchedObj, params, rangeLen)
-					items = append(items, item)
+			i := exprAtPos(pos, expr.Rhs)
+			if i >= len(expr.Lhs) {
+				i = len(expr.Lhs) - 1
+			}
+			if tv, ok := info.Types[expr.Lhs[i]]; ok {
+				return tv.Type
+			}
+		case *ast.CallExpr:
+			if tv, ok := info.Types[expr.Fun]; ok {
+				if sig, ok := tv.Type.(*types.Signature); ok {
+					if sig.Params().Len() == 0 {
+						return nil
+					}
+					i := exprAtPos(pos, expr.Args)
+					// Make sure not to run past the end of expected parameters.
+					if i >= sig.Params().Len() {
+						i = sig.Params().Len() - 1
+					}
+					return sig.Params().At(i).Type()
 				}
 			}
 		}
 	}
-
-	return &lsp.CompletionList{
-		IsIncomplete: false,
-		Items:        items,
-	}, nil
+	return nil
 }
 
-func (h *LangHandler) getNewText(kind lsp.CompletionItemKind, name, detail string) (lsp.InsertTextFormat, string) {
-	if h.config.FuncSnippetEnabled &&
-		kind == lsp.CIKFunction &&
-		h.init.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport {
-		args := genSnippetArgs(parseFuncArgs(detail))
-		text := fmt.Sprintf("%s(%s)$0", name, strings.Join(args, ", "))
-		return lsp.ITFSnippet, text
+// matchingTypes reports whether actual is a good candidate type
+// for a completion in a context of the expected type.
+func matchingTypes(expected, actual types.Type) bool {
+	// Use a function's return type as its type.
+	if sig, ok := actual.(*types.Signature); ok {
+		if sig.Results().Len() == 1 {
+			actual = sig.Results().At(0).Type()
+		}
 	}
-	return lsp.ITFPlainText, name
+	return types.Identical(types.Default(expected), types.Default(actual))
 }
 
-func parseFuncArgs(def string) []string {
-	m := funcArgsRegexp.FindStringSubmatch(def)
-	var args []string
-	if len(m) > 1 {
-		args = strings.Split(m[1], ", ")
+// exprAtPos returns the index of the expression containing pos.
+func exprAtPos(pos token.Pos, args []ast.Expr) int {
+	for i, expr := range args {
+		if expr.Pos() <= pos && pos <= expr.End() {
+			return i
+		}
 	}
-	return args
+	return len(args)
 }
 
-func genSnippetArgs(args []string) []string {
-	newArgs := make([]string, len(args))
-	for i, a := range args {
-		// Closing curly braces must be escaped
-		a = strings.Replace(a, "}", "\\}", -1)
-		newArgs[i] = fmt.Sprintf("${%d:%s}", i+1, a)
+// fieldSelections returns the set of fields that can
+// be selected from a value of type T.
+func fieldSelections(T types.Type) (fields []*types.Var) {
+	// TODO(adonovan): this algorithm doesn't exclude ambiguous
+	// selections that match more than one field/method.
+	// types.NewSelectionSet should do that for us.
+
+	seen := make(map[types.Type]bool) // for termination on recursive types
+	var visit func(T types.Type)
+	visit = func(T types.Type) {
+		if !seen[T] {
+			seen[T] = true
+			if T, ok := deref(T).Underlying().(*types.Struct); ok {
+				for i := 0; i < T.NumFields(); i++ {
+					f := T.Field(i)
+					fields = append(fields, f)
+					if f.Anonymous() {
+						visit(f.Type())
+					}
+				}
+			}
+		}
 	}
-	return newArgs
+	visit(T)
+
+	return fields
+}
+
+func isPointer(T types.Type) bool {
+	_, ok := T.(*types.Pointer)
+	return ok
+}
+
+// deref returns a pointer's element type; otherwise it returns typ.
+func deref(typ types.Type) types.Type {
+	if p, ok := typ.Underlying().(*types.Pointer); ok {
+		return p.Elem()
+	}
+	return typ
+}
+
+// resolveInvalid traverses the node of the AST that defines the scope
+// containing the declaration of obj, and attempts to find a user-friendly
+// name for its invalid type. The resulting Object and its Type are fake.
+func resolveInvalid(obj types.Object, node ast.Node, info *types.Info) types.Object {
+	// Construct a fake type for the object and return a fake object with this type.
+	formatResult := func(expr ast.Expr) types.Object {
+		var typename string
+		switch t := expr.(type) {
+		case *ast.SelectorExpr:
+			typename = fmt.Sprintf("%s.%s", t.X, t.Sel)
+		case *ast.Ident:
+			typename = t.String()
+		default:
+			return nil
+		}
+		typ := types.NewNamed(types.NewTypeName(token.NoPos, obj.Pkg(), typename, nil), nil, nil)
+		return types.NewVar(obj.Pos(), obj.Pkg(), obj.Name(), typ)
+	}
+	var resultExpr ast.Expr
+	ast.Inspect(node, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.ValueSpec:
+			for _, name := range n.Names {
+				if info.Defs[name] == obj {
+					resultExpr = n.Type
+				}
+			}
+			return false
+		case *ast.Field: // This case handles parameters and results of a FuncDecl or FuncLit.
+			for _, name := range n.Names {
+				if info.Defs[name] == obj {
+					resultExpr = n.Type
+				}
+			}
+			return false
+		// TODO(rstambler): Handle range statements.
+		default:
+			return true
+		}
+	})
+	return formatResult(resultExpr)
+}
+
+type itemDetails struct {
+	label, detail string
+}
+
+var builtinDetails = map[string]itemDetails{
+	"append": { // append(slice []T, elems ...T)
+		label:  "append(slice []T, elems ...T)",
+		detail: "[]T",
+	},
+	"cap": { // cap(v []T) int
+		label:  "cap(v []T)",
+		detail: "int",
+	},
+	"close": { // close(c chan<- T)
+		label: "close(c chan<- T)",
+	},
+	"complex": { // complex(r, i float64) complex128
+		label:  "complex(real, imag float64)",
+		detail: "complex128",
+	},
+	"copy": { // copy(dst, src []T) int
+		label:  "copy(dst, src []T)",
+		detail: "int",
+	},
+	"delete": { // delete(m map[T]T1, key T)
+		label: "delete(m map[K]V, key K)",
+	},
+	"imag": { // imag(c complex128) float64
+		label:  "imag(complex128)",
+		detail: "float64",
+	},
+	"len": { // len(v T) int
+		label:  "len(T)",
+		detail: "int",
+	},
+	"make": { // make(t T, size ...int) T
+		label:  "make(t T, size ...int)",
+		detail: "T",
+	},
+	"new": { // new(T) *T
+		label:  "new(T)",
+		detail: "*T",
+	},
+	"panic": { // panic(v interface{})
+		label: "panic(interface{})",
+	},
+	"print": { // print(args ...T)
+		label: "print(args ...T)",
+	},
+	"println": { // println(args ...T)
+		label: "println(args ...T)",
+	},
+	"real": { // real(c complex128) float64
+		label:  "real(complex128)",
+		detail: "float64",
+	},
+	"recover": { // recover() interface{}
+		label:  "recover()",
+		detail: "interface{}",
+	},
 }

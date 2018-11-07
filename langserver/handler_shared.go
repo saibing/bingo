@@ -52,8 +52,7 @@ type FindModulePackageFunc func(ctx context.Context,
 	conn jsonrpc2.JSONRPC2,
 	packageCache *caches.PackageCache,
 	importPath,
-	fromDir string,
-	overlay map[string][]byte) (*packages.Package, error)
+	fromDir string) (*packages.Package, error)
 
 func (h *HandlerShared) getFindModulePackageFunc() FindModulePackageFunc {
 	return defaultModuleFindPackageFunc
@@ -62,8 +61,7 @@ func (h *HandlerShared) getFindModulePackageFunc() FindModulePackageFunc {
 func defaultModuleFindPackageFunc(ctx context.Context,
 	conn jsonrpc2.JSONRPC2,
 	packageCache *caches.PackageCache,
-	importPath, fromDir string,
-	overlay map[string][]byte) (*packages.Package, error) {
+	importPath, fromDir string) (*packages.Package, error) {
 
 	if strings.HasPrefix(importPath, "/") {
 		return nil, fmt.Errorf("import %q: cannot import absolute path", importPath)
@@ -71,16 +69,16 @@ func defaultModuleFindPackageFunc(ctx context.Context,
 
 	if build.IsLocalImport(importPath) {
 		dir := filepath.Join(fromDir, importPath)
-		return packageCache.Load(ctx, conn, dir, overlay)
+		return packageCache.Load(ctx, conn, dir, nil)
 	}
 
 	return packageCache.Lookup(importPath), nil
 }
 
-func (h *HandlerShared) Reset(useOSFS bool) error {
+func (h *HandlerShared) Reset(conn *jsonrpc2.Conn, useOSFS bool) error {
 	h.Mu.Lock()
 	defer h.Mu.Unlock()
-	h.overlay = newOverlay()
+	h.overlay = newOverlay(conn)
 	h.FS = NewAtomicFS()
 
 	if useOSFS {
@@ -88,6 +86,6 @@ func (h *HandlerShared) Reset(useOSFS bool) error {
 		// file system.
 		h.FS.Bind("/", ctxvfs.OS("/"), "/", ctxvfs.BindAfter)
 	}
-	h.FS.Bind("/", h.overlay.FS(), "/", ctxvfs.BindBefore)
+	//h.FS.Bind("/", h.overlay.FS(), "/", ctxvfs.BindBefore)
 	return nil
 }

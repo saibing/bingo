@@ -1,146 +1,94 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package langserver
 
 import (
-	"context"
-	"fmt"
-	"go/scanner"
-	"go/token"
-	"go/types"
-	"strings"
-	"sync"
-
-	"golang.org/x/tools/go/loader"
-
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
-	"github.com/sourcegraph/jsonrpc2"
+	"go/token"
+	"strconv"
+	"strings"
 
-	"github.com/saibing/bingo/langserver/util"
+	"golang.org/x/tools/go/packages"
 )
 
-type diagnostics map[string][]*lsp.Diagnostic // map of URI to diagnostics (for PublishDiagnosticParams)
-
-type diagnosticsCache struct {
-	mu    sync.Mutex
-	cache diagnostics
-}
-
-// update the cached diagnostics. In order to keep the cache in good shape it
-// is required that only one go routine is able to modify the cache at a time.
-func (p *diagnosticsCache) update(fn func(diagnostics) diagnostics) {
-	p.mu.Lock()
-	if p.cache == nil {
-		p.cache = diagnostics{}
+func diagnostics(v *source.View, uri lsp.DocumentURI) (map[string][]lsp.Diagnostic, error) {
+	pkg, err := v.TypeCheck(uri)
+	if err != nil {
+		return nil, err
 	}
-	p.cache = fn(p.cache)
-	p.mu.Unlock()
-}
-
-func newDiagnosticsCache() *diagnosticsCache {
-	return &diagnosticsCache{
-		cache: diagnostics{},
+	reports := make(map[string][]lsp.Diagnostic)
+	for _, filename := range pkg.GoFiles {
+		reports[filename] = []lsp.Diagnostic{}
 	}
-}
-
-// publishDiagnostics sends diagnostic information (such as compile
-// errors) to the client.
-func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSONRPC2, diags diagnostics, files []string) error {
-	if !h.config.DiagnosticsEnabled {
-		return nil
-	}
-
-	if diags == nil {
-		diags = diagnostics{}
-	}
-
-	h.diagnosticsCache.update(func(cached diagnostics) diagnostics {
-		return updateCachedDiagnostics(cached, diags, files)
-	})
-
-	for filename, diags := range diags {
-		params := lsp.PublishDiagnosticsParams{
-			URI:         util.PathToURI(filename),
-			Diagnostics: make([]lsp.Diagnostic, len(diags)),
-		}
-		for i, d := range diags {
-			params.Diagnostics[i] = *d
-		}
-		if err := conn.Notify(ctx, "textDocument/publishDiagnostics", params); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func updateCachedDiagnostics(cachedDiagnostics diagnostics, newDiagnostics diagnostics, files []string) diagnostics {
-	// add/update existing diagnostics
-	for file, diags := range newDiagnostics {
-		cachedDiagnostics[file] = diags
-	}
-
-	// remove all cached diagnostics for each files that is not present in `newDiagnostics`
-	// and add an entry to the output diagnostics for them (to clean the clients)
-	for _, file := range files {
-		if _, ok := newDiagnostics[file]; !ok {
-			if _, ok := cachedDiagnostics[file]; ok {
-				delete(cachedDiagnostics, file)
-				newDiagnostics[file] = nil
-			}
-		}
-	}
-
-	return cachedDiagnostics
-}
-
-func errsToDiagnostics(typeErrs []error, prog *loader.Program) (diagnostics, error) {
-	var diags diagnostics
-	for _, typeErr := range typeErrs {
-		var (
-			p    token.Position
-			pEnd token.Position
-			msg  string
-		)
-		switch e := typeErr.(type) {
-		case types.Error:
-			p = e.Fset.Position(e.Pos)
-			_, path, _ := prog.PathEnclosingInterval(e.Pos, e.Pos)
-			if len(path) > 0 {
-				pEnd = e.Fset.Position(path[0].End())
-			}
-			msg = e.Msg
-		case scanner.Error:
-			p = e.Pos
-			msg = e.Msg
-		case scanner.ErrorList:
-			if len(e) == 0 {
-				continue
-			}
-			p = e[0].Pos
-			msg = e[0].Msg
-			if len(e) > 1 {
-				msg = fmt.Sprintf("%s (and %d more errors)", msg, len(e)-1)
-			}
+	var parseErrors, typeErrors []packages.Error
+	for _, err := range pkg.Errors {
+		switch err.Kind {
+		case packages.ParseError:
+			parseErrors = append(parseErrors, err)
+		case packages.TypeError:
+			typeErrors = append(typeErrors, err)
 		default:
-			return nil, fmt.Errorf("unexpected type error: %#+v", typeErr)
+			// ignore other types of errors
+			continue
 		}
-		// LSP is 0-indexed, so subtract one from the numbers Go reports.
-		start := lsp.Position{Line: p.Line - 1, Character: p.Column - 1}
-		end := lsp.Position{Line: pEnd.Line - 1, Character: pEnd.Column - 1}
-		if !pEnd.IsValid() {
-			end = start
-		}
-		diag := &lsp.Diagnostic{
+	}
+	// Don't report type errors if there are parse errors.
+	errors := typeErrors
+	if len(parseErrors) > 0 {
+		errors = parseErrors
+	}
+	for _, err := range errors {
+		pos := parseErrorPos(err)
+		line := pos.Line - 1
+		col := pos.Column - 1
+		diagnostic := lsp.Diagnostic{
+			// TODO(rstambler): Add support for diagnostic ranges.
 			Range: lsp.Range{
-				Start: start,
-				End:   end,
+				Start: lsp.Position{
+					Line:      line,
+					Character: col,
+				},
+				End: lsp.Position{
+					Line:      line,
+					Character: col,
+				},
 			},
 			Severity: lsp.Error,
-			Source:   "go",
-			Message:  strings.TrimSpace(msg),
+			Source:   "LSP: Go compiler",
+			Message:  err.Msg,
 		}
-		if diags == nil {
-			diags = diagnostics{}
+		if _, ok := reports[pos.Filename]; ok {
+			reports[pos.Filename] = append(reports[pos.Filename], diagnostic)
 		}
-		diags[p.Filename] = append(diags[p.Filename], diag)
 	}
-	return diags, nil
+	return reports, nil
+}
+
+func parseErrorPos(pkgErr packages.Error) (pos token.Position) {
+	remainder1, first, hasLine := chop(pkgErr.Pos)
+	remainder2, second, hasColumn := chop(remainder1)
+	if hasLine && hasColumn {
+		pos.Filename = remainder2
+		pos.Line = second
+		pos.Column = first
+	} else if hasLine {
+		pos.Filename = remainder1
+		pos.Line = first
+	}
+	return pos
+}
+
+func chop(text string) (remainder string, value int, ok bool) {
+	i := strings.LastIndex(text, ":")
+	if i < 0 {
+		return text, 0, false
+	}
+	v, err := strconv.ParseInt(text[i+1:], 10, 64)
+	if err != nil {
+		return text, 0, false
+	}
+	return text[:i], int(v), true
 }
