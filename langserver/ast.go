@@ -17,10 +17,7 @@ func offsetForPosition(contents []byte, p lsp.Position) (offset int, valid bool,
 	// TODO(sqs): count chars, not bytes, per LSP. does that mean we
 	// need to maintain 2 separate counters since we still need to
 	// return the offset as bytes?
-	fmt.Printf("line %d:", line)
 	for _, b := range contents {
-
-		fmt.Printf("%d:%s_", col, string(b))
 		if line == p.Line && col == p.Character {
 			return offset, true, ""
 		}
@@ -31,7 +28,6 @@ func offsetForPosition(contents []byte, p lsp.Position) (offset int, valid bool,
 		if b == '\n' {
 			fmt.Println()
 			line++
-			fmt.Printf("line %d: ", line)
 			col = 0
 		} else {
 			col++

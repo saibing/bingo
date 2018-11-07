@@ -31,26 +31,35 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		}
 	}
 
-	items, err := completion(h.overlay.view, params.TextDocument.URI, params.Position)
+	items, prefix, err := completion(h.overlay.view, params.TextDocument.URI, params.Position)
 	if err != nil {
 		return nil, err
 	}
 
-	result := &lsp.CompletionList{Items:items, IsIncomplete:false}
+	result := &lsp.CompletionList{Items: []lsp.CompletionItem{}, IsIncomplete:false}
+	for _, item := range items {
+		if strings.HasPrefix(item.Label, prefix) {
+			item.TextEdit = &lsp.TextEdit{Range: getLspRange(params, len(prefix)), NewText: item.InsertText}
+			result.Items = append(result.Items, item)
+		}
+	}
 	return result, nil
 }
 
+func getLspRange(params lsp.CompletionParams, rangeLen int) lsp.Range {
+	return lsp.Range{
+		Start: lsp.Position{Line: params.Position.Line, Character: params.Position.Character - rangeLen},
+		End:   lsp.Position{Line: params.Position.Line, Character: params.Position.Character},
+	}
+}
 
-func completion(v *source.View, uri lsp.DocumentURI, pos lsp.Position) (items []lsp.CompletionItem, err error) {
+func completion(v *source.View, uri lsp.DocumentURI, pos lsp.Position) (items []lsp.CompletionItem, prefix string, err error) {
 	pkg, qfile, qpos, err := v.TypeCheckAtPosition(uri, pos)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	items, _, err = completions(pkg.Fset, qfile, qpos, pkg.Types, pkg.TypesInfo)
-	if err != nil {
-		return nil, err
-	}
-	return items, nil
+	items, prefix, err = completions(pkg.Fset, qfile, qpos, pkg.Types, pkg.TypesInfo)
+	return
 }
 
 // Completions returns the map of possible candidates for completion,
