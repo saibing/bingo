@@ -67,7 +67,13 @@ func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2, o
 	loadDir := GetLoadDir(c.rootDir)
 	msg := fmt.Sprintf("cache root package: %s ...", loadDir)
 	conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: msg})
-	cfg := &packages.Config{Mode: packages.LoadAllSyntax, Context: ctx, Tests: true, Overlay: overlay}
+	cfg := &packages.Config{
+		Dir:loadDir,
+		Mode: packages.LoadAllSyntax,
+		Context: ctx,
+		Tests: true,
+		Overlay: overlay,
+	}
 	pkgList, err := packages.Load(cfg, loadDir+"/...")
 	if err != nil {
 		conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: err.Error()})

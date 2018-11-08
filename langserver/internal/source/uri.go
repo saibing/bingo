@@ -9,6 +9,8 @@ import (
 	"github.com/saibing/bingo/pkg/lsp"
 )
 
+// NOTICE: Code adapted from https://github.com/golang/tools/blob/master/internal/lsp/source/uri.go.
+
 // FromURI gets the file path for a given URI.
 // It will return an error if the uri is not valid, or if the URI was not
 // a file URI

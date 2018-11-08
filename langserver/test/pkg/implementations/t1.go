@@ -1,1 +1,0 @@
-package p; type T1 struct {}; func (T1) M1() {}; func (T1) M3(){}

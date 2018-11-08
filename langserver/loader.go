@@ -110,6 +110,10 @@ func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, f
 		return nil, ctok, err
 	}
 
+	if pkg == nil {
+		return nil, ctok, fmt.Errorf("%s does not exist", filename)
+	}
+
 
 	ctok, err = h.startPos(ctx, pkg, fileURI, position)
 	return pkg, ctok, err

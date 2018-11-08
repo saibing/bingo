@@ -1,1 +1,0 @@
-package c; import "github.com/saibing/bingo/langserver/test/pkg/lookup/a"; func Dummy() **a.A { var x **a.A; return x }

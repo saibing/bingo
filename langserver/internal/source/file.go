@@ -11,6 +11,8 @@ import (
 	"io/ioutil"
 )
 
+// NOTICE: Code adapted from https://github.com/golang/tools/blob/master/internal/lsp/source/file.go.
+
 // File holds all the information we know about a file.
 type File struct {
 	URI     lsp.DocumentURI

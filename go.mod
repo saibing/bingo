@@ -24,9 +24,9 @@ require (
 	github.com/sourcegraph/ctxvfs v0.0.0-20180418081416-2b65f1b1ea81
 	github.com/sourcegraph/jsonrpc2 v0.0.0-20180831160525-549eb959f029
 	github.com/stretchr/testify v1.2.2 // indirect
-	golang.org/x/net v0.0.0-20181107093936-a544f70c90f1
-	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f // indirect
-	golang.org/x/sys v0.0.0-20181106135930-3a76605856fd // indirect
-	golang.org/x/tools v0.0.0-20181106213628-e21233ffa6c3
+	golang.org/x/net v0.0.0-20181108082009-03003ca0c849
+	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
+	golang.org/x/sys v0.0.0-20181107165924-66b7b1311ac8 // indirect
+	golang.org/x/tools v0.0.0-20181107225058-a28dfb48e06b
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
 )

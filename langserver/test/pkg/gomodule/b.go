@@ -1,1 +1,0 @@
-package a; import "github.com/saibing/dep/subp"; var _ = subp.D

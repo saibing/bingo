@@ -18,6 +18,8 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+// NOTICE: Code adapted from https://github.com/golang/tools/blob/master/internal/lsp/source/view.go.
+
 type View struct {
 	mu sync.Mutex // protects all mutable state of the view
 

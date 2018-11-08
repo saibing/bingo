@@ -1,1 +1,0 @@
-package b; import "github.com/saibing/bingo/langserver/test/pkg/goproject/a"; var _ = a.A

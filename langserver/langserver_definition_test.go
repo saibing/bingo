@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/saibing/bingo/pkg/lspext"
+	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"path"
 	"path/filepath"
@@ -17,15 +18,28 @@ import (
 )
 
 func TestDefinition(t *testing.T) {
-	test := func(t *testing.T, pkgDir string, input string, output string) {
-		testDefinition(t, &definitionTestCase{pkgDir: pkgDir, input: input, output: output})
+	exported = packagestest.Export(t, packagestest.Modules, testdata)
+	defer exported.Cleanup()
+
+	defer func() {
+		if conn != nil {
+			if err := conn.Close(); err != nil {
+				log.Fatal("conn.Close", err)
+			}
+		}
+	}()
+
+	initServer(exported.Config.Dir)
+
+	test := func(t *testing.T, input string, output string) {
+		testDefinition(t, &definitionTestCase{input: input, output: output})
 	}
 
 	t.Run("basic definition", func(t *testing.T) {
-		test(t, basicPkgDir, "a.go:1:17", basicOutput("a.go:1:17-1:18"))
-		test(t, basicPkgDir, "a.go:1:23", basicOutput("a.go:1:17-1:18"))
-		test(t, basicPkgDir, "b.go:1:17", basicOutput("b.go:1:17-1:18"))
-		test(t, basicPkgDir, "b.go:1:23", basicOutput("a.go:1:17-1:18"))
+		test(t, "basic/a.go:1:17", "basic/a.go:1:17-1:18")
+		test(t, "basic/a.go:1:23", "basic/a.go:1:17-1:18")
+		test(t, "basic/b.go:1:17", "basic/b.go:1:17-1:18")
+		test(t, "basic/b.go:1:23", "basic/a.go:1:17-1:18")
 	})
 
 	t.Run("subdirectory definition", func(t *testing.T) {
@@ -70,14 +84,13 @@ func TestDefinition(t *testing.T) {
 }
 
 type definitionTestCase struct {
-	pkgDir string
 	input  string
 	output string
 }
 
 func testDefinition(tb testing.TB, c *definitionTestCase) {
 	tbRun(tb, fmt.Sprintf("definition-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(c.pkgDir)
+		dir, err := filepath.Abs(exported.Config.Dir)
 		if err != nil {
 			log.Fatal("testDefinition", err)
 		}
@@ -109,7 +122,9 @@ func doDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 		base := strings.Split(path.Base(definition), ":")[0]
 		definition = path.Join(dir, base)
 	}
-	if definition != want {
+
+	want = filepath.Join(exported.Config.Dir, want)
+	if definition != want  {
 		t.Errorf("got %q, want %q", definition, want)
 	}
 }

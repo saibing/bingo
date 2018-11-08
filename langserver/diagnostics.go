@@ -14,6 +14,8 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+// NOTICE: Code adapted from https://github.com/golang/tools/blob/master/internal/lsp/diagnostics.go.
+
 func diagnostics(v *source.View, uri lsp.DocumentURI) (map[string][]lsp.Diagnostic, error) {
 	pkg, err := v.TypeCheck(uri)
 	if err != nil {

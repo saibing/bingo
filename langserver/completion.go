@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package langserver
 
 import (
@@ -17,6 +21,8 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 )
+
+// NOTICE: Code adapted from https://github.com/golang/tools/blob/master/internal/lsp/completion.go.
 
 var (
 	CIKConstantSupported = lsp.CIKVariable // or lsp.CIKConstant if client supported

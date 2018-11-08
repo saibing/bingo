@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
+	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"net"
 	"os"
@@ -24,6 +24,172 @@ import (
 var h *LangHandler
 var conn *jsonrpc2.Conn
 var ctx context.Context
+
+var exported *packagestest.Exported
+
+var testdata = []packagestest.Module{
+	{
+		Name: "github.com/saibing/bingo/langserver/test/pkg",
+		Files: map[string]interface{}{
+			"basic/a.go": `package p; func A() { A() }`,
+			"basic/b.go": `package p; func B() { A() }`,
+
+			"detailed/a.go":`package p; type T struct { F string }`,
+
+			"exported_on_unexported/a.go":`package p; type t struct { F string }`,
+
+			"gomodule/a.go":`package a; import "github.com/saibing/dep"; var _ = dep.D; var _ = dep.D`,
+			"gomodule/b.go":`package a; import "github.com/saibing/dep/subp"; var _ = subp.D`,
+			"gomodule/c.go":`package a; import "github.com/saibing/dep/dep1"; var _ = dep1.D1().D2`,
+
+			"goproject/a/a.go":`package a; func A() {}`,
+			"goproject/b/b.go":`package b; import "github.com/saibing/bingo/langserver/test/pkg/goproject/a"; var _ = a.A`,
+
+			"goroot/a.go":`package p; import "fmt"; var _ = fmt.Println; var x int`,
+
+			"implementations/i0.go":`package p; type I0 interface { M0() }`,
+			"implementations/i1.go":`package p; type I1 interface { M1() }`,
+			"implementations/i2.go":`package p; type I2 interface { M1(); M2() }`,
+			"implementations/t0.go":`package p; type T0 struct{}`,
+			"implementations/t1.go":`package p; type T1 struct {}; func (T1) M1() {}; func (T1) M3(){}`,
+			"implementations/t1e.go":`package p; type T1E struct { T1 }; var _ = (T1E{}).M1`,
+			"implementations/t1p.go":`package p; type T1P struct {}; func (*T1P) M1() {}`,
+			"implementations/p2/p2.go":`package p2; type T2 struct{}; func (T2) M1() {}`,
+
+			"lookup/a/a.go":`package a; type A int; func A1() A { var A A = 1; return A }`,
+			"lookup/b/b.go":`package b; import "github.com/saibing/bingo/langserver/test/pkg/lookup/a"; func Dummy() a.A { x := a.A1(); return x }`,
+			"lookup/c/c.go":`package c; import "github.com/saibing/bingo/langserver/test/pkg/lookup/a"; func Dummy() **a.A { var x **a.A; return x }`,
+			"lookup/d/d.go":`package d; import "github.com/saibing/bingo/langserver/test/pkg/lookup/a"; func Dummy() map[string]a.A { var x map[string]a.A; return x }`,
+
+			"":``,
+			"":``,
+			"":``,
+			"":``,
+			"":``,
+			"":``,
+			"":``,
+			"":``,
+			"":``,
+			"":``,
+			"":``,
+			"":``,
+
+
+			"issue/223.go":`package main
+
+import (
+	"fmt"
+)
+
+func main() {
+
+	b := &Hello{
+		a: 1,
+	}
+
+	fmt.Println(b.Bye())
+}
+
+type Hello struct {
+	a int
+}
+
+func (h *Hello) Bye() int {
+	return h.a
+}`,
+			"issue/261.go":`package main
+
+import "fmt"
+
+type T string
+type TM map[string]T
+
+func main() {
+	var tm TM
+	for _, t := range tm {
+		fmt.Println(t)
+	}
+}`,
+
+			"docs/a.go":`// Copyright 2015 someone.
+// Copyrights often span multiple lines.
+
+// Some additional non-package docs.
+
+// Package p is a package with lots of great things.
+package p
+
+import "github.com/saibing/dep/pkg2"
+
+// logit is pkg2.X
+var logit = pkg2.X
+
+// T is a struct.
+type T struct {
+	// F is a string field.
+	F string
+
+	// H is a header.
+	H pkg2.Header
+}
+
+// Foo is the best string.
+var Foo string
+
+var (
+	// I1 is an int
+	I1 = 1
+
+	// I2 is an int
+	I2 = 3
+)`,
+			"docs/q.go":`package p
+type T2 struct {
+	Q string // Q is a string field.
+	// X is documented.
+	X int // X has comments.
+}`,
+
+
+			"different/abc.go":`package a
+type XYZ struct {}`,
+			"different/bcd.go":`package a
+func (x XYZ) ABC() {}`,
+
+			"completion/a.go":`package p
+
+import "strings"
+
+func s2() {
+	_ = strings.Title("s")
+	_ = new(strings.Replacer)
+}
+
+const s1 = 42
+
+var s3 int
+var s4 func()`,
+			"completion/b.go":`package p; import "fmt"; var _ = fmt.Printl`,
+			"completion/c.go":`package p; import "fmt"; var _ = fmt.`,
+			"completion/d.go":`package p
+
+import (
+	"fmt"
+)
+
+func mymain() {
+	fmt.Println("hello")
+	fmt.Printf("%s", "hello")
+	fmt.Println("hello")
+	fmt.Println("hello")
+	fmt.Println("hello")
+	fmt.Println("hello")
+	fmt.
+}
+`,
+		},
+	},
+}
 
 const (
 	rootDir        = "test/pkg"
@@ -161,37 +327,18 @@ var (
 	gopathDir      = ""
 )
 
-func TestMain(m *testing.M) {
-	fmt.Println("------main begin------")
-	flag.Parse()
-
+func initServer(rootDir string) {
 	dir, err := filepath.Abs(rootDir)
-	if err != nil {
-		log.Fatal("TestMain", err)
-	}
 
 	currentWorkDir, err = os.Getwd()
 	if err != nil {
-		log.Fatal("TestMain", err)
+		log.Fatal("initServer", err)
 	}
 	currentWorkDir += "/"
 
 	gopathDir = getGOPATH()
 
 	Init(util.PathToURI(dir))
-
-	defer func() {
-		if conn != nil {
-			if err := conn.Close(); err != nil {
-				log.Fatal("conn.Close", err)
-			}
-		}
-	}()
-
-	exitCode := m.Run()
-
-	fmt.Println("------main end------")
-	os.Exit(exitCode)
 }
 
 func Init(root lsp.DocumentURI) {
