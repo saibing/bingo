@@ -103,6 +103,9 @@ func completions(fset *token.FileSet, file *ast.File, pos token.Pos, pkg *types.
 			if expectedTyp != nil && matchingTypes(expectedTyp, obj.Type()) {
 				weight *= 10
 			}
+			if !strings.HasPrefix(obj.Name(), prefix) {
+				return // doesn't match prefix
+			}
 			item := formatCompletion(obj, pkgStringer, weight, func(v *types.Var) bool {
 				return isParam(enclosing, v)
 			})
@@ -170,7 +173,7 @@ func completions(fset *token.FileSet, file *ast.File, pos token.Pos, pkg *types.
 			}
 			scopes = append(scopes, info.Scopes[n])
 		}
-		scopes = append(scopes, pkg.Scope(), types.Universe)
+		scopes = append(scopes, pkg.Scope())
 
 		// Process scopes innermost first.
 		for i, scope := range scopes {
