@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/go/buildutil"
 
 	"github.com/neelance/parallel"
-	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"

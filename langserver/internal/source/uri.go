@@ -5,7 +5,7 @@
 package source
 
 import (
-	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 )
 

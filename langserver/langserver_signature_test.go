@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/langserver/internal/util"
 )
 
 func TestSignature(t *testing.T) {

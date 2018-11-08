@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/tools/go/buildutil"
 
-	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/langserver/internal/util"
 )
 
 // BuildContext creates a build.Context which uses the overlay FS and the InitializeParams.BuildContext overrides.

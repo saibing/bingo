@@ -7,7 +7,7 @@ import (
 	"go/types"
 	"golang.org/x/tools/go/packages"
 
-	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 )
 

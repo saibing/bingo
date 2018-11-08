@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
@@ -61,18 +61,97 @@ var testdata = []packagestest.Module{
 			"lookup/c/c.go":`package c; import "github.com/saibing/bingo/langserver/test/pkg/lookup/a"; func Dummy() **a.A { var x **a.A; return x }`,
 			"lookup/d/d.go":`package d; import "github.com/saibing/bingo/langserver/test/pkg/lookup/a"; func Dummy() map[string]a.A { var x map[string]a.A; return x }`,
 
-			"":``,
-			"":``,
-			"":``,
-			"":``,
-			"":``,
-			"":``,
-			"":``,
-			"":``,
-			"":``,
-			"":``,
-			"":``,
-			"":``,
+			"multiple/a.go":`package p; func A() { A() }`,
+			"multiple/main.go":`// +build ignore
+
+package main;  func B() { p.A(); B() }`,
+
+
+
+			"subdirectory/a.go":`package d; func A() { A() }`,
+			"subdirectory/d2/b.go":`package d2; import "github.com/saibing/bingo/langserver/test/pkg/subdirectory"; func B() { d.A(); B() }`,
+
+			"typealias/a.go":`package p; type A struct{ a int }`,
+			"typealias/b.go":`package p; type B = A`,
+			"unexpected_paths/a.go":`package p; func A() { A() }`,
+
+			"xreferences/a.go":`package p; import "fmt"; var _ = fmt.Println; var x int`,
+			"xreferences/b.go":`package p; import "fmt"; var _ = fmt.Println; var y int`,
+			"xreferences/c.go":`package p; import "fmt"; var _ = fmt.Println; var z int`,
+
+
+			"test/a.go":`package p; var A int`,
+			"test/a_test.go":`package p
+
+import (
+	"github.com/saibing/bingo/langserver/test/pkg/test/b"
+	"testing"
+)
+
+var X = b.B; func TestB(t *testing.T) {}`,
+			"test/b/b.go":`package b; var B int; func C() int { return B };`,
+			"test/c/c.go":`package c; import "github.com/saibing/bingo/langserver/test/pkg/test/b"; var X = b.B;`,
+
+			"xtest/a.go":`package p; var A int`,
+			"xtest/a_test.go":`package p; var X = A`,
+			"xtest/b_test.go":`package p; func Y() int { return X }`,
+			"xtest/x_test.go":`package p_test; import "github.com/saibing/bingo/langserver/test/pkg/xtest"; var X = p.A`,
+			"xtest/y_test.go":`package p_test; func Y() int { return X }`,
+
+
+			"symbols/abc.go":`package a
+
+type XYZ struct {}
+
+func (x XYZ) ABC() {}
+
+var (
+	A = 1
+)
+
+const (
+	B = 2
+)
+
+type (
+	_ struct{}
+	C struct{}
+)
+
+type UVW interface {}
+
+type T string`,
+			"symbols/bcd.go":`package a
+
+type YZA struct {}
+
+func (y YZA) BCD() {}`,
+			"symbols/cde.go":`package a
+
+var(
+	a, b string
+	c int
+)`,
+			"symbols/xyz.go":`package a
+
+func yza() {}`,
+
+			"signature/a.go":`package p
+
+// Comments for A
+func A(foo int, bar func(baz int) int) int {
+	return bar(foo)
+}
+
+
+func B() {}
+
+// Comments for C
+func C(x int, y int) int {
+	return x+y
+}
+`,
+			"signature/b.go":`package p; func main() { B(); A(); A(0,); A(0); C(1,2) }`,
 
 
 			"issue/223.go":`package main

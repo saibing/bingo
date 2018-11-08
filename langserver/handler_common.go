@@ -8,7 +8,7 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 
-	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 )
 

@@ -18,7 +18,7 @@ import (
 	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/jsonrpc2"
 
-	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/langserver/internal/util"
 )
 
 // isFileSystemRequest returns if this is an LSP method whose sole

@@ -15,7 +15,7 @@ import (
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/imports"
 
-	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )

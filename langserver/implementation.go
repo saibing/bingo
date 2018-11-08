@@ -11,7 +11,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"sort"
 
-	"github.com/saibing/bingo/langserver/util"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"

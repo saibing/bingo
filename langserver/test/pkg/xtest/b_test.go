@@ -1,1 +1,0 @@
-package p; func Y() int { return X }
