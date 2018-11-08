@@ -26,7 +26,6 @@ func offsetForPosition(contents []byte, p lsp.Position) (offset int, valid bool,
 		}
 		offset++
 		if b == '\n' {
-			fmt.Println()
 			line++
 			col = 0
 		} else {
