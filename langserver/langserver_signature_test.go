@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"path/filepath"
 	"strings"
@@ -14,34 +15,47 @@ import (
 )
 
 func TestSignature(t *testing.T) {
-	test := func(t *testing.T, pkgDir string, data map[string]string) {
+
+	exported = packagestest.Export(t, packagestest.Modules, testdata)
+	defer exported.Cleanup()
+
+	defer func() {
+		if conn != nil {
+			if err := conn.Close(); err != nil {
+				log.Fatal("conn.Close", err)
+			}
+		}
+	}()
+
+	initServer(exported.Config.Dir)
+
+	test := func(t *testing.T, data map[string]string) {
 		for k, v := range data {
-			testSignature(t, &signatureTestCase{pkgDir: pkgDir, input: k, output: v})
+			testSignature(t, &signatureTestCase{input: k, output: v})
 		}
 	}
 
 	t.Run("signature help", func(t *testing.T) {
-		test(t, signatruePkgDir, map[string]string{
-			"b.go:1:28": "func() 0",
-			"b.go:1:33": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
-			"b.go:1:40": "func(foo int, bar func(baz int) int) int Comments for A\n 1",
-			"b.go:1:46": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
-			"b.go:1:51": "func(x int, y int) int Comments for C\n 0",
-			"b.go:1:53": "func(x int, y int) int Comments for C\n 1",
-			"b.go:1:54": "func(x int, y int) int Comments for C\n 1",
+		test(t, map[string]string{
+			"signature/b.go:1:28": "func() 0",
+			"signature/b.go:1:33": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
+			"signature/b.go:1:40": "func(foo int, bar func(baz int) int) int Comments for A\n 1",
+			"signature/b.go:1:46": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
+			"signature/b.go:1:51": "func(x int, y int) int Comments for C\n 0",
+			"signature/b.go:1:53": "func(x int, y int) int Comments for C\n 1",
+			"signature/b.go:1:54": "func(x int, y int) int Comments for C\n 1",
 		})
 	})
 }
 
 type signatureTestCase struct {
-	pkgDir string
 	input  string
 	output string
 }
 
 func testSignature(tb testing.TB, c *signatureTestCase) {
 	tbRun(tb, fmt.Sprintf("signature-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(c.pkgDir)
+		dir, err := filepath.Abs(exported.Config.Dir)
 		if err != nil {
 			log.Fatal("testSignature", err)
 		}

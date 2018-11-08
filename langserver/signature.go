@@ -19,14 +19,21 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 		}
 	}
 
-	pkg, ctok, err := h.loadRealTimePackage(ctx, conn, params.TextDocument.URI, params.Position)
+	//pkg, ctok, err := h.loadRealTimePackage(ctx, conn, params.TextDocument.URI, params.Position)
+	//if err != nil {
+	//	if _, ok := err.(*util.InvalidNodeError); !ok {
+	//		return nil, err
+	//	}
+	//}
+
+	pkg, _, qpos, err := h.overlay.view.TypeCheckAtPosition(params.TextDocument.URI, params.Position)
 	if err != nil {
 		if _, ok := err.(*util.InvalidNodeError); !ok {
 			return nil, err
 		}
 	}
 
-	pathNodes, _ := util.PathEnclosingInterval(pkg, ctok.pos, ctok.pos)
+	pathNodes, _ := util.PathEnclosingInterval(pkg, qpos, qpos)
 	call := util.CallExpr(pkg.Fset, pathNodes)
 	if call == nil {
 		return nil, nil
@@ -44,7 +51,7 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	}
 	activeParameter := len(call.Args)
 	for index, arg := range call.Args {
-		if arg.End() >= ctok.pos {
+		if arg.End() >= qpos {
 			activeParameter = index
 			break
 		}
