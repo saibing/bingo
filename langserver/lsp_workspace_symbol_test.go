@@ -77,10 +77,10 @@ func TestWorkspaceSymbol(t *testing.T) {
 
 	t.Run("detailed workspace symbol", func(t *testing.T) {
 		test(t, map[*lspext.WorkspaceSymbolParams][]string{
-			{Query: ""}:            {detailOutput("a.go:class:T:1:17"), detailOutput("a.go:field:T.F:1:28")},
-			{Query: "T"}:           {detailOutput("a.go:class:T:1:17"), detailOutput("a.go:field:T.F:1:28")},
-			{Query: "F"}:           {detailOutput("a.go:field:T.F:1:28")},
-			{Query: "is:exported"}: {detailOutput("a.go:class:T:1:17"), detailOutput("a.go:field:T.F:1:28")},
+			{Query: ""}:            {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
+			{Query: "T"}:           {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
+			{Query: "F"}:           {"detailed/a.go:field:T.F:1:28"},
+			{Query: "is:exported"}: {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
 		})
 	})
 
@@ -92,15 +92,15 @@ func TestWorkspaceSymbol(t *testing.T) {
 
 	t.Run("subdirectory workspace symbol", func(t *testing.T) {
 		test(t, map[*lspext.WorkspaceSymbolParams][]string{
-			{Query: ""}:            {subdirectoryOutput("a.go:function:A:1:17"), subdirectoryOutput("d2/b.go:function:B:1:86")},
-			{Query: "is:exported"}: {subdirectoryOutput("a.go:function:A:1:17"), subdirectoryOutput("d2/b.go:function:B:1:86")},
-			{Query: "dir:"}:        {subdirectoryOutput("a.go:function:A:1:17")},
-			{Query: "dir:/"}:       {subdirectoryOutput("a.go:function:A:1:17")},
-			{Query: "dir:."}:       {subdirectoryOutput("a.go:function:A:1:17")},
-			{Query: "dir:./"}:      {subdirectoryOutput("a.go:function:A:1:17")},
-			{Query: "dir:/d2"}:     {subdirectoryOutput("d2/b.go:function:B:1:86")},
-			{Query: "dir:./d2"}:    {subdirectoryOutput("d2/b.go:function:B:1:86")},
-			{Query: "dir:d2/"}:     {subdirectoryOutput("d2/b.go:function:B:1:86")},
+			{Query: ""}:            {"subdirectory/a.go:function:A:1:17", "subdirectory/d2/b.go:function:B:1:86"},
+			{Query: "is:exported"}: {"subdirectory/a.go:function:A:1:17", "subdirectory/d2/b.go:function:B:1:86"},
+			{Query: "dir:"}:        {"subdirectory/a.go:function:A:1:17"},
+			{Query: "dir:/"}:       {"subdirectory/a.go:function:A:1:17"},
+			{Query: "dir:."}:       {"subdirectory/a.go:function:A:1:17"},
+			{Query: "dir:./"}:      {"subdirectory/a.go:function:A:1:17"},
+			{Query: "dir:/d2"}:     {"subdirectory/d2/b.go:function:B:1:86"},
+			{Query: "dir:./d2"}:    {"subdirectory/d2/b.go:function:B:1:86"},
+			{Query: "dir:d2/"}:     {"subdirectory/d2/b.go:function:B:1:86"},
 		})
 	})
 
@@ -115,10 +115,10 @@ func TestWorkspaceSymbol(t *testing.T) {
 	t.Run("go root", func(t *testing.T) {
 		test(t, map[*lspext.WorkspaceSymbolParams][]string{
 			{Query: ""}: {
-				gorootOutput2("a.go:variable:x:1:51"),
+				"goroot/a.go:variable:x:1:51",
 			},
 			{Query: "is:exported"}: {},
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "x", "packageName": "p", "recv": "", "vendor": false}}: {gorootOutput2("a.go:variable:x:1:51")},
+			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "x", "packageName": "p", "recv": "", "vendor": false}}: {"goroot/a.go:variable:x:1:51"},
 		})
 	})
 
