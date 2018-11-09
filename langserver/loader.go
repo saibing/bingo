@@ -117,54 +117,6 @@ func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, f
 
 	ctok, err = h.startPos(ctx, pkg, fileURI, position)
 	return pkg, ctok, err
-	//isIgnoredFile := true
-	//for _, f := range pkg.CompiledGoFiles {
-	//	if path.Base(filename) == path.Base(f) {
-	//		isIgnoredFile = false
-	//		break
-	//	}
-	//}
-	//
-	//if isIgnoredFile {
-	//	return nil, ctok, fmt.Errorf("file %s is ignored by the build", filename)
-	//}
-
-	// collect all loaded files, required to remove existing diagnostics from our cache
-	//files := fsetToFiles(pkg.Fset)
-	//if err := h.publishDiagnostics(ctx, conn, error2Diagnostics(pkg.Errors), files); err != nil {
-	//	log.Printf("warning: failed to send diagnostics: %s.", err)
-	//}
-}
-
-func (h *LangHandler) loadRealTimePackage(ctx context.Context, conn jsonrpc2.JSONRPC2, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package,cursorToken, error) {
-	parentSpan := opentracing.SpanFromContext(ctx)
-	span := parentSpan.Tracer().StartSpan("langserver-go: load program",
-		opentracing.Tags{"fileURI": fileURI},
-		opentracing.ChildOf(parentSpan.Context()),
-	)
-	ctx = opentracing.ContextWithSpan(ctx, span)
-	defer span.Finish()
-
-	ctok := cursorToken{}
-	if !util.IsURI(fileURI) {
-		return nil, ctok, fmt.Errorf("typechecking of out-of-workspace URI (%q) is not yet supported", fileURI)
-	}
-
-	filename := h.FilePath(fileURI)
-
-	bctx := h.BuildContext(ctx)
-	pkg, err := h.loadRealTime(ctx, bctx, conn, filename)
-	if mpErr, ok := err.(*build.MultiplePackageError); ok {
-		pkg, err = buildPackageForNamedFileInMultiPackageDir(pkg, mpErr, path.Base(filename))
-		if err != nil {
-			return nil, ctok, err
-		}
-	} else if err != nil {
-		return nil, ctok, err
-	}
-
-	ctok, err = h.startPos(ctx, pkg, fileURI, position)
-	return pkg, ctok, err
 }
 
 func (h *LangHandler) startPos(ctx context.Context, pkg *packages.Package, fileURI lsp.DocumentURI, position lsp.Position) (cursorToken, error) {
