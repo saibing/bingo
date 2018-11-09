@@ -6,6 +6,7 @@ import (
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
+	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"path/filepath"
 	"reflect"
@@ -17,50 +18,62 @@ import (
 )
 
 func TestImplementations(t *testing.T) {
-	test := func(t *testing.T, pkgDir string, input string, output []string) {
-		testImplementations(t, &implementationsTestCase{pkgDir: pkgDir, input: input, output: output})
+	exported = packagestest.Export(t, packagestest.Modules, testdata)
+	defer exported.Cleanup()
+
+	defer func() {
+		if conn != nil {
+			if err := conn.Close(); err != nil {
+				log.Fatal("conn.Close", err)
+			}
+		}
+	}()
+
+	initServer(exported.Config.Dir)
+
+	test := func(t *testing.T, input string, output []string) {
+		testImplementations(t, &implementationsTestCase{input: input, output: output})
 	}
 
 	t.Run("interfaces and implementations", func(t *testing.T) {
-		test(t, implementationsPkgDir, "i0.go:1:17", []string{})
-		test(t, implementationsPkgDir, "i0.go:1:32", []string{})
-		test(t, implementationsPkgDir, "i1.go:1:17", []string{
-			implementationsOutput("i2.go:1:17:to"),
-			implementationsOutput("t1.go:1:17:to"),
-			implementationsOutput("t1e.go:1:17:to"),
-			implementationsOutput("t1p.go:1:17:to"),
-			implementationsOutput("p2/p2.go:1:18:to"),
+		test(t, "implementations/i0.go:1:17", []string{})
+		test(t, "implementations/i0.go:1:32", []string{})
+		test(t, "implementations/i1.go:1:17", []string{
+			"implementations/i2.go:1:17:to",
+			"implementations/t1.go:1:17:to",
+			"implementations/t1e.go:1:17:to",
+			"implementations/t1p.go:1:17:to",
+			"implementations/p2/p2.go:1:18:to",
 		})
-		test(t, implementationsPkgDir, "i1.go:1:32", []string{
-			implementationsOutput("i2.go:1:32:to:method"),
-			implementationsOutput("t1.go:1:41:to:method"),
-			implementationsOutput("t1p.go:1:44:to:method"),
-			implementationsOutput("p2/p2.go:1:41:to:method"),
+		test(t, "implementations/i1.go:1:32", []string{
+			"implementations/i2.go:1:32:to:method",
+			"implementations/t1.go:1:41:to:method",
+			"implementations/t1p.go:1:44:to:method",
+			"implementations/p2/p2.go:1:41:to:method",
 		})
-		test(t, implementationsPkgDir, "i2.go:1:32", []string{implementationsOutput("i1.go:1:32:from:method")})
-		test(t, implementationsPkgDir, "i2.go:1:38", []string{})
-		test(t, implementationsPkgDir, "t0.go:1:17", []string{})
-		test(t, implementationsPkgDir, "t1.go:1:17", []string{implementationsOutput("i1.go:1:17:from")})
-		test(t, implementationsPkgDir, "t1.go:1:41", []string{implementationsOutput("i1.go:1:32:from:method")})
-		test(t, implementationsPkgDir, "t1.go:1:59", []string{})
-		test(t, implementationsPkgDir, "t1e.go:1:17", []string{implementationsOutput("i1.go:1:17:from")})
-		test(t, implementationsPkgDir, "t1e.go:1:52", []string{implementationsOutput("i1.go:1:32:from:method")})
-		test(t, implementationsPkgDir, "t1p.go:1:17", []string{implementationsOutput("i1.go:1:17:from:ptr")})
-		test(t, implementationsPkgDir, "t1p.go:1:44", []string{implementationsOutput("i1.go:1:32:from:method")})
+		test(t, "implementations/i2.go:1:32", []string{"implementations/i1.go:1:32:from:method"})
+		test(t, "implementations/i2.go:1:38", []string{})
+		test(t, "implementations/t0.go:1:17", []string{})
+		test(t, "implementations/t1.go:1:17", []string{"implementations/i1.go:1:17:from"})
+		test(t, "implementations/t1.go:1:41", []string{"implementations/i1.go:1:32:from:method"})
+		test(t, "implementations/t1.go:1:59", []string{})
+		test(t, "implementations/t1e.go:1:17", []string{"implementations/i1.go:1:17:from"})
+		test(t, "implementations/t1e.go:1:52", []string{"implementations/i1.go:1:32:from:method"})
+		test(t, "implementations/t1p.go:1:17", []string{"implementations/i1.go:1:17:from:ptr"})
+		test(t, "implementations/t1p.go:1:44", []string{"implementations/i1.go:1:32:from:method"})
 	})
 
 
 }
 
 type implementationsTestCase struct {
-	pkgDir string
 	input  string
 	output []string
 }
 
 func testImplementations(tb testing.TB, c *implementationsTestCase) {
 	tbRun(tb, fmt.Sprintf("implementations-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(c.pkgDir)
+		dir, err := filepath.Abs(exported.Config.Dir)
 		if err != nil {
 			log.Fatal("testImplementations", err)
 		}
@@ -81,6 +94,10 @@ func doImplementationTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 		impls[i] = util.UriToPath(lsp.DocumentURI(impls[i]))
 	}
 	sort.Strings(impls)
+
+	for i := range want {
+		want[i] = filepath.ToSlash(filepath.Join(exported.Config.Dir, want[i]))
+	}
 	sort.Strings(want)
 	if !reflect.DeepEqual(impls, want) {
 		t.Errorf("\ngot\n\t%q\nwant\n\t%q", impls, want)
