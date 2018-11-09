@@ -3,6 +3,7 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"path/filepath"
 	"reflect"
@@ -18,14 +19,27 @@ import (
 )
 
 func TestWorkspaceReferences(t *testing.T) {
-	test := func(t *testing.T, pkgDir string, data map[*lspext.WorkspaceReferencesParams][]string) {
+	exported = packagestest.Export(t, packagestest.Modules, testdata)
+	defer exported.Cleanup()
+
+	defer func() {
+		if conn != nil {
+			if err := conn.Close(); err != nil {
+				log.Fatal("conn.Close", err)
+			}
+		}
+	}()
+
+	initServer(exported.Config.Dir)
+
+	test := func(t *testing.T, data map[*lspext.WorkspaceReferencesParams][]string) {
 		for k, v := range data {
-			testWorkspaceReferences(t, &workspaceReferencesTestCase{pkgDir: pkgDir, input: k, output: v})
+			testWorkspaceReferences(t, &workspaceReferencesTestCase{input: k, output: v})
 		}
 	}
 
 	t.Run("xtest workspace references", func(t *testing.T) {
-		test(t, xtestPkgDir, map[*lspext.WorkspaceReferencesParams][]string{
+		test(t, map[*lspext.WorkspaceReferencesParams][]string{
 			{Query: lspext.SymbolDescriptor{}}: {
 				"/src/test/pkg/x_test.go:1:24-1:34 -> id:test/pkg name: package:test/pkg packageName:p recv: vendor:false",
 				"/src/test/pkg/x_test.go:1:46-1:47 -> id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
@@ -34,7 +48,7 @@ func TestWorkspaceReferences(t *testing.T) {
 	})
 
 	t.Run("subdirectory workspace references", func(t *testing.T) {
-		test(t, subdirectoryPkgDir, map[*lspext.WorkspaceReferencesParams][]string{
+		test(t, map[*lspext.WorkspaceReferencesParams][]string{
 			// Non-matching name query.
 			{Query: lspext.SymbolDescriptor{"name": "nope"}}: {},
 
@@ -89,16 +103,16 @@ func TestWorkspaceReferences(t *testing.T) {
 	})
 
 	t.Run("go root", func(t *testing.T) {
-		test(t, gorootPkgDir, map[*lspext.WorkspaceReferencesParams][]string{
+		test(t, map[*lspext.WorkspaceReferencesParams][]string{
 			{Query: lspext.SymbolDescriptor{}}: {
-				gorootOutput2("a.go:1:19-1:24") + " -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
-				gorootOutput2("a.go:1:38-1:45") + " -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
+				"goroot/a.go:1:19-1:24" + " -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
+				"goroot/a.go:1:38-1:45" + " -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
 			},
 		})
 	})
 
 	t.Run("go project", func(t *testing.T) {
-		test(t, goprojectPkgDir, map[*lspext.WorkspaceReferencesParams][]string{
+		test(t, map[*lspext.WorkspaceReferencesParams][]string{
 			{Query: lspext.SymbolDescriptor{}}: {
 				"/src/test/pkg/b/b.go:1:19-1:31 -> id:test/pkg/a name: package:test/pkg/a packageName:a recv: vendor:false",
 				"/src/test/pkg/b/b.go:1:43-1:44 -> id:test/pkg/a/-/A name:A package:test/pkg/a packageName:a recv: vendor:false",
@@ -107,7 +121,7 @@ func TestWorkspaceReferences(t *testing.T) {
 	})
 
 	t.Run("go module", func(t *testing.T) {
-		test(t, symbolsPkgDir, map[*lspext.WorkspaceReferencesParams][]string{
+		test(t, map[*lspext.WorkspaceReferencesParams][]string{
 			{Query: lspext.SymbolDescriptor{}}: {
 				"/src/test/pkg/a.go:1:19-1:37 -> id:github.com/d/dep name: package:github.com/d/dep packageName:dep recv: vendor:false",
 				"/src/test/pkg/a.go:1:51-1:52 -> id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
@@ -126,7 +140,7 @@ func TestWorkspaceReferences(t *testing.T) {
 	})
 
 	t.Run("workspace references multiple files", func(t *testing.T){
-		test(t, xreferencesPkgDir, map[*lspext.WorkspaceReferencesParams][]string{
+		test(t, map[*lspext.WorkspaceReferencesParams][]string{
 			{Query: lspext.SymbolDescriptor{}}: {
 				"/src/test/pkg/a.go:1:19-1:24 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
 				"/src/test/pkg/a.go:1:38-1:45 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
@@ -140,14 +154,13 @@ func TestWorkspaceReferences(t *testing.T) {
 }
 
 type workspaceReferencesTestCase struct {
-	pkgDir string
 	input  *lspext.WorkspaceReferencesParams
 	output []string
 }
 
 func testWorkspaceReferences(tb testing.TB, c *workspaceReferencesTestCase) {
 	tbRun(tb, fmt.Sprintf("workspace-references-%s", c.input.Query), func(t testing.TB) {
-		dir, err := filepath.Abs(c.pkgDir)
+		dir, err := filepath.Abs(exported.Config.Dir)
 		if err != nil {
 			log.Fatal("testWorkspaceReferences", err)
 		}

@@ -271,116 +271,9 @@ func mymain() {
 }
 
 const (
-	rootDir        = "test/pkg"
 	rootImportPath = "github.com/saibing/bingo/langserver/test/pkg"
-
-	basicPkgDir           = "test/pkg/basic"
-	detailedPkgDir        = "test/pkg/detailed"
-	xtestPkgDir           = "test/pkg/xtest"
-	testPkgDir            = "test/pkg/test"
-	subdirectoryPkgDir    = "test/pkg/subdirectory"
-	multiplePkgDir        = "test/pkg/multiple"
-	gorootPkgDir          = "test/pkg/goroot"
-	goprojectPkgDir       = "test/pkg/goproject"
-	gomodulePkgDir        = "test/pkg/gomodule"
-	hoverDocsPkgDir       = "test/pkg/docs"
-	issuePkgDir           = "test/pkg/issue"
-	lookupPkgDir          = "test/pkg/lookup"
-	implementationsPkgDir = "test/pkg/implementations"
-	typealiasPkgDir       = "test/pkg/typealias"
-	completionPkgDir      = "test/pkg/completion"
-	exportedPkgDir        = "test/pkg/exported_on_unexported"
-	symbolsPkgDir         = "test/pkg/symbols"
-	xreferencesPkgDir     = "test/pkg/xreferences"
-	unexpectedPkgDir      = "test/pkg/unexpected_paths"
-	differentPkgDir       = "test/pkg/different"
-	signatruePkgDir       = "test/pkg/signature"
 )
 
-func basicOutput(suffix string) string {
-	return genOutput(basicPkgDir, suffix)
-}
-
-func detailOutput(suffix string) string {
-	return genOutput(detailedPkgDir, suffix)
-}
-
-func exportedOutput(suffix string) string {
-	return genOutput(exportedPkgDir, suffix)
-}
-
-func xtestOutput(suffix string) string {
-	return genOutput(xtestPkgDir, suffix)
-}
-
-func testOutput(suffix string) string {
-	return genOutput(testPkgDir, suffix)
-}
-
-func subdirectoryOutput(suffix string) string {
-	return genOutput(subdirectoryPkgDir, suffix)
-}
-
-func multipleOutput(suffix string) string {
-	return genOutput(multiplePkgDir, suffix)
-}
-
-func gorootOutput(suffix string) string {
-	return getPlatformPath(runtime.GOROOT() + "/" + suffix)
-}
-
-func signatrueOutput(suffix string) string {
-	return genOutput(signatruePkgDir, suffix)
-}
-
-func gorootOutput2(suffix string) string {
-	return genOutput(gorootPkgDir, suffix)
-}
-
-func unexpectedOutput(suffix string) string {
-	return genOutput(unexpectedPkgDir, suffix)
-}
-
-func xreferences(suffix string) string {
-	return genOutput(xreferencesPkgDir, suffix)
-}
-
-func differentOutput(suffix string) string {
-	return genOutput(differentPkgDir, suffix)
-}
-
-func goprojectOutput(suffix string) string {
-	return genOutput(goprojectPkgDir, suffix)
-}
-
-func gomoduleDepOutput(suffix string) string {
-	depPath := filepath.Join(gopathDir, "pkg/mod/github.com/saibing/dep@v1.0.2")
-	return getPlatformPath(depPath + "/" + suffix)
-}
-
-func gomoduleOutput(suffix string) string {
-	return genOutput(gomodulePkgDir, suffix)
-}
-
-func symbolsOutput(suffix string) string {
-	return genOutput(symbolsPkgDir, suffix)
-}
-
-func lookupOutput(suffix string) string {
-	return genOutput(lookupPkgDir, suffix)
-}
-
-func typealiasOutput(suffix string) string {
-	return genOutput(typealiasPkgDir, suffix)
-}
-
-func implementationsOutput(suffix string) string {
-	return genOutput(implementationsPkgDir, suffix)
-}
-
-func genOutput(pkgDir, suffix string) string {
-	return getPlatformPath(currentWorkDir + pkgDir + "/" + suffix)
-}
 
 func getGOPATH() string {
 	gopath := os.Getenv("GOPATH")
@@ -392,35 +285,12 @@ func getGOPATH() string {
 	return paths[0]
 }
 
-func getPlatformPath(path string) string {
-	s := filepath.ToSlash(path)
-	if runtime.GOOS == "windows" {
-		return "/" + s
-	}
-
-	return s
-}
-
 var (
-	currentWorkDir = ""
-	gopathDir      = ""
+	gopathDir      = getGOPATH()
 )
 
 func initServer(rootDir string) {
-	dir, err := filepath.Abs(rootDir)
-
-	currentWorkDir, err = os.Getwd()
-	if err != nil {
-		log.Fatal("initServer", err)
-	}
-	currentWorkDir += "/"
-
-	gopathDir = getGOPATH()
-
-	Init(util.PathToURI(dir))
-}
-
-func Init(root lsp.DocumentURI) {
+	root := util.PathToURI(rootDir)
 	fmt.Printf("root uri is %s\n", root)
 	cfg := NewDefaultConfig()
 	cfg.FuncSnippetEnabled = true
