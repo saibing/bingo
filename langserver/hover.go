@@ -26,7 +26,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		}
 	}
 
-	pkg, ctok, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, pos, err := h.typeCheck(params)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
@@ -43,7 +43,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		return nil, err
 	}
 
-	_, node, err := util.GetPathNode(pkg, ctok.pos, ctok.pos)
+	_, node, err := util.GetPathNode(pkg, pos, pos)
 	if err != nil {
 		return nil, err
 	}
