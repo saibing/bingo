@@ -371,6 +371,16 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		}
 		return h.handleTextDocumentFormatting(ctx, conn, req, params)
 
+	case "textDocument/rangeFormatting":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.DocumentRangeFormattingParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleTextDocumentRangeFormatting(ctx, conn, req, params)
+
 	case "workspace/symbol":
 		if req.Params == nil {
 			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}

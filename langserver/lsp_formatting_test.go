@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"path/filepath"
 	"reflect"
@@ -15,26 +16,38 @@ import (
 )
 
 func TestFormatting(t *testing.T) {
-	test := func(t *testing.T, pkgDir string, input string, output map[string]string) {
-		testFormatting(t, &formattingTestCase{pkgDir: pkgDir, input: input, output: output})
+	exported = packagestest.Export(t, packagestest.Modules, testdata)
+	defer exported.Cleanup()
+
+	defer func() {
+		if conn != nil {
+			if err := conn.Close(); err != nil {
+				log.Fatal("conn.Close", err)
+			}
+		}
+	}()
+
+	initServer(exported.Config.Dir)
+
+	test := func(t *testing.T, input string, output map[string]string) {
+		testFormatting(t, &formattingTestCase{input: input, output: output})
 	}
 
 	t.Run("basic", func(t *testing.T) {
-		test(t, basicPkgDir, "a.go", map[string]string{
+		test(t, "basic/a.go", map[string]string{
 				"0:0-1:0": "package p\n\nfunc A() { A() }\n",
 			})
 	})
 }
 
 type formattingTestCase struct {
-	pkgDir string
 	input  string
 	output map[string]string
 }
 
 func testFormatting(tb testing.TB, c *formattingTestCase) {
 	tbRun(tb, fmt.Sprintf("formatting-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(c.pkgDir)
+		dir, err := filepath.Abs(exported.Config.Dir)
 		if err != nil {
 			log.Fatal("testFormatting", err)
 		}

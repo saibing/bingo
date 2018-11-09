@@ -16,8 +16,6 @@ import (
 	"strings"
 )
 
-// NOTICE: Code adapted from https://github.com/golang/tools/blob/master/internal/lsp/completion.go.
-
 var (
 	CIKConstantSupported = lsp.CIKVariable // or lsp.CIKConstant if client supported
 	funcArgsRegexp       = regexp.MustCompile(`func\(([^)]+)\)`)

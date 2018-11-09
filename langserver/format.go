@@ -1,23 +1,20 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// NOTICE: Code adapted from golang.org/x/tools/internal/lsp/format.go
+
 package langserver
 
 import (
 	"bytes"
 	"context"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/printer"
-	"go/token"
-	"path"
-	"strings"
-
-	"github.com/pmezard/go-difflib/difflib"
-	"golang.org/x/tools/go/buildutil"
-	"golang.org/x/tools/imports"
-
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"go/format"
 )
 
 const (
@@ -33,97 +30,92 @@ func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jso
 		}
 	}
 
-	filename := h.FilePath(params.TextDocument.URI)
-	unformatted, err := h.readFile(ctx, params.TextDocument.URI)
+	return formatRange(h.overlay.view, params.TextDocument.URI, nil)
+}
+
+func (h *LangHandler) handleTextDocumentRangeFormatting(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentRangeFormattingParams) ([]lsp.TextEdit, error) {
+	if !util.IsURI(params.TextDocument.URI) {
+		return nil, &jsonrpc2.Error{
+			Code:    jsonrpc2.CodeInvalidParams,
+			Message: fmt.Sprintf("%s not yet supported for out-of-workspace URI (%q)", req.Method, params.TextDocument.URI),
+		}
+	}
+
+	return formatRange(h.overlay.view, params.TextDocument.URI, &params.Range)
+}
+
+// formatRange formats a document with a given range.
+func formatRange(v *source.View, uri lsp.DocumentURI, rng *lsp.Range) ([]lsp.TextEdit, error) {
+	data, err := v.GetFile(source.URI(uri)).Read()
 	if err != nil {
 		return nil, err
 	}
-
-	var formatted []byte
-	switch h.config.FormatTool {
-	case formatToolGofmt:
-		bctx := h.BuildContext(ctx)
-		fset := token.NewFileSet()
-		file, err := buildutil.ParseFile(fset, bctx, nil, path.Dir(filename), path.Base(filename), parser.ParseComments)
+	if rng != nil {
+		start, err := positionToOffset(data, int(rng.Start.Line), int(rng.Start.Character))
 		if err != nil {
 			return nil, err
 		}
-
-		ast.SortImports(fset, file)
-
-		var buf bytes.Buffer
-		cfg := printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}
-		err = cfg.Fprint(&buf, fset, file)
+		end, err := positionToOffset(data, int(rng.End.Line), int(rng.End.Character))
 		if err != nil {
 			return nil, err
 		}
-		formatted = buf.Bytes()
-	default: // goimports
-		imports.LocalPrefix = h.config.GoimportsLocalPrefix
-		var err error
-		formatted, err = imports.Process(filename, unformatted, nil)
-		if err != nil {
-			return nil, err
+		data = data[start:end]
+		// format.Source will fail if the substring is not a balanced expression tree.
+		// TODO(rstambler): parse the file and use astutil.PathEnclosingInterval to
+		// find the largest ast.Node n contained within start:end, and format the
+		// region n.Pos-n.End instead.
+	}
+	// format.Source changes slightly from one release to another, so the version
+	// of Go used to build the LSP server will determine how it formats code.
+	// This should be acceptable for all users, who likely be prompted to rebuild
+	// the LSP server on each Go release.
+	fmted, err := format.Source([]byte(data))
+	if err != nil {
+		return nil, err
+	}
+	if rng == nil {
+		// Get the ending line and column numbers for the original file.
+		line := bytes.Count(data, []byte("\n"))
+		col := len(data) - bytes.LastIndex(data, []byte("\n")) - 1
+		if col < 0 {
+			col = 0
+		}
+		rng = &lsp.Range{
+			Start: lsp.Position{
+				Line:      0,
+				Character: 0,
+			},
+			End: lsp.Position{
+				Line:      line,
+				Character: col,
+			},
 		}
 	}
-
-	if bytes.Equal(formatted, unformatted) {
-		return nil, nil
-	}
-
-	return ComputeTextEdits(string(unformatted), string(formatted)), nil
+	// TODO(rstambler): Compute text edits instead of replacing whole file.
+	return []lsp.TextEdit{
+		{
+			Range:   *rng,
+			NewText: string(fmted),
+		},
+	}, nil
 }
 
-// ComputeTextEdits computes text edits that are required to
-// change the `unformatted` to the `formatted` text.
-func ComputeTextEdits(unformatted string, formatted string) []lsp.TextEdit {
-	// LSP wants a list of TextEdits. We use difflib to compute a
-	// non-naive TextEdit. Originally we returned an edit which deleted
-	// everything followed by inserting everything. This leads to a poor
-	// experience in vscode.
-	unformattedLines := strings.Split(unformatted, "\n")
-	formattedLines := strings.Split(formatted, "\n")
-	m := difflib.NewMatcher(unformattedLines, formattedLines)
-	var edits []lsp.TextEdit
-	for _, op := range m.GetOpCodes() {
-		switch op.Tag {
-		case 'r': // 'r' (replace):  a[i1:i2] should be replaced by b[j1:j2]
-			edits = append(edits, lsp.TextEdit{
-				Range: lsp.Range{
-					Start: lsp.Position{
-						Line: op.I1,
-					},
-					End: lsp.Position{
-						Line: op.I2,
-					},
-				},
-				NewText: strings.Join(formattedLines[op.J1:op.J2], "\n") + "\n",
-			})
-		case 'd': // 'd' (delete):   a[i1:i2] should be deleted, j1==j2 in this case.
-			edits = append(edits, lsp.TextEdit{
-				Range: lsp.Range{
-					Start: lsp.Position{
-						Line: op.I1,
-					},
-					End: lsp.Position{
-						Line: op.I2,
-					},
-				},
-			})
-		case 'i': // 'i' (insert):   b[j1:j2] should be inserted at a[i1:i1], i1==i2 in this case.
-			edits = append(edits, lsp.TextEdit{
-				Range: lsp.Range{
-					Start: lsp.Position{
-						Line: op.I1,
-					},
-					End: lsp.Position{
-						Line: op.I1,
-					},
-				},
-				NewText: strings.Join(formattedLines[op.J1:op.J2], "\n") + "\n",
-			})
+// positionToOffset converts a 0-based line and column number in a file
+// to a byte offset value.
+func positionToOffset(contents []byte, line, col int) (int, error) {
+	start := 0
+	for i := 0; i < int(line); i++ {
+		if start >= len(contents) {
+			return 0, fmt.Errorf("file contains %v lines, not %v lines", i, line)
 		}
+		index := bytes.IndexByte(contents[start:], '\n')
+		if index == -1 {
+			return 0, fmt.Errorf("file contains %v lines, not %v lines", i, line)
+		}
+		start += index + 1
 	}
-
-	return edits
+	offset := start + int(col)
+	return offset, nil
 }
+
+
