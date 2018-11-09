@@ -19,6 +19,7 @@ Bingo supports editor features as follow:
 - [x] textDocument/documentSymbol
 - [x] textDocument/completion
 - [x] textDocument/signatureHelp
+- [x] textDocument/publishDiagnostics
 - [ ] textDocument/rename
 - [ ] textDocument/codeAction
 - [ ] textDocument/codeLens
