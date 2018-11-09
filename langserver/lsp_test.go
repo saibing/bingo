@@ -290,7 +290,7 @@ var (
 )
 
 func initServer(rootDir string) {
-	root := util.PathToURI(rootDir)
+	root := util.PathToURI(filepath.ToSlash(rootDir))
 	fmt.Printf("root uri is %s\n", root)
 	cfg := NewDefaultConfig()
 	cfg.FuncSnippetEnabled = true
