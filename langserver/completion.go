@@ -13,6 +13,7 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 // NOTICE: Code adapted from https://github.com/golang/tools/blob/master/internal/lsp/completion.go.
@@ -29,20 +30,6 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 			Message: fmt.Sprintf("textDocument/complete not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
 		}
 	}
-	//
-	//items, prefix, err := completion(h.overlay.view, params.TextDocument.URI, params.Position)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//result := &lsp.CompletionList{Items: []lsp.CompletionItem{}, IsIncomplete:false}
-	//for _, item := range items {
-	//	if strings.HasPrefix(item.Label, prefix) {
-	//		item.TextEdit = &lsp.TextEdit{Range: getLspRange(params, len(prefix)), NewText: item.InsertText}
-	//		result.Items = append(result.Items, item)
-	//	}
-	//}
-	//return result, nil
 
 	f := h.overlay.view.GetFile(source.URI(params.TextDocument.URI))
 	tok, err := f.GetToken()
@@ -50,36 +37,39 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		return nil, err
 	}
 	pos := fromProtocolPosition(tok, params.Position)
-	items, err := source.Completion(ctx, f, pos)
+	items, prefix, err := source.Completion(ctx, f, pos)
 	if err != nil {
 		return nil, err
 	}
+
+	rangeInfo := getLspRange(params.Position, len(prefix))
 	return &lsp.CompletionList{
 		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items),
+		Items:        toProtocolCompletionItems(items, prefix, rangeInfo),
 	}, nil
 }
 
-
-
-func getLspRange(params lsp.CompletionParams, rangeLen int) lsp.Range {
+func getLspRange(pos lsp.Position, rangeLen int) lsp.Range {
 	return lsp.Range{
-		Start: lsp.Position{Line: params.Position.Line, Character: params.Position.Character - rangeLen},
-		End:   lsp.Position{Line: params.Position.Line, Character: params.Position.Character},
+		Start: lsp.Position{Line: pos.Line, Character: pos.Character - rangeLen},
+		End:   lsp.Position{Line: pos.Line, Character: pos.Character},
 	}
 }
 
-func toProtocolCompletionItems(items []source.CompletionItem) []lsp.CompletionItem {
+func toProtocolCompletionItems(items []source.CompletionItem, prefix string, rangeInfo lsp.Range) []lsp.CompletionItem {
 	var results []lsp.CompletionItem
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Score > items[j].Score
 	})
 	for _, item := range items {
-		results = append(results, lsp.CompletionItem{
-			Label:  item.Label,
-			Detail: item.Detail,
-			Kind:   toProtocolCompletionItemKind(item.Kind),
-		})
+		if strings.HasPrefix(item.Label, prefix) {
+			results = append(results, lsp.CompletionItem{
+				Label:    item.Label,
+				Detail:   item.Detail,
+				Kind:     toProtocolCompletionItemKind(item.Kind),
+				TextEdit: &lsp.TextEdit{Range: rangeInfo},
+			})
+		}
 	}
 	return results
 }
@@ -107,5 +97,4 @@ func toProtocolCompletionItemKind(kind source.CompletionItemKind) lsp.Completion
 	default:
 		return lsp.CIKText
 	}
-
 }

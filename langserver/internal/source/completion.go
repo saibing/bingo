@@ -37,17 +37,17 @@ const (
 	PackageCompletionItem
 )
 
-func Completion(ctx context.Context, f *File, pos token.Pos) ([]CompletionItem, error) {
+func Completion(ctx context.Context, f *File, pos token.Pos) ([]CompletionItem, string, error) {
 	file, err := f.GetAST()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	pkg, err := f.GetPackage()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	items, _, err := completions(file, pos, pkg.Fset, pkg.Types, pkg.TypesInfo)
-	return items, err
+	items, prefix, err := completions(file, pos, pkg.Fset, pkg.Types, pkg.TypesInfo)
+	return items, prefix, err
 }
 
 type finder func(types.Object, float64, []CompletionItem) []CompletionItem
