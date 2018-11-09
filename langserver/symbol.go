@@ -3,6 +3,7 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/build"
 	"go/parser"
@@ -289,14 +290,19 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 			Message: fmt.Sprintf("textDocument/documentSymbol not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
 		}
 	}
-	filename := util.UriToPath(params.TextDocument.URI)
 
-	pkg, err := h.packageCache.Load(ctx, conn, path.Dir(filename), nil)
+	f := h.overlay.view.GetFile(source.URI(params.TextDocument.URI))
+	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, err
 	}
 
-	symbols := astFileToSymbols(pkg, filename)
+	astFile, err := f.GetAST()
+	if err != nil {
+		return nil, err
+	}
+
+	symbols := astFileToSymbols(pkg, astFile)
 	res := make([]lsp.SymbolInformation, len(symbols))
 	for i, s := range symbols {
 		res[i] = s.SymbolInformation
@@ -504,17 +510,10 @@ func astPkgToSymbols(pkg *packages.Package) []symbolPair {
 	return symbolCollector.pkgSyms
 }
 
-func astFileToSymbols(pkg *packages.Package, filename string) []symbolPair {
-	var pkgSyms []symbolPair
-	symbolCollector := &SymbolCollector{pkgSyms, pkg, pkg.Fset}
-
-	for i, src := range pkg.Syntax {
-		if pkg.CompiledGoFiles[i] == filename {
-			ast.Walk(symbolCollector, src)
-			break
-		}
-	}
-
+func astFileToSymbols(pkg *packages.Package, astFile *ast.File) []symbolPair {
+	var pkgSymbols []symbolPair
+	symbolCollector := &SymbolCollector{pkgSymbols, pkg, pkg.Fset}
+	ast.Walk(symbolCollector, astFile)
 	return symbolCollector.pkgSyms
 }
 
