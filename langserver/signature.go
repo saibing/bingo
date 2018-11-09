@@ -3,8 +3,11 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
+	"go/token"
 	"go/types"
+	"golang.org/x/tools/go/packages"
 
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
@@ -19,21 +22,12 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 		}
 	}
 
-	//pkg, ctok, err := h.loadRealTimePackage(ctx, conn, params.TextDocument.URI, params.Position)
-	//if err != nil {
-	//	if _, ok := err.(*util.InvalidNodeError); !ok {
-	//		return nil, err
-	//	}
-	//}
-
-	pkg, _, qpos, err := h.overlay.view.TypeCheckAtPosition(params.TextDocument.URI, params.Position)
+	pkg, pos, err := h.typeCheck(params)
 	if err != nil {
-		if _, ok := err.(*util.InvalidNodeError); !ok {
-			return nil, err
-		}
+		return nil, err
 	}
 
-	pathNodes, _ := util.PathEnclosingInterval(pkg, qpos, qpos)
+	pathNodes, _ := util.PathEnclosingInterval(pkg, pos, pos)
 	call := util.CallExpr(pkg.Fset, pathNodes)
 	if call == nil {
 		return nil, nil
@@ -51,7 +45,7 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	}
 	activeParameter := len(call.Args)
 	for index, arg := range call.Args {
-		if arg.End() >= qpos {
+		if arg.End() >= pos {
 			activeParameter = index
 			break
 		}
@@ -78,6 +72,22 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	}
 
 	return &lsp.SignatureHelp{Signatures: []lsp.SignatureInformation{info}, ActiveSignature: 0, ActiveParameter: activeParameter}, nil
+}
+
+
+func (h *LangHandler) typeCheck(params lsp.TextDocumentPositionParams) (*packages.Package, token.Pos, error) {
+	f := h.overlay.view.GetFile(source.URI(string(params.TextDocument.URI)))
+	pkg, err := f.GetPackage()
+	if err != nil {
+		return nil, token.NoPos, err
+	}
+	tok, err := f.GetToken()
+	if err != nil {
+		return nil, token.NoPos, err
+	}
+
+	pos := fromProtocolPosition(tok, params.Position)
+	return pkg, pos, nil
 }
 
 // shortTyoe returns shorthand type notation without specifying type's import path

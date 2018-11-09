@@ -395,7 +395,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		if isFileSystemRequest(req.Method) {
 			uri, fileChanged, err := h.handleFileSystemRequest(ctx, req)
 			if fileChanged {
-				// a file changed, so we must re-typecheck and re-enumerate symbols
+				// a file changed, so we must re-typeCheck and re-enumerate symbols
 				h.resetCaches(true)
 			}
 			if uri != "" {
@@ -403,7 +403,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 				// (unless we're primarily using binary package cache .a
 				// files).
 				//if !h.config.UseBinaryPkgCache || (h.config.DiagnosticsEnabled && req.Method == "textDocument/didSave") {
-				//	go h.typecheck(ctx, conn, uri, lsp.Position{})
+				//	go h.typeCheck(ctx, conn, uri, lsp.Position{})
 				//}
 			}
 			return nil, err

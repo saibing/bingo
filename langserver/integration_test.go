@@ -42,7 +42,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 		lspTests(t, ctx, nil, conn, rootURI, cases)
 
 		// Now mimic what happens when a file is edited but not yet
-		// saved. It should re-typecheck using the unsaved file contents.
+		// saved. It should re-typeCheck using the unsaved file contents.
 		if err := conn.Call(ctx, "textDocument/didOpen", lsp.DidOpenTextDocumentParams{
 			TextDocument: lsp.TextDocumentItem{
 				URI:  uriJoin(rootURI, "A.go"),

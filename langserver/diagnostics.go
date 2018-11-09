@@ -17,10 +17,12 @@ import (
 // NOTICE: Code adapted from https://github.com/golang/tools/blob/master/internal/lsp/diagnostics.go.
 
 func diagnostics(v *source.View, uri lsp.DocumentURI) (map[string][]lsp.Diagnostic, error) {
-	pkg, err := v.TypeCheck(uri)
+	f := v.GetFile(source.URI(string(uri)))
+	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, err
 	}
+	
 	reports := make(map[string][]lsp.Diagnostic)
 	for _, filename := range pkg.GoFiles {
 		reports[filename] = []lsp.Diagnostic{}

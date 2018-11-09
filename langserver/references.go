@@ -179,7 +179,7 @@ func findReferences(ctx context.Context, fset *token.FileSet, packageCache *cach
 		}
 
 		// Record the query object and its package when we see
-		// it. We can't reuse obj from the initial typecheck
+		// it. We can't reuse obj from the initial typeCheck
 		// because each go/loader Load invocation creates new
 		// objects, and we need to test for equality later when we
 		// look up refs.

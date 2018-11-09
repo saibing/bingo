@@ -17,7 +17,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v0.9.1
 	github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910 // indirect
-	github.com/prometheus/common v0.0.0-20181020173914-7e9e6cabbd39 // indirect
+	github.com/prometheus/common v0.0.0-20181109100915-0b1957f9d949 // indirect
 	github.com/prometheus/procfs v0.0.0-20181005140218-185b4288413d // indirect
 	github.com/saibing/dep v1.0.2
 	github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3
@@ -27,6 +27,6 @@ require (
 	golang.org/x/net v0.0.0-20181108082009-03003ca0c849
 	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
 	golang.org/x/sys v0.0.0-20181107165924-66b7b1311ac8 // indirect
-	golang.org/x/tools v0.0.0-20181107225058-a28dfb48e06b
+	golang.org/x/tools v0.0.0-20181108221941-77439c55185e
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
 )

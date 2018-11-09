@@ -26,7 +26,7 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 		}
 	}
 
-	// Do initial cached, standard typecheck pass to get position arg.
+	// Do initial cached, standard typeCheck pass to get position arg.
 	pkg, ctok, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is

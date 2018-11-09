@@ -90,7 +90,7 @@ func testDiagnostics(t *testing.T, exporter packagestest.Exporter) {
 	v.Config.Mode = packages.LoadSyntax
 	for _, pkg := range pkgs {
 		for _, filename := range pkg.GoFiles {
-			diagnostics, err := diagnostics(v, source.ToURI(filename))
+			diagnostics, err := diagnostics(v, lsp.DocumentURI(source.ToURI(filename)))
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -25,13 +25,13 @@ var (
 
 	typecheckCacheSize = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: "golangserver",
-		Subsystem: "typecheck",
+		Subsystem: "typeCheck",
 		Name:      "cache_size",
-		Help:      "Number of items in the typecheck cache",
+		Help:      "Number of items in the typeCheck cache",
 	})
 	typecheckCacheTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "golangserver",
-		Subsystem: "typecheck",
+		Subsystem: "typeCheck",
 		Name:      "cache_request_total",
 		Help:      "Count of requests to cache.",
 	}, []string{"type"})
