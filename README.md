@@ -14,12 +14,17 @@ Bingo supports editor features as follow:
 - [x] textDocument/typeDefinition
 - [x] textDocument/references
 - [x] textDocument/implementation
-- [ ] textDocument/formatting
-- [ ] textDocument/documentSymbol
-- [ ] textDocument/completion
-- [ ] textDocument/signatureHelp
-- [ ] workspace/symbol
-- [ ] workspace/xreferences
+- [x] textDocument/formatting
+- [x] textDocument/rangeFormatting
+- [x] textDocument/documentSymbol
+- [x] textDocument/completion
+- [x] textDocument/signatureHelp
+- [ ] textDocument/rename
+- [ ] textDocument/codeAction
+- [ ] textDocument/codeLens
+- [x] workspace/symbol
+- [x] workspace/xreferences
+
 
 
 Bingo only support go module, so you need install [Go 1.11 or above](https://golang.google.cn/dl/),
