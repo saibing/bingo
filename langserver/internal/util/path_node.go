@@ -131,10 +131,25 @@ func GetPathNode(pkg *packages.Package, start, end token.Pos) ([]ast.Node, *ast.
 	return nodes, node, nil
 }
 
+func searchPackage(root *packages.Package, path string) *packages.Package {
+	if pkg, ok := root.Imports[path]; ok {
+		return pkg
+	}
+
+	for _, importPkg := range root.Imports {
+		pkg := searchPackage(importPkg, path)
+		if pkg != nil {
+			return pkg
+		}
+	}
+
+	return nil
+}
+
 func GetObjectPathNode(pkg *packages.Package, o types.Object) ([]ast.Node, *ast.Ident, error) {
 	nodes, node, err := GetPathNode(pkg, o.Pos(), o.Pos())
 	if len(nodes) == 0 {
-		return GetPathNode(pkg.Imports[o.Pkg().Name()], o.Pos(), o.Pos())
+		return GetPathNode(searchPackage(pkg, o.Pkg().Path()), o.Pos(), o.Pos())
 	}
 
 	return nodes, node, err

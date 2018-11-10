@@ -5,6 +5,7 @@
 package langserver
 
 import (
+	"fmt"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
 	"go/token"
@@ -21,6 +22,10 @@ func diagnostics(v *source.View, uri lsp.DocumentURI) (map[string][]lsp.Diagnost
 	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, err
+	}
+
+	if pkg == nil {
+		return nil, fmt.Errorf("package is null for file %s", uri)
 	}
 	
 	reports := make(map[string][]lsp.Diagnostic)

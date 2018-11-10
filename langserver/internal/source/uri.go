@@ -31,12 +31,14 @@ func (uri URI) Filename() (string, error) {
 	//}
 	//s = filepath.FromSlash(s)
 	//return s, nil
-	return util.UriToRealPath(lsp.DocumentURI(uri)), nil
+	s := util.UriToRealPath(lsp.DocumentURI(uri))
+	return s, nil
 }
 
 // ToURI returns a protocol URI for the supplied path.
 // It will always have the file scheme.
 func ToURI(path string) URI {
 	//return URI(fileSchemePrefix + filepath.ToSlash(path))
-	return URI(util.PathToURI(path))
+	uri := URI(util.PathToURI(path))
+	return uri
 }

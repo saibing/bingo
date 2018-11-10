@@ -124,7 +124,7 @@ func doDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 		definition = path.Join(dir, base)
 	}
 
-	want = filepath.Join(exported.Config.Dir, want)
+	want = filepath.ToSlash(filepath.Join(exported.Config.Dir, want))
 	if definition != want  {
 		t.Errorf("got %q, want %q", definition, want)
 	}

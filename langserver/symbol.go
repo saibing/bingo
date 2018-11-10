@@ -291,10 +291,15 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 		}
 	}
 
-	f := h.overlay.view.GetFile(source.URI(params.TextDocument.URI))
+	uri := source.URI(params.TextDocument.URI)
+	f := h.overlay.view.GetFile(uri)
 	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, err
+	}
+
+	if pkg == nil {
+		return nil, fmt.Errorf("package is null for file %s", uri)
 	}
 
 	astFile, err := f.GetAST()
