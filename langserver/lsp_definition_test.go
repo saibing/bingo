@@ -110,7 +110,7 @@ func doDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 		t.Fatal(err)
 	}
 	if definition != "" {
-		definition = util.UriToPath(lsp.DocumentURI(definition))
+		definition = filepath.ToSlash(util.UriToRealPath(lsp.DocumentURI(definition)))
 		if trimPrefix != "" {
 			definition = strings.TrimPrefix(definition, util.UriToPath(util.PathToURI(trimPrefix)))
 		}
