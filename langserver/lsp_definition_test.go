@@ -8,6 +8,7 @@ import (
 	"log"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -124,7 +125,14 @@ func doDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 		definition = path.Join(dir, base)
 	}
 
-	want = filepath.ToSlash(filepath.Join(exported.Config.Dir, want))
+	if strings.HasPrefix(want, goroot) {
+		want = filepath.ToSlash(filepath.Join(runtime.GOROOT(), want[len(goroot):]))
+	} else if strings.HasPrefix(want, gomodule) {
+		want = filepath.ToSlash(filepath.Join(gomoduleDir, want[len(gomodule):]))
+	} else {
+		want = filepath.ToSlash(filepath.Join(exported.Config.Dir, want))
+	}
+
 	if definition != want  {
 		t.Errorf("got %q, want %q", definition, want)
 	}
