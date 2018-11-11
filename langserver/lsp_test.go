@@ -73,6 +73,7 @@ package main;  func B() { p.A(); B() }`,
 
 			"typealias/a.go":`package p; type A struct{ a int }`,
 			"typealias/b.go":`package p; type B = A`,
+
 			"unexpected_paths/a.go":`package p; func A() { A() }`,
 
 			"xreferences/a.go":`package p; import "fmt"; var _ = fmt.Println; var x int`,

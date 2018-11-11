@@ -116,12 +116,12 @@ func TestHover(t *testing.T) {
 	t.Run("go1.9 type alias", func(t *testing.T) {
 		test(t, "typealias/a.go:1:17", "type A struct; struct {\n    a int\n}")
 		test(t, "typealias/b.go:1:17", "type B struct; struct {\n    a int\n}")
-		test(t, "typealias/b.go:1:20", "")
+		test(t, "typealias/b.go:1:20", "type B struct; struct {\n    a int\n}")
 		test(t, "typealias/b.go:1:21", "type A struct; struct {\n    a int\n}")
 	})
 
 	t.Run("unexpected paths hover", func(t *testing.T) {
-		test(t, "unexpected_paths/a.go", "func A()")
+		test(t, "unexpected_paths/a.go:1:17", "func A()")
 	})
 }
 

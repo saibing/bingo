@@ -55,6 +55,8 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		return hoverIdent(pkg, node, params.Position)
 	case *ast.BasicLit:
 		return hoverBasicLit(pkg, pathNodes, node, params.Position)
+	case *ast.TypeSpec:
+		return hoverIdent(pkg, node.Name, params.Position)
 	}
 
 	return nil, util.NewInvalidNodeError(pkg, pathNodes[0])
