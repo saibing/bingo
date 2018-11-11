@@ -96,7 +96,7 @@ func doReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 		t.Fatal(err)
 	}
 	for i := range references {
-		references[i] = util.UriToPath(lsp.DocumentURI(references[i]))
+		references[i] = filepath.ToSlash(util.UriToRealPath(lsp.DocumentURI(references[i])))
 	}
 
 	for i := range want {
