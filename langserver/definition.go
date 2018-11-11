@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"golang.org/x/tools/go/packages"
 	"log"
 )
 
@@ -71,10 +72,18 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		return nil, err
 	}
 
-	ident, err := util.FetchIdentFromPathNodes(pkg, pathNodes)
-	if err != nil {
-		return nil, err
+	firstNode := pathNodes[0]
+	switch node := firstNode.(type) {
+	case *ast.Ident:
+		return h.lookupIdentDefinition(ctx, conn, pkg, pathNodes, node)
+	case *ast.TypeSpec:
+		return h.lookupIdentDefinition(ctx, conn, pkg, pathNodes, node.Name)
+	default:
+		return nil, util.NewInvalidNodeError(pkg, firstNode)
 	}
+}
+
+func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg *packages.Package, pathNodes []ast.Node, ident *ast.Ident) ([]symbolLocationInformation, error) {
 
 	var nodes []foundNode
 	obj, ok := pkg.TypesInfo.Uses[ident]
@@ -99,7 +108,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 	if len(nodes) == 0 {
 		return nil, errors.New("definition not found")
 	}
-	findPackage := h.getFindModulePackageFunc()
+	findPackage := h.getFindPackageFunc()
 	locs := make([]symbolLocationInformation, 0, len(nodes))
 	for _, found := range nodes {
 		// Determine location information for the ident.

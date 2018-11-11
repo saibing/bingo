@@ -81,7 +81,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 	span.SetTag("pkg", pkg)
 
 	// Compute workspace references.
-	findPackage := h.getFindModulePackageFunc()
+	findPackage := h.getFindPackageFunc()
 	cfg := &refs.Config{
 		FileSet:  pkg.Fset,
 		Pkg:      pkg.Types,
@@ -126,7 +126,7 @@ func defSymbolDescriptor(
 	pkg *packages.Package,
 	packageCache *caches.PackageCache,
 	rootPath string, def refs.Def,
-	findPackage FindModulePackageFunc) (*symbolDescriptor, error) {
+	findPackage FindPackageFunc) (*symbolDescriptor, error) {
 
 	var err error
 	defPkg, _ := pkg.Imports[def.ImportPath]

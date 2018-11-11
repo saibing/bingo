@@ -80,7 +80,7 @@ func TestDefinition(t *testing.T) {
 	t.Run("go1.9 type alias", func(t *testing.T) {
 		test(t, "typealias/a.go:1:17", "typealias/a.go:1:17-1:18")
 		test(t, "typealias/b.go:1:17", "typealias/b.go:1:17-1:18")
-		test(t, "typealias/b.go:1:20", "")
+		test(t, "typealias/b.go:1:20", "typealias/b.go:1:17-1:18")
 		test(t, "typealias/b.go:1:21", "typealias/a.go:1:17-1:18")
 	})
 }
