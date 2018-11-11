@@ -3,16 +3,12 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/caches"
 	"go/build"
-	"go/scanner"
 	"go/token"
 	"golang.org/x/tools/go/packages"
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/opentracing/opentracing-go"
 
 	"github.com/saibing/bingo/langserver/internal/util"
 
@@ -76,123 +72,55 @@ func isMultiplePackageError(err error) bool {
 	return ok
 }
 
+func (h *LangHandler) loadFromGlobalCache(ctx context.Context, conn jsonrpc2.JSONRPC2,  fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
+	pos := token.NoPos
 
-type cursorToken struct {
-	pos token.Pos
-	tok token.Token
-	lit string
-}
-
-func (h *LangHandler) loadPackage(ctx context.Context, conn jsonrpc2.JSONRPC2, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, cursorToken, error) {
-	parentSpan := opentracing.SpanFromContext(ctx)
-	span := parentSpan.Tracer().StartSpan("langserver-go: load program",
-		opentracing.Tags{"fileURI": fileURI},
-		opentracing.ChildOf(parentSpan.Context()),
-	)
-	ctx = opentracing.ContextWithSpan(ctx, span)
-	defer span.Finish()
-
-	ctok := cursorToken{}
 	if !util.IsURI(fileURI) {
-		return nil, ctok, fmt.Errorf("typechecking of out-of-workspace URI (%q) is not yet supported", fileURI)
+		return nil, pos, fmt.Errorf("typechecking of out-of-workspace URI (%q) is not yet supported", fileURI)
 	}
 
 	filename := h.FilePath(fileURI)
 
-	bctx := h.BuildContext(ctx)
-	pkg, err := h.load(ctx, bctx, conn, filename)
+	pkg, err := h.load(ctx, conn, filename)
 	if mpErr, ok := err.(*build.MultiplePackageError); ok {
 		pkg, err = buildPackageForNamedFileInMultiPackageDir(pkg, mpErr, path.Base(filename))
 		if err != nil {
-			return nil, ctok, err
+			return nil, pos, err
 		}
 	} else if err != nil {
-		return nil, ctok, err
+		return nil, pos, err
 	}
 
 	if pkg == nil {
-		return nil, ctok, fmt.Errorf("%s does not exist", filename)
+		return nil, pos, fmt.Errorf("%s does not exist", filename)
 	}
 
-
-	ctok, err = h.startPos(ctx, pkg, fileURI, position)
-	return pkg, ctok, err
+	pos, err = h.startPos(ctx, pkg, fileURI, position)
+	return pkg, pos, err
 }
 
-func (h *LangHandler) startPos(ctx context.Context, pkg *packages.Package, fileURI lsp.DocumentURI, position lsp.Position) (cursorToken, error) {
-
-	ctok := cursorToken{pos:token.NoPos}
+func (h *LangHandler) startPos(ctx context.Context, pkg *packages.Package, fileURI lsp.DocumentURI, position lsp.Position) (token.Pos, error) {
+	pos := token.NoPos
 
 	contents, err := h.readFile(ctx, fileURI)
 	if err != nil {
-		return ctok, err
+		return pos, err
 	}
 
 	filename := h.FilePath(fileURI)
 	offset, valid, why := offsetForPosition(contents, position)
 	if !valid {
-		return ctok, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, position.Line, position.Character, why)
+		return pos, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, position.Line, position.Character, why)
 	}
 
-	ctok.pos = util.PosForFileOffset(pkg.Fset, filename, offset)
-	if ctok.pos == token.NoPos {
-		return ctok, fmt.Errorf("invalid location: %s:#%d", filename, offset)
+	pos = util.PosForFileOffset(pkg.Fset, filename, offset)
+	if pos == token.NoPos {
+		return pos, fmt.Errorf("invalid location: %s:#%d", filename, offset)
 	}
 
-	ctok.tok, ctok.lit = scanCursorToken(contents, offset)
-	return ctok, nil
+	return pos, nil
 }
 
-func scanCursorToken(file []byte, offset int) (token.Token, string) {
-	fset := token.NewFileSet()
-	var s scanner.Scanner
-	s.Init(fset.AddFile("", fset.Base(), len(file)), file, nil, scanner.ScanComments)
-
-	var foundTok token.Token
-	var foundLit string
-	for {
-		pos, tok, lit := s.Scan()
-		if tok == token.EOF || fset.Position(pos).Offset >= offset {
-			break
-		}
-
-		foundTok = tok
-		foundLit = lit
-	}
-
-	return foundTok, foundLit
-}
-
-
-func (h *LangHandler) loadRealTime(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2, filename string) (*packages.Package, error) {
-	pkgDir := filename
-	if !bctx.IsDir(filename) {
-		pkgDir = path.Dir(filename)
-	}
-
-	cfg := &packages.Config{Mode: packages.LoadSyntax, Context: ctx, Tests: true}
-	pkgList, err := packages.Load(cfg, caches.GetLoadDir(pkgDir))
-	if err != nil {
-		return nil, err
-	}
-
-	return pkgList[0], nil
-}
-
-// ContainingPackageModule returns the package that contains the given
-// filename. It is like buildutil.ContainingPackage, except that:
-//
-// * it returns the whole package (i.e., it doesn't use build.FindOnly)
-// * it does not perform FS calls that are unnecessary for us (such
-//   as searching the GOROOT; this is only called on the main
-//   workspace's code, not its deps).
-// * if the file is in the xtest package (package p_test not package p),
-//   it returns build.Package only representing that xtest package
-func (h *LangHandler) load(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2, filename string) (*packages.Package, error) {
-	pkgDir := filename
-	if !bctx.IsDir(filename) {
-		pkgDir = path.Dir(filename)
-	}
-
-	return h.packageCache.Load(ctx, conn, pkgDir, nil)
+func (h *LangHandler) load(ctx context.Context, conn jsonrpc2.JSONRPC2, filename string) (*packages.Package, error) {
+	return h.packageCache.Load(ctx, conn, path.Dir(filename), nil)
 }

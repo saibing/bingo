@@ -11,9 +11,6 @@ import (
 	"sync"
 	"time"
 
-	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -156,17 +153,6 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 	if conn, ok := conn.(*jsonrpc2.Conn); ok && conn != nil {
 		h.InitTracer(conn)
 	}
-	span, ctx, err := h.SpanForRequest(ctx, "lang", req, opentracing.Tags{"mode": "go"})
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err != nil {
-			ext.Error.Set(span, true)
-			span.LogEvent(fmt.Sprintf("error: %v", err))
-		}
-		span.Finish()
-	}()
 
 	// Notifications don't have an ID, so they can't be cancelled
 	if cancelManager != nil && !req.Notif {

@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/util"
+	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
-
-	"github.com/saibing/bingo/langserver/internal/util"
-	"github.com/saibing/bingo/pkg/lsp"
-	"github.com/sourcegraph/jsonrpc2"
+	"strings"
 )
 
 func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.SignatureHelp, error) {
@@ -22,7 +22,7 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 		}
 	}
 
-	pkg, pos, err := h.typeCheck(params)
+	pkg, pos, err := h.typeCheck(ctx, conn, params)
 	if err != nil {
 		return nil, err
 	}
@@ -74,9 +74,18 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	return &lsp.SignatureHelp{Signatures: []lsp.SignatureInformation{info}, ActiveSignature: 0, ActiveParameter: activeParameter}, nil
 }
 
+func (h *LangHandler) typeCheck(ctx context.Context, conn jsonrpc2.JSONRPC2, params lsp.TextDocumentPositionParams) (*packages.Package, token.Pos, error) {
+	uri := source.FromDocumentURI(params.TextDocument.URI)
 
-func (h *LangHandler) typeCheck(params lsp.TextDocumentPositionParams) (*packages.Package, token.Pos, error) {
-	f := h.overlay.view.GetFile(source.FromDocumentURI(params.TextDocument.URI))
+	if strings.HasPrefix(string(uri), string(h.init.RootURI)) {
+		return h.loadFromSourceView(uri, params)
+	}
+
+	return h.loadFromGlobalCache(ctx, conn, params.TextDocument.URI, params.Position)
+}
+
+func (h *LangHandler) loadFromSourceView(uri source.URI,  params lsp.TextDocumentPositionParams) (*packages.Package, token.Pos, error) {
+	f := h.overlay.view.GetFile(uri)
 	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, token.NoPos, err

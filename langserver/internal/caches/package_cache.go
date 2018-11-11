@@ -32,7 +32,11 @@ const windowsOS = "windows"
 func (c *PackageCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *source.View) error {
 	c.rootDir = root
 	c.view = view
-	return c.buildCache(ctx, conn, nil)
+
+	err := c.buildCache(ctx, conn, nil)
+	//msg := fmt.Sprintf("cache root package: %s successfully!", root)
+	//conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: msg})
+	return err
 }
 
 func (c *PackageCache) Root() string {
@@ -68,8 +72,7 @@ func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2, o
 	c.pool = packagePool{}
 
 	loadDir := GetLoadDir(c.rootDir)
-	msg := fmt.Sprintf("cache root package: %s ...", loadDir)
-	conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: msg})
+
 	cfg := &packages.Config{
 		Dir:loadDir,
 		Fset: c.view.Config.Fset,
@@ -84,8 +87,7 @@ func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2, o
 		return err
 	}
 	c.push(ctx, conn, pkgList)
-
-	msg = fmt.Sprintf("cache root package: %s successfully!", loadDir)
+	msg := fmt.Sprintf("cache package for %s successfully!", loadDir)
 	conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: msg})
 	return nil
 }

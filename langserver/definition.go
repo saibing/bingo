@@ -57,7 +57,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		}
 	}
 
-	pkg, pos, err := h.typeCheck(params)
+	pkg, pos, err := h.typeCheck(ctx, conn, params)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no locations.

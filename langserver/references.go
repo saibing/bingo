@@ -26,7 +26,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		}
 	}
 
-	pkg, ctok, err := h.loadPackage(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, pos, err := h.loadFromGlobalCache(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
@@ -36,7 +36,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		return nil, err
 	}
 
-	pathNodes, err := util.GetPathNodes(pkg, ctok.pos, ctok.pos)
+	pathNodes, err := util.GetPathNodes(pkg, pos, pos)
 	if err != nil {
 		return nil, err
 	}

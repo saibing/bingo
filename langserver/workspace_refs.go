@@ -3,8 +3,6 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
-	"go/build"
 	"log"
 	"math"
 	"strings"
@@ -14,7 +12,6 @@ import (
 	"github.com/saibing/bingo/langserver/internal/caches"
 	"golang.org/x/tools/go/packages"
 
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/saibing/bingo/langserver/internal/refs"
 	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -32,11 +29,10 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 	ctx, cancel := context.WithTimeout(ctx, workspaceReferencesTimeout)
 	defer cancel()
 	rootPath := h.FilePath(h.init.Root())
-	bctx := h.BuildContext(ctx)
 
 	var results = refResult{results: make([]referenceInformation, 0)}
 	f := func(pkg *packages.Package) error {
-		err := h.workspaceRefsFromPkg(ctx, bctx, conn, params, pkg, rootPath, &results)
+		err := h.workspaceRefsFromPkg(ctx, conn, params, pkg, rootPath, &results)
 		if err != nil {
 			log.Printf("workspaceRefsFromPkg: %v: %v", pkg, err)
 		}
@@ -66,19 +62,10 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 
 // workspaceRefsFromPkg collects all the references made to dependencies from
 // the specified package and returns the results.
-func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2, params lspext.WorkspaceReferencesParams, pkg *packages.Package, rootPath string, results *refResult) (err error) {
+func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JSONRPC2, params lspext.WorkspaceReferencesParams, pkg *packages.Package, rootPath string, results *refResult) (err error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	span, ctx := opentracing.StartSpanFromContext(ctx, "workspaceRefsFromPkg")
-	defer func() {
-		if err != nil {
-			ext.Error.Set(span, true)
-			span.SetTag("err", err.Error())
-		}
-		span.Finish()
-	}()
-	span.SetTag("pkg", pkg)
 
 	// Compute workspace references.
 	findPackage := h.getFindPackageFunc()
@@ -94,10 +81,8 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 			// Log the error, and flag it as one in the trace -- but do not
 			// halt execution (hopefully, it is limited to a small subset of
 			// the data).
-			ext.Error.Set(span, true)
 			err := fmt.Errorf("workspaceRefsFromPkg: failed to import %v: %v", r.Def.ImportPath, err)
 			log.Println(err)
-			span.SetTag("error", err.Error())
 			return
 		}
 		if !symDesc.Contains(params.Query) {
@@ -115,7 +100,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 		// Trace the error, but do not consider it a true error. In many cases
 		// it is a problem with the user's code, not our workspace reference
 		// finding code.
-		span.SetTag("err", fmt.Sprintf("workspaceRefsFromPkg: workspace refs failed: %v: %v", pkg, refsErr))
+		log.Println(fmt.Sprintf("workspaceRefsFromPkg: workspace refs failed: %v: %v", pkg, refsErr))
 	}
 	return nil
 }
