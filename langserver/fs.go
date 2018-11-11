@@ -12,8 +12,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/opentracing/opentracing-go"
-
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/jsonrpc2"
@@ -33,13 +31,11 @@ func isFileSystemRequest(method string) bool {
 // handleFileSystemRequest handles textDocument/did* requests. The URI the
 // request is for is returned. true is returned if a file was modified.
 func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrpc2.Request) (lsp.DocumentURI, bool, error) {
-	span := opentracing.SpanFromContext(ctx)
 	h.Mu.Lock()
 	overlay := h.overlay
 	h.Mu.Unlock()
 
 	do := func(uri lsp.DocumentURI, op func() error) (lsp.DocumentURI, bool, error) {
-		span.SetTag("uri", uri)
 		before, beforeErr := h.readFile(ctx, uri)
 		if beforeErr != nil && !os.IsNotExist(beforeErr) {
 			// There is no op that could succeed in this case. (Most

@@ -6,8 +6,6 @@ import (
 	"log"
 	"sync"
 
-	opentracing "github.com/opentracing/opentracing-go"
-
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 )
@@ -20,7 +18,6 @@ type HandlerCommon struct {
 	mu         sync.Mutex // guards all fields
 	RootFSPath string     // root path of the project's files in the (possibly virtual) file system, without the "file://" prefix (typically /src/github.com/foo/bar)
 	shutdown   bool
-	tracer     opentracing.Tracer
 }
 
 func (h *HandlerCommon) Reset(rootURI lsp.DocumentURI) error {
