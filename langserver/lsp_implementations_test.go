@@ -91,7 +91,7 @@ func doImplementationTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 		t.Fatal(err)
 	}
 	for i := range impls {
-		impls[i] = util.UriToPath(lsp.DocumentURI(impls[i]))
+		impls[i] = filepath.ToSlash(util.UriToRealPath(lsp.DocumentURI(impls[i])))
 	}
 	sort.Strings(impls)
 
