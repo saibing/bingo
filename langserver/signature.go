@@ -76,7 +76,7 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 
 
 func (h *LangHandler) typeCheck(params lsp.TextDocumentPositionParams) (*packages.Package, token.Pos, error) {
-	f := h.overlay.view.GetFile(source.URI(string(params.TextDocument.URI)))
+	f := h.overlay.view.GetFile(source.FromDocumentURI(params.TextDocument.URI))
 	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, token.NoPos, err

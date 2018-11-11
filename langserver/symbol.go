@@ -291,7 +291,7 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 		}
 	}
 
-	uri := source.URI(params.TextDocument.URI)
+	uri := source.FromDocumentURI(params.TextDocument.URI)
 	f := h.overlay.view.GetFile(uri)
 	pkg, err := f.GetPackage()
 	if err != nil {

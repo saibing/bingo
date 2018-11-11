@@ -14,7 +14,7 @@ import (
 // It will return an error if the file of the location was not valid.
 // It uses fromProtocolRange to convert the start and end positions.
 func fromProtocolLocation(v *source.View, loc lsp.Location) (source.Range, error) {
-	f := v.GetFile(source.URI(loc.URI))
+	f := v.GetFile(source.FromDocumentURI(loc.URI))
 	tok, err := f.GetToken()
 	if err != nil {
 		return source.Range{}, err

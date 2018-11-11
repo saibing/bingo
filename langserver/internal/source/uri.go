@@ -7,38 +7,62 @@
 package source
 
 import (
-	"github.com/saibing/bingo/langserver/internal/util"
+	"fmt"
 	"github.com/saibing/bingo/pkg/lsp"
+	"net/url"
+	"path/filepath"
+	"strings"
 )
 
 const fileSchemePrefix = "file://"
 
 // URI represents the full uri for a file.
-type URI lsp.DocumentURI
+type URI string
 
 // Filename gets the file path for the URI.
 // It will return an error if the uri is not valid, or if the URI was not
 // a file URI
 func (uri URI) Filename() (string, error) {
-	//s := string(uri)
-	//if !strings.HasPrefix(s, fileSchemePrefix) {
-	//	return "", fmt.Errorf("only file URI's are supported, got %v", uri)
-	//}
-	//s = s[len(fileSchemePrefix):]
-	//s, err := url.PathUnescape(s)
-	//if err != nil {
-	//	return s, err
-	//}
-	//s = filepath.FromSlash(s)
-	//return s, nil
-	s := util.UriToRealPath(lsp.DocumentURI(uri))
-	return s, nil
+	return toFilename(string(uri))
+}
+
+func toFilename(uri string) (string, error) {
+	if !strings.HasPrefix(uri, fileSchemePrefix) {
+		return "", fmt.Errorf("only file URI's are supported, got %v", uri)
+	}
+
+	uri = uri[len(fileSchemePrefix):]
+	if uri[0] == '/' {
+		uri = uri[1:]
+	}
+
+	uri, err := url.PathUnescape(uri)
+	if err != nil {
+		return uri, err
+	}
+
+	uri = filepath.FromSlash(uri)
+	return uri, nil
+	//uri = util.UriToRealPath(lsp.DocumentURI(uri))
+	//return uri, nil
 }
 
 // ToURI returns a protocol URI for the supplied path.
 // It will always have the file scheme.
 func ToURI(path string) URI {
-	//return URI(fileSchemePrefix + filepath.ToSlash(path))
-	uri := URI(util.PathToURI(path))
-	return uri
+	uri := filepath.ToSlash(path)
+
+	if uri[0] != '/' {
+		uri = "/" + uri
+	}
+
+	return URI(fileSchemePrefix + uri)
+	//uri := URI(util.PathToURI(path))
+	//return uri
+}
+
+// FromDocumentURI create a URI from lsp.DocumentURI
+func FromDocumentURI(uri lsp.DocumentURI) URI {
+	s, _ := toFilename(string(uri))
+	return ToURI(s)
 }

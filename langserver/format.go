@@ -46,7 +46,7 @@ func (h *LangHandler) handleTextDocumentRangeFormatting(ctx context.Context, con
 
 // formatRange formats a document with a given range.
 func formatRange(v *source.View, uri lsp.DocumentURI, rng *lsp.Range) ([]lsp.TextEdit, error) {
-	data, err := v.GetFile(source.URI(uri)).Read()
+	data, err := v.GetFile(source.FromDocumentURI(uri)).Read()
 	if err != nil {
 		return nil, err
 	}

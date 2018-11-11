@@ -18,7 +18,7 @@ import (
 // NOTICE: Code adapted from https://github.com/golang/tools/blob/master/internal/lsp/diagnostics.go.
 
 func diagnostics(v *source.View, uri lsp.DocumentURI) (map[string][]lsp.Diagnostic, error) {
-	f := v.GetFile(source.URI(string(uri)))
+	f := v.GetFile(source.FromDocumentURI(uri))
 	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, err

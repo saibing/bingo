@@ -29,7 +29,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		}
 	}
 
-	f := h.overlay.view.GetFile(source.URI(params.TextDocument.URI))
+	f := h.overlay.view.GetFile(source.FromDocumentURI(params.TextDocument.URI))
 	tok, err := f.GetToken()
 	if err != nil {
 		return nil, err
