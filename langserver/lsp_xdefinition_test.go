@@ -10,6 +10,7 @@ import (
 	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -89,13 +90,24 @@ func doXDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, root
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	xdefinition, err := callXDefinition(ctx, c, uriJoin(rootURI, file), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
-	xdefinition = util.UriToPath(lsp.DocumentURI(xdefinition))
 
-	want = filepath.Join(exported.Config.Dir, want)
+	if xdefinition != "" {
+		xdefinition = filepath.ToSlash(util.UriToRealPath(lsp.DocumentURI(xdefinition)))
+	}
+
+	if strings.HasPrefix(want, goroot) {
+		want = filepath.ToSlash(filepath.Join(runtime.GOROOT(), want[len(goroot):]))
+	} else if strings.HasPrefix(want, gomodule) {
+		want = filepath.ToSlash(filepath.Join(gomoduleDir, want[len(gomodule):]))
+	} else if want != "" {
+		want = filepath.ToSlash(filepath.Join(exported.Config.Dir, want))
+	}
+
 	if xdefinition != want {
 		t.Errorf("\ngot  %q\nwant %q", xdefinition, want)
 	}

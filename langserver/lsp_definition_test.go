@@ -128,7 +128,7 @@ func doDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 		want = filepath.ToSlash(filepath.Join(runtime.GOROOT(), want[len(goroot):]))
 	} else if strings.HasPrefix(want, gomodule) {
 		want = filepath.ToSlash(filepath.Join(gomoduleDir, want[len(gomodule):]))
-	} else {
+	} else if want != "" {
 		want = filepath.ToSlash(filepath.Join(exported.Config.Dir, want))
 	}
 
