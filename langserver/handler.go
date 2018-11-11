@@ -150,10 +150,6 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		return nil, err
 	}
 
-	if conn, ok := conn.(*jsonrpc2.Conn); ok && conn != nil {
-		h.InitTracer(conn)
-	}
-
 	// Notifications don't have an ID, so they can't be cancelled
 	if cancelManager != nil && !req.Notif {
 		var cancel func()
