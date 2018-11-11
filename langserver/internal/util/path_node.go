@@ -108,28 +108,38 @@ func (e *InvalidNodeError) Error() string {
 	return e.msg
 }
 
-func GetPathNode(pkg *packages.Package, start, end token.Pos) ([]ast.Node, *ast.Ident, error) {
+func GetPathNodes(pkg *packages.Package, start, end token.Pos) ([]ast.Node, error) {
 	nodes, _ := PathEnclosingInterval(pkg, start, end)
 	if len(nodes) == 0 {
 		s := pkg.Fset.Position(start)
-		return nodes, nil, fmt.Errorf("no node found at %s offset %d", s, s.Offset)
+		return nodes, fmt.Errorf("no node found at %s offset %d", s, s.Offset)
 	}
 
-	firstNode := nodes[0]
-	node, ok := firstNode.(*ast.Ident)
-	if !ok {
-		lineCol := func(p token.Pos) string {
-			pp := pkg.Fset.Position(p)
-			return fmt.Sprintf("%d:%d", pp.Line, pp.Column)
-		}
-		return nil, nil, &InvalidNodeError{
-			Node: firstNode,
-			msg: fmt.Sprintf("invalid node: %s (%s-%s)",
-				reflect.TypeOf(firstNode).Elem(), lineCol(firstNode.Pos()), lineCol(firstNode.End())),
-		}
-	}
-	return nodes, node, nil
+	return nodes, nil
 }
+
+func FetchIdentFromPathNodes(pkg *packages.Package, nodes []ast.Node) (*ast.Ident, error) {
+	firstNode := nodes[0]
+	switch node := firstNode.(type) {
+	case *ast.Ident:
+		return node, nil
+	default:
+		return nil, NewInvalidNodeError(pkg, firstNode)
+	}
+}
+
+func NewInvalidNodeError(pkg *packages.Package, node ast.Node) *InvalidNodeError {
+	lineCol := func(p token.Pos) string {
+		pp := pkg.Fset.Position(p)
+		return fmt.Sprintf("%d:%d", pp.Line, pp.Column)
+	}
+	return &InvalidNodeError{
+		Node: node,
+		msg: fmt.Sprintf("invalid node: %s (%s-%s)",
+			reflect.TypeOf(node).Elem(), lineCol(node.Pos()), lineCol(node.End())),
+	}
+}
+
 
 func searchPackage(root *packages.Package, path string) *packages.Package {
 	if pkg, ok := root.Imports[path]; ok {
@@ -146,13 +156,17 @@ func searchPackage(root *packages.Package, path string) *packages.Package {
 	return nil
 }
 
-func GetObjectPathNode(pkg *packages.Package, o types.Object) ([]ast.Node, *ast.Ident, error) {
-	nodes, node, err := GetPathNode(pkg, o.Pos(), o.Pos())
+func GetObjectPathNode(pkg *packages.Package, o types.Object) (nodes []ast.Node, ident *ast.Ident, err error) {
+	nodes, _ = GetPathNodes(pkg, o.Pos(), o.Pos())
 	if len(nodes) == 0 {
-		return GetPathNode(searchPackage(pkg, o.Pkg().Path()), o.Pos(), o.Pos())
+		nodes, err = GetPathNodes(searchPackage(pkg, o.Pkg().Path()), o.Pos(), o.Pos())
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
-	return nodes, node, err
+	ident, err = FetchIdentFromPathNodes(pkg, nodes)
+	return
 }
 
 func PosForFileOffset(fset *token.FileSet, filename string, offset int) token.Pos {

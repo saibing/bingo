@@ -3,6 +3,7 @@ package caches
 import (
 	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -19,6 +20,7 @@ type PackageCache struct {
 	mu      sync.RWMutex
 	pool    packagePool
 	rootDir string
+	view *source.View
 }
 
 func New() *PackageCache {
@@ -27,8 +29,9 @@ func New() *PackageCache {
 
 const windowsOS = "windows"
 
-func (c *PackageCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string) error {
+func (c *PackageCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *source.View) error {
 	c.rootDir = root
+	c.view = view
 	return c.buildCache(ctx, conn, nil)
 }
 
@@ -69,6 +72,7 @@ func (c *PackageCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2, o
 	conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: msg})
 	cfg := &packages.Config{
 		Dir:loadDir,
+		Fset: c.view.Config.Fset,
 		Mode: packages.LoadAllSyntax,
 		Context: ctx,
 		Tests: true,

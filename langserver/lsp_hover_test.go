@@ -50,15 +50,16 @@ func TestHover(t *testing.T) {
 
 	t.Run("xtest hover", func(t *testing.T) {
 		test(t, "xtest/a.go:1:16", "var A int")
-		test(t, "xtest/x_test.go:1:40", "var X int")
-		test(t, "xtest/x_test.go:1:46", "var A int")
+		test(t, "xtest/x_test.go:1:40", "package p")
+		test(t, "xtest/x_test.go:1:82", "var X int")
+		test(t, "xtest/x_test.go:1:88", "var A int")
 		test(t, "xtest/a_test.go:1:16", "var X int")
 		test(t, "xtest/a_test.go:1:20", "var A int")
 	})
 
 	t.Run("test hover", func(t *testing.T) {
-		test(t, "test/a_test.go:1:37", "var X int")
-		test(t, "test/a_test.go:1:43", "var B int")
+		test(t, "test/a_test.go:8:5", "var X int")
+		test(t, "test/a_test.go:8:11", "var B int")
 	})
 
 	t.Run("subdirectory hover", func(t *testing.T) {

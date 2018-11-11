@@ -36,14 +36,19 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		return nil, err
 	}
 
-	_, node, err := util.GetPathNode(pkg, ctok.pos, ctok.pos)
+	pathNodes, err := util.GetPathNodes(pkg, ctok.pos, ctok.pos)
+	if err != nil {
+		return nil, err
+	}
+
+	ident, err := util.FetchIdentFromPathNodes(pkg, pathNodes)
 	if err != nil {
 		return nil, err
 	}
 
 	// NOTICE: Code adapted from golang.org/x/tools/cmd/guru
 	// referrers.go.
-	obj := pkg.TypesInfo.ObjectOf(node)
+	obj := pkg.TypesInfo.ObjectOf(ident)
 	if obj == nil {
 		return nil, errors.New("references object not found")
 	}

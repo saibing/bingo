@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/tools/go/packages"
+
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
@@ -43,26 +45,58 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		return nil, err
 	}
 
-	_, node, err := util.GetPathNode(pkg, pos, pos)
+	pathNodes, err := util.GetPathNodes(pkg, pos, pos)
 	if err != nil {
 		return nil, err
 	}
 
-	o := pkg.TypesInfo.ObjectOf(node)
-	t := pkg.TypesInfo.TypeOf(node)
+	switch node := pathNodes[0].(type) {
+	case *ast.Ident:
+		return hoverIdent(pkg, node, params.Position)
+	case *ast.BasicLit:
+		return hoverBasicLit(pkg, pathNodes, node, params.Position)
+	}
+
+	return nil, util.NewInvalidNodeError(pkg, pathNodes[0])
+}
+
+func hoverBasicLit(pkg *packages.Package, nodes []ast.Node, basicLit *ast.BasicLit, position lsp.Position) (*lsp.Hover, error) {
+	if len(nodes) == 1 {
+		return nil, nil
+	}
+
+	if node, ok := nodes[1].(*ast.ImportSpec); ok {
+		importPkg := pkg.Imports[strings.Trim(node.Path.Value, `"`)]
+		comments := packageDoc(importPkg.Syntax, importPkg.Name)
+		r := rangeForNode(pkg.Fset, node)
+		return &lsp.Hover{
+			Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: "package " + importPkg.Name}}),
+			Range:    &r,
+		}, nil
+	}
+
+	return nil, nil
+}
+
+func hoverIdent(pkg *packages.Package, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
+
+	o := pkg.TypesInfo.ObjectOf(ident)
+	t := pkg.TypesInfo.TypeOf(ident)
+
 	if o == nil && t == nil {
-		comments := packageDoc(pkg.Syntax, node.Name)
+		comments := packageDoc(pkg.Syntax, ident.Name)
 
 		// Package statement idents don't have an object, so try that separately.
-		r := rangeForNode(pkg.Fset, node)
-		if pkgName := packageStatementName(pkg.Fset, pkg.Syntax, node); pkgName != "" {
+		r := rangeForNode(pkg.Fset, ident)
+		if pkgName := packageStatementName(pkg.Fset, pkg.Syntax, ident); pkgName != "" {
 			return &lsp.Hover{
 				Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: "package " + pkgName}}),
 				Range:    &r,
 			}, nil
 		}
-		return nil, fmt.Errorf("type/object not found at %+v", params.Position)
+		return nil, fmt.Errorf("type/object not found at %+v", position)
 	}
+
 	if o != nil && !o.Pos().IsValid() {
 		// Only builtins have invalid position, and don't have useful info.
 		return nil, nil
@@ -95,49 +129,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		s = types.TypeString(t, qf)
 	}
 
-	findComments := func(o types.Object) (string, error) {
-		if o == nil {
-			return "", nil
-		}
-
-		// Package names must be resolved specially, so do this now to avoid
-		// additional overhead.
-		if v, ok := o.(*types.PkgName); ok {
-			importPkg := pkg.Imports[v.Imported().Path()]
-			if importPkg == nil {
-				return "", fmt.Errorf("failed to import package %q", v.Imported().Path())
-			}
-			return packageDoc(importPkg.Syntax, node.Name), nil
-		}
-
-		// Resolve the object o into its respective ast.Node
-		pathNodes, _, _ := util.GetObjectPathNode(pkg, o)
-		if len(pathNodes) == 0 {
-			return "", nil
-		}
-
-		// Pull the comment out of the comment map for the file. Do
-		// not search too far away from the current path.
-		var comments string
-		for i := 0; i < 3 && i < len(pathNodes) && comments == ""; i++ {
-			switch v := pathNodes[i].(type) {
-			case *ast.Field:
-				// Concat associated documentation with any inline comments
-				comments = joinCommentGroups(v.Doc, v.Comment)
-			case *ast.ValueSpec:
-				comments = v.Doc.Text()
-			case *ast.TypeSpec:
-				comments = v.Doc.Text()
-			case *ast.GenDecl:
-				comments = v.Doc.Text()
-			case *ast.FuncDecl:
-				comments = v.Doc.Text()
-			}
-		}
-		return comments, nil
-	}
-
-	comments, err := findComments(o)
+	comments, err := findComments(pkg, o, ident.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -148,11 +140,50 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		contents = append(contents, lsp.MarkedString{Language: "go", Value: extra})
 	}
 
-	r := rangeForNode(pkg.Fset, node)
-	return &lsp.Hover{
-		Contents: contents,
-		Range:    &r,
-	}, nil
+	r := rangeForNode(pkg.Fset, ident)
+	return &lsp.Hover{Contents: contents, Range: &r}, nil
+}
+
+func findComments(pkg *packages.Package, o types.Object, name string) (string, error) {
+	if o == nil {
+		return "", nil
+	}
+
+	// Package names must be resolved specially, so do this now to avoid
+	// additional overhead.
+	if v, ok := o.(*types.PkgName); ok {
+		importPkg := pkg.Imports[v.Imported().Path()]
+		if importPkg == nil {
+			return "", fmt.Errorf("failed to import package %q", v.Imported().Path())
+		}
+		return packageDoc(importPkg.Syntax, name), nil
+	}
+
+	// Resolve the object o into its respective ast.Node
+	pathNodes, _, _ := util.GetObjectPathNode(pkg, o)
+	if len(pathNodes) == 0 {
+		return "", nil
+	}
+
+	// Pull the comment out of the comment map for the file. Do
+	// not search too far away from the current path.
+	var comments string
+	for i := 0; i < 3 && i < len(pathNodes) && comments == ""; i++ {
+		switch v := pathNodes[i].(type) {
+		case *ast.Field:
+			// Concat associated documentation with any inline comments
+			comments = joinCommentGroups(v.Doc, v.Comment)
+		case *ast.ValueSpec:
+			comments = v.Doc.Text()
+		case *ast.TypeSpec:
+			comments = v.Doc.Text()
+		case *ast.GenDecl:
+			comments = v.Doc.Text()
+		case *ast.FuncDecl:
+			comments = v.Doc.Text()
+		}
+	}
+	return comments, nil
 }
 
 // packageStatementName returns the package name ((*ast.Ident).Name)

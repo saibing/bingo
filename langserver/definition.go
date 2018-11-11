@@ -66,21 +66,26 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		return nil, err
 	}
 
-	pathNodes, node, err := util.GetPathNode(pkg, pos, pos)
+	pathNodes, err := util.GetPathNodes(pkg, pos, pos)
+	if err != nil {
+		return nil, err
+	}
+
+	ident, err := util.FetchIdentFromPathNodes(pkg, pathNodes)
 	if err != nil {
 		return nil, err
 	}
 
 	var nodes []foundNode
-	obj, ok := pkg.TypesInfo.Uses[node]
+	obj, ok := pkg.TypesInfo.Uses[ident]
 	if !ok {
-		obj, ok = pkg.TypesInfo.Defs[node]
+		obj, ok = pkg.TypesInfo.Defs[ident]
 	}
 	if ok && obj != nil {
 		if p := obj.Pos(); p.IsValid() {
 			nodes = append(nodes, foundNode{
 				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
-				typ:   util.TypeLookup(pkg.TypesInfo.TypeOf(node)),
+				typ:   util.TypeLookup(pkg.TypesInfo.TypeOf(ident)),
 			})
 		} else {
 			// Builtins have an invalid Pos. Just don't emit a definition for
@@ -97,7 +102,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 	findPackage := h.getFindModulePackageFunc()
 	locs := make([]symbolLocationInformation, 0, len(nodes))
 	for _, found := range nodes {
-		// Determine location information for the node.
+		// Determine location information for the ident.
 		l := symbolLocationInformation{
 			Location: goRangeToLSPLocation(pkg.Fset, found.ident.Pos(), found.ident.End()),
 		}
@@ -107,7 +112,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 			l.TypeLocation = goRangeToLSPLocation(pkg.Fset, found.typ.Pos(), token.Pos(int(found.typ.Pos())+len(found.typ.Name())))
 		}
 
-		// Determine metadata information for the node.
+		// Determine metadata information for the ident.
 		if def, err := refs.DefInfo(pkg.Types, pkg.TypesInfo, pathNodes, found.ident.Pos()); err == nil {
 			rootPath := h.FilePath(h.init.Root())
 			symDesc, err := defSymbolDescriptor(ctx, conn, pkg, h.packageCache, rootPath, *def, findPackage)

@@ -38,10 +38,10 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 	}
 
 	pos := util.PosForFileOffset(pkg.Fset, pkg.Fset.Position(ctok.pos).Filename, pkg.Fset.Position(ctok.pos).Offset)
-	path, _, _ := util.GetPathNode(pkg, pos, pos)
-	path, action := findInterestingNode(pkg, path)
+	pathNodes, _ := util.GetPathNodes(pkg, pos, pos)
+	pathNodes, action := findInterestingNode(pkg, pathNodes)
 
-	return implements(h.packageCache, pkg, path, action)
+	return implements(h.packageCache, pkg, pathNodes, action)
 }
 
 // Adapted from golang.org/x/tools/cmd/guru (Copyright (c) 2013 The Go Authors). All rights
