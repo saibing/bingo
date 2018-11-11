@@ -292,17 +292,17 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 	}
 
 	uri := source.FromDocumentURI(params.TextDocument.URI)
-	f := h.overlay.view.GetFile(uri)
-	pkg, err := f.GetPackage()
-	if err != nil {
-		return nil, err
+
+	var pkg *packages.Package
+	var astFile *ast.File
+	var err error
+
+	if strings.HasPrefix(string(uri), string(h.init.RootURI)) {
+		pkg, astFile, err = h.loadAstFromSourceView(uri)
+	} else {
+		pkg, astFile, err = h.loadAstFromGlobalCache(ctx, conn, params.TextDocument.URI)
 	}
 
-	if pkg == nil {
-		return nil, fmt.Errorf("package is null for file %s", uri)
-	}
-
-	astFile, err := f.GetAST()
 	if err != nil {
 		return nil, err
 	}
@@ -313,6 +313,37 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 		res[i] = s.SymbolInformation
 	}
 	return res, nil
+}
+
+func (h *LangHandler) loadAstFromSourceView(uri source.URI) (*packages.Package, *ast.File, error) {
+	f := h.overlay.view.GetFile(uri)
+	pkg, err := f.GetPackage()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if pkg == nil {
+		return nil, nil, fmt.Errorf("package is null for file %s", uri)
+	}
+
+	astFile, err := f.GetAST()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return pkg, astFile, nil
+}
+
+func (h *LangHandler) loadAstFromGlobalCache(ctx context.Context, conn jsonrpc2.JSONRPC2, fileURI lsp.DocumentURI) (*packages.Package, *ast.File, error) {
+	filename := h.FilePath(fileURI)
+
+	pkg, err := h.load(ctx, conn, filename)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	astFile := util.GetSyntaxFile(pkg, util.UriToRealPath(fileURI))
+	return pkg, astFile, nil
 }
 
 // handleSymbol handles `workspace/symbol` requests for the Go

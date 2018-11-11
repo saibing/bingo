@@ -174,7 +174,7 @@ func getCacheKeyFromDir(dir string) string {
 
 	dirs := strings.Split(dir, ":")
 	if len(dirs) >= 2 {
-		dirs[0] = strings.ToLower(dirs[0])
+		dirs[0] = strings.ToUpper(dirs[0])
 		dir = strings.Join(dirs, ":")
 	}
 

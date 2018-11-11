@@ -186,8 +186,8 @@ func PosForFileOffset(fset *token.FileSet, filename string, offset int) token.Po
 
 
 func GetSyntaxFile(pkg *packages.Package, filename string) *ast.File {
-	for _, file := range pkg.Syntax {
-		if PathEqual(file.Name.Name, filename) {
+	for i, file := range pkg.Syntax {
+		if PathEqual(pkg.CompiledGoFiles[i], filename) {
 			return file
 		}
 	}

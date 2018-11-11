@@ -55,7 +55,7 @@ func PathTrimPrefix(s, prefix string) string {
 
 // PathEqual returns true if both a and b are equal
 func PathEqual(a, b string) bool {
-	return PathTrimPrefix(a, b) == ""
+	return PathTrimPrefix(strings.ToLower(a), strings.ToLower(b)) == ""
 }
 
 // IsURI tells if s denotes an URI

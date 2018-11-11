@@ -107,7 +107,7 @@ func (h *LangHandler) startPos(ctx context.Context, pkg *packages.Package, fileU
 		return pos, err
 	}
 
-	filename := h.FilePath(fileURI)
+	filename := util.UriToRealPath(fileURI)
 	offset, valid, why := offsetForPosition(contents, position)
 	if !valid {
 		return pos, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, position.Line, position.Character, why)
