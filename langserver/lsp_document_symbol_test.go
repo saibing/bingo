@@ -51,7 +51,7 @@ func TestDocumentSymbol(t *testing.T) {
 
 	t.Run("exported defs unexported type", func(t *testing.T) {
 		test(t, map[string][]string{
-			"exported/a.go": {"exported/a.go:field:t.F:1:28", "exported/a.go:class:t:1:17"},
+			"exported_on_unexported/a.go": {"exported_on_unexported/a.go:field:t.F:1:28", "exported_on_unexported/a.go:class:t:1:17"},
 		})
 	})
 
@@ -83,8 +83,8 @@ func TestDocumentSymbol(t *testing.T) {
 
 	t.Run("go project", func(t *testing.T) {
 		test(t, map[string][]string{
-			"goproejct/a/a.go": {"goproejct/a/a.go:function:A:1:17"},
-			"goproejct/b/b.go": {},
+			"goproject/a/a.go": {"goproject/a/a.go:function:A:1:17"},
+			"goproject/b/b.go": {},
 		})
 	})
 
@@ -145,7 +145,7 @@ func doTestDocumentSymbol(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 		t.Fatal(err)
 	}
 	for i := range symbols {
-		symbols[i] = util.UriToPath(lsp.DocumentURI(symbols[i]))
+		symbols[i] = filepath.ToSlash(util.UriToRealPath(lsp.DocumentURI(symbols[i])))
 	}
 
 	for i, s := range want {
