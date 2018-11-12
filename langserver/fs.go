@@ -116,8 +116,8 @@ func (h *overlay) FS() ctxvfs.FileSystem {
 }
 
 func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI, text string) {
-	h.view.GetFile(source.FromDocumentURI(uri)).SetContent([]byte(text))
 	go func() {
+		h.view.GetFile(source.FromDocumentURI(uri)).SetContent([]byte(text))
 		reports, err := diagnostics(h.view, uri)
 		if err == nil {
 			for filename, diagnostics := range reports {
@@ -190,7 +190,7 @@ func applyContentChanges(uri lsp.DocumentURI, contents []byte, changes []lsp.Tex
 }
 
 func (h *overlay) didClose(params *lsp.DidCloseTextDocumentParams) {
-	h.view.GetFile(source.FromDocumentURI(params.TextDocument.URI)).SetContent(nil)
+	//h.view.GetFile(source.FromDocumentURI(params.TextDocument.URI)).SetContent(nil)
 }
 
 func uriToOverlayPath(uri lsp.DocumentURI) string {
