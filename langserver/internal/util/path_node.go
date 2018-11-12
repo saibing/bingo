@@ -140,14 +140,24 @@ func NewInvalidNodeError(pkg *packages.Package, node ast.Node) *InvalidNodeError
 	}
 }
 
-
 func searchPackage(root *packages.Package, path string) *packages.Package {
+	seen := map[string]bool{}
+	return search(root, path, seen)
+}
+
+func search(root *packages.Package, path string, seen map[string]bool) *packages.Package {
+	if seen[root.PkgPath] {
+		return nil
+	}
+
+	seen[root.PkgPath] = true
+
 	if pkg, ok := root.Imports[path]; ok {
 		return pkg
 	}
 
 	for _, importPkg := range root.Imports {
-		pkg := searchPackage(importPkg, path)
+		pkg := search(importPkg, path, seen)
 		if pkg != nil {
 			return pkg
 		}
