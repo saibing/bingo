@@ -9,8 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"runtime/debug"
-	"time"
 
 	"github.com/saibing/bingo/langserver"
 	"github.com/sourcegraph/jsonrpc2"
