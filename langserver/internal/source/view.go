@@ -25,7 +25,7 @@ type View struct {
 func NewView() *View {
 	return &View{
 		Config: &packages.Config{
-			Mode:    packages.LoadAllSyntax,
+			Mode:    packages.LoadSyntax,
 			Fset:    token.NewFileSet(),
 			Tests:   true,
 			Overlay: make(map[string][]byte),
