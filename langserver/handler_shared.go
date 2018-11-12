@@ -38,10 +38,10 @@ func defaultFindPackageFunc(ctx context.Context, conn jsonrpc2.JSONRPC2, package
 		return nil, fmt.Errorf("import %q: cannot import absolute path", importPath)
 	}
 
-	if build.IsLocalImport(importPath) {
-		dir := filepath.Join(fromDir, importPath)
-		return packageCache.Load(ctx, conn, dir, nil)
-	}
+	//if build.IsLocalImport(importPath) {
+	//	dir := filepath.Join(fromDir, importPath)
+	//	return packageCache.Load(ctx, conn, dir, nil)
+	//}
 
 	return packageCache.Lookup(importPath), nil
 }
