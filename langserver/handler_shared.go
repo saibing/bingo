@@ -3,8 +3,6 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"go/build"
-	"path/filepath"
 	"strings"
 	"sync"
 
