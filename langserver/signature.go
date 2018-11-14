@@ -43,3 +43,4 @@ func toProtocolParameterInformation(info []source.ParameterInformation) []lsp.Pa
 	}
 	return result
 }
+
