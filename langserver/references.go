@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/caches"
 	"github.com/saibing/bingo/langserver/internal/goast"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -20,14 +20,7 @@ import (
 )
 
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
-	if !util.IsURI(params.TextDocument.URI) {
-		return nil, &jsonrpc2.Error{
-			Code:    jsonrpc2.CodeInvalidParams,
-			Message: fmt.Sprintf("textDocument/references not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
-		}
-	}
-
-	pkg, pos, err := h.loadFromGlobalCache(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, pos, err := h.typeCheck(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
@@ -37,7 +30,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		return nil, err
 	}
 
-	pathNodes, err := goast.GetPathNodes(pkg, pos, pos, h.lookupPackage)
+	pathNodes, err := goast.GetPathNodes(pkg, pos, pos)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +96,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		refs <- &ast.Ident{NamePos: obj.Pos(), Name: obj.Name()}
 	}
 
-	findRefErr = findReferences(findRefCtx, pkg.Fset, h.packageCache, pkgInWorkspace, obj, refs)
+	findRefErr = findReferences(findRefCtx, pkg.Fset, h.globalCache, pkgInWorkspace, obj, refs)
 	if findRefErr != nil {
 		// If we are canceled, cancel loop early
 		return nil, findRefErr
@@ -159,7 +152,7 @@ func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonr
 
 // findReferences will find all references to obj. It will only return
 // references from packages in pkg.Imports.
-func findReferences(ctx context.Context, fset *token.FileSet, packageCache *caches.PackageCache, pkgInWorkspace func(string) bool, obj types.Object, refs chan<- *ast.Ident) error {
+func findReferences(ctx context.Context, fset *token.FileSet, packageCache *source.GlobalCache, pkgInWorkspace func(string) bool, obj types.Object, refs chan<- *ast.Ident) error {
 	// Bail out early if the context is canceled
 	if ctx.Err() != nil {
 		return ctx.Err()

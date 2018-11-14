@@ -29,7 +29,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		}
 	}
 
-	pkg, pos, err := h.typeCheck(ctx, conn, params)
+	pkg, pos, err := h.typeCheck(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
@@ -46,7 +46,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		return nil, err
 	}
 
-	pathNodes, err := goast.GetPathNodes(pkg, pos, pos, h.lookupPackage)
+	pathNodes, err := goast.GetPathNodes(pkg, pos, pos)
 	if err != nil {
 		return nil, err
 	}
@@ -149,15 +149,11 @@ func (h *LangHandler) hoverIdent(pkg *packages.Package, ident *ast.Ident, positi
 
 func (h *LangHandler) getImportPackage(pkg *packages.Package, importPath string) *packages.Package {
 	importPkg := pkg.Imports[importPath]
-	if importPkg == nil || importPkg.Syntax == nil{
-		importPkg = h.lookupPackage(importPath)
-	}
-
 	return importPkg
 }
 
 func (h *LangHandler) lookupPackage(path string) *packages.Package {
-	pkg, _ := h.getFindPackageFunc()(h.packageCache, path)
+	pkg, _ := h.getFindPackageFunc()(h.globalCache, path)
 	return pkg
 }
 
@@ -178,7 +174,7 @@ func (h *LangHandler) findComments(pkg *packages.Package, o types.Object, name s
 	}
 
 	// Resolve the object o into its respective ast.Node
-	pathNodes, _, _ := goast.GetObjectPathNode(pkg, o, h.lookupPackage)
+	pathNodes, _, _ := goast.GetObjectPathNode(pkg, o)
 	if len(pathNodes) == 0 {
 		return "", nil
 	}

@@ -58,7 +58,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		}
 	}
 
-	pkg, pos, err := h.typeCheck(ctx, conn, params)
+	pkg, pos, err := h.typeCheck(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no locations.
@@ -68,7 +68,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		return nil, err
 	}
 
-	pathNodes, err := goast.GetPathNodes(pkg, pos, pos, h.lookupPackage)
+	pathNodes, err := goast.GetPathNodes(pkg, pos, pos)
 	if err != nil {
 		return nil, err
 	}
@@ -124,8 +124,7 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 
 		// Determine metadata information for the ident.
 		if def, err := refs.DefInfo(pkg.Types, pkg.TypesInfo, pathNodes, found.ident.Pos()); err == nil {
-			rootPath := h.FilePath(h.init.Root())
-			symDesc, err := defSymbolDescriptor(ctx, conn, pkg, h.packageCache, rootPath, *def, findPackage)
+			symDesc, err := defSymbolDescriptor(pkg, h.globalCache, *def, findPackage)
 			if err != nil {
 				// TODO: tracing
 				log.Println("refs.DefInfo:", err)

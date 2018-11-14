@@ -11,9 +11,6 @@ import (
 	"reflect"
 )
 
-
-type LookupPackageFunc func(importPath string) *packages.Package
-
 // PathEnclosingInterval returns the PackageInfo and ast.Node that
 // contain source interval [start, end), and all the node's ancestors
 // up to the AST root.  It searches all ast.Files of all packages in prog.
@@ -21,14 +18,14 @@ type LookupPackageFunc func(importPath string) *packages.Package
 //
 // The zero value is returned if not found.
 //
-func PathEnclosingInterval(pkg *packages.Package, start, end token.Pos, lookup LookupPackageFunc) (path []ast.Node, exact bool) {
-	path, exact = doEnclosingInterval(pkg, start, end, lookup)
+func PathEnclosingInterval(pkg *packages.Package, start, end token.Pos) (path []ast.Node, exact bool) {
+	path, exact = doEnclosingInterval(pkg, start, end)
 	if path != nil && len(path) != 0 {
 		return path, exact
 	}
 
 	for _, importPkg := range pkg.Imports {
-		path, exact = doEnclosingInterval(importPkg, start, end, lookup)
+		path, exact = doEnclosingInterval(importPkg, start, end)
 		if path != nil && len(path) != 0 {
 			return path, exact
 		}
@@ -36,16 +33,9 @@ func PathEnclosingInterval(pkg *packages.Package, start, end token.Pos, lookup L
 	return nil, false
 }
 
-func doEnclosingInterval(pkg *packages.Package, start, end token.Pos, lookup LookupPackageFunc) ([]ast.Node, bool) {
+func doEnclosingInterval(pkg *packages.Package, start, end token.Pos) ([]ast.Node, bool) {
 	if pkg == nil {
 		return nil, false
-	}
-
-	if pkg.Syntax == nil {
-		pkg = lookup(pkg.PkgPath)
-		if pkg == nil {
-			return nil, false
-		}
 	}
 
 	for _, f := range pkg.Syntax {
@@ -117,8 +107,8 @@ func (e *InvalidNodeError) Error() string {
 	return e.msg
 }
 
-func GetPathNodes(pkg *packages.Package, start, end token.Pos, lookup LookupPackageFunc) ([]ast.Node, error) {
-	nodes, _ := PathEnclosingInterval(pkg, start, end, lookup)
+func GetPathNodes(pkg *packages.Package, start, end token.Pos) ([]ast.Node, error) {
+	nodes, _ := PathEnclosingInterval(pkg, start, end)
 	if len(nodes) == 0 {
 		s := pkg.Fset.Position(start)
 		return nodes, fmt.Errorf("no node found at %s offset %d", s, s.Offset)
@@ -175,10 +165,10 @@ func search(root *packages.Package, path string, seen map[string]bool) *packages
 	return nil
 }
 
-func GetObjectPathNode(pkg *packages.Package, o types.Object, lookup LookupPackageFunc) (nodes []ast.Node, ident *ast.Ident, err error) {
-	nodes, _ = GetPathNodes(pkg, o.Pos(), o.Pos(), lookup)
+func GetObjectPathNode(pkg *packages.Package, o types.Object) (nodes []ast.Node, ident *ast.Ident, err error) {
+	nodes, _ = GetPathNodes(pkg, o.Pos(), o.Pos())
 	if len(nodes) == 0 {
-		nodes, err = GetPathNodes(searchPackage(pkg, o.Pkg().Path()), o.Pos(), o.Pos(), lookup)
+		nodes, err = GetPathNodes(searchPackage(pkg, o.Pkg().Path()), o.Pos(), o.Pos())
 		if err != nil {
 			return nil, nil, err
 		}

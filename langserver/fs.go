@@ -115,7 +115,12 @@ func (h *overlay) FS() ctxvfs.FileSystem {
 	return nil
 }
 
-func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI, text string) {
+func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI, text string, immediate bool) {
+	if immediate {
+		h.view.GetFile(source.FromDocumentURI(uri)).SetContent([]byte(text))
+		return
+	}
+
 	go func() {
 		h.view.GetFile(source.FromDocumentURI(uri)).SetContent([]byte(text))
 		reports, err := diagnostics(h.view, uri)
@@ -136,7 +141,7 @@ func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI,
 }
 
 func (h *overlay) didOpen(ctx context.Context, params *lsp.DidOpenTextDocumentParams) {
-	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, params.TextDocument.Text)
+	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, params.TextDocument.Text, false)
 }
 
 func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocumentParams) error {
@@ -150,7 +155,7 @@ func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocume
 		return err
 	}
 
-	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, string(contents))
+	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, string(contents), true)
 	return nil
 }
 

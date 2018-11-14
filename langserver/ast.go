@@ -294,17 +294,17 @@ func findInterestingNode(pkg *packages.Package, path []ast.Node) ([]ast.Node, ac
 	return nil, actionUnknown // unreachable
 }
 
-func (h *LangHandler) typeCheck(ctx context.Context, conn jsonrpc2.JSONRPC2, params lsp.TextDocumentPositionParams) (*packages.Package, token.Pos, error) {
-	uri := source.FromDocumentURI(params.TextDocument.URI)
+func (h *LangHandler) typeCheck(ctx context.Context, conn jsonrpc2.JSONRPC2, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
+	uri := source.FromDocumentURI(fileURI)
 
 	if strings.HasPrefix(string(uri), string(h.init.RootURI)) {
-		return h.loadFromSourceView(uri, params)
+		return h.loadFromSourceView(uri, position)
 	}
 
-	return h.loadFromGlobalCache(ctx, conn, params.TextDocument.URI, params.Position)
+	return h.loadFromGlobalCache(ctx, conn, fileURI, position)
 }
 
-func (h *LangHandler) loadFromSourceView(uri source.URI,  params lsp.TextDocumentPositionParams) (*packages.Package, token.Pos, error) {
+func (h *LangHandler) loadFromSourceView(uri source.URI,  position lsp.Position) (*packages.Package, token.Pos, error) {
 	f := h.overlay.view.GetFile(uri)
 	pkg, err := f.GetPackage()
 	if err != nil {
@@ -315,6 +315,6 @@ func (h *LangHandler) loadFromSourceView(uri source.URI,  params lsp.TextDocumen
 		return nil, token.NoPos, err
 	}
 
-	pos := fromProtocolPosition(tok, params.Position)
+	pos := fromProtocolPosition(tok, position)
 	return pkg, pos, nil
 }

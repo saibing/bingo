@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/caches"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -54,7 +54,7 @@ type LangHandler struct {
 	*HandlerShared
 	init *InitializeParams // set by "initialize" request
 
-	packageCache *caches.PackageCache
+	globalCache *source.GlobalCache
 
 	cancel *cancel
 
@@ -106,8 +106,8 @@ func (h *LangHandler) resetCaches(lock bool) {
 		h.mu.Lock()
 	}
 
-	if h.packageCache == nil {
-		h.packageCache = caches.New()
+	if h.globalCache == nil {
+		h.globalCache = source.NewGlobalCache()
 	}
 
 	if lock {
@@ -177,7 +177,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			return nil, err
 		}
 
-		if err := h.packageCache.Init(ctx, conn, h.FilePath(params.Root()), h.overlay.view); err != nil {
+		if err := h.globalCache.Init(ctx, conn, h.FilePath(params.Root()), h.overlay.view); err != nil {
 			return nil, err
 		}
 

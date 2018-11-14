@@ -386,7 +386,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 				return ctx.Err()
 			}
 
-			if len(results.results) >= 50 || !strings.HasPrefix(pkg.CompiledGoFiles[0], h.packageCache.Root()) {
+			if len(results.results) >= 50 || !strings.HasPrefix(pkg.CompiledGoFiles[0], h.globalCache.Root()) {
 				par.Release()
 				return nil
 			}
@@ -405,7 +405,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 			return nil
 		}
 
-		h.packageCache.Iterate(f)
+		h.globalCache.Iterate(f)
 
 		_ = par.Wait()
 	}

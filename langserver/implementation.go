@@ -3,16 +3,14 @@ package langserver
 import (
 	"context"
 	"errors"
-	"fmt"
-	"github.com/saibing/bingo/langserver/internal/caches"
 	"github.com/saibing/bingo/langserver/internal/goast"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
 	"sort"
 
-	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -20,15 +18,8 @@ import (
 )
 
 func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]*lspext.ImplementationLocation, error) {
-	if !util.IsURI(params.TextDocument.URI) {
-		return nil, &jsonrpc2.Error{
-			Code:    jsonrpc2.CodeInvalidParams,
-			Message: fmt.Sprintf("textDocument/implementation not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
-		}
-	}
-
 	// Do initial cached, standard typeCheck pass to get position arg.
-	pkg, pos, err := h.loadFromGlobalCache(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, pos, err := h.typeCheck(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
@@ -39,15 +30,15 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 	}
 
 	filePos := goast.PosForFileOffset(pkg.Fset, pkg.Fset.Position(pos).Filename, pkg.Fset.Position(pos).Offset)
-	pathNodes, _ := goast.GetPathNodes(pkg, filePos, filePos, h.lookupPackage)
+	pathNodes, _ := goast.GetPathNodes(pkg, filePos, filePos)
 	pathNodes, action := findInterestingNode(pkg, pathNodes)
 
-	return implements(h.packageCache, pkg, pathNodes, action)
+	return implements(h.globalCache, pkg, pathNodes, action)
 }
 
 // Adapted from golang.org/x/tools/cmd/guru (Copyright (c) 2013 The Go Authors). All rights
 // reserved. See NOTICE for full license.
-func implements(packageCache *caches.PackageCache, pkg *packages.Package, path []ast.Node, action action) ([]*lspext.ImplementationLocation, error) {
+func implements(packageCache *source.GlobalCache, pkg *packages.Package, path []ast.Node, action action) ([]*lspext.ImplementationLocation, error) {
 	var method *types.Func
 	var T types.Type // selected type (receiver if method != nil)
 

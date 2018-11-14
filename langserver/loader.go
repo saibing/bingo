@@ -123,5 +123,5 @@ func (h *LangHandler) startPos(ctx context.Context, pkg *packages.Package, fileU
 }
 
 func (h *LangHandler) load(ctx context.Context, conn jsonrpc2.JSONRPC2, filename string) (*packages.Package, error) {
-	return h.packageCache.Load(ctx, conn, path.Dir(filename), nil)
+	return h.globalCache.Load(ctx, conn, path.Dir(filename), nil)
 }

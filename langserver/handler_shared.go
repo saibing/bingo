@@ -2,10 +2,10 @@ package langserver
 
 import (
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"strings"
 	"sync"
 
-	"github.com/saibing/bingo/langserver/internal/caches"
 	"github.com/sourcegraph/jsonrpc2"
 	"golang.org/x/tools/go/packages"
 
@@ -24,11 +24,11 @@ type HandlerShared struct {
 
 
 
-func (h *HandlerShared) getFindPackageFunc() caches.FindPackageFunc {
+func (h *HandlerShared) getFindPackageFunc() source.FindPackageFunc {
 	return defaultFindPackageFunc
 }
 
-func defaultFindPackageFunc(packageCache *caches.PackageCache, importPath string) (*packages.Package, error) {
+func defaultFindPackageFunc(packageCache *source.GlobalCache, importPath string) (*packages.Package, error) {
 	if strings.HasPrefix(importPath, "/") {
 		return nil, fmt.Errorf("import %q: cannot import absolute path", importPath)
 	}

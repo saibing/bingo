@@ -3,13 +3,13 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"log"
 	"math"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/saibing/bingo/langserver/internal/caches"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/saibing/bingo/langserver/internal/refs"
@@ -39,7 +39,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 		return err
 	}
 
-	err := h.packageCache.Iterate(f)
+	err := h.globalCache.Iterate(f)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 		Info:     pkg.TypesInfo,
 	}
 	refsErr := cfg.Refs(func(r *refs.Ref) {
-		symDesc, err := defSymbolDescriptor(ctx, conn, pkg, h.packageCache, rootPath, r.Def, findPackage)
+		symDesc, err := defSymbolDescriptor(pkg, h.globalCache, r.Def, findPackage)
 		if err != nil {
 			// Log the error, and flag it as one in the trace -- but do not
 			// halt execution (hopefully, it is limited to a small subset of
@@ -105,14 +105,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 	return nil
 }
 
-func defSymbolDescriptor(
-	ctx context.Context,
-	conn jsonrpc2.JSONRPC2,
-	pkg *packages.Package,
-	packageCache *caches.PackageCache,
-	rootPath string, def refs.Def,
-	findPackage caches.FindPackageFunc) (*symbolDescriptor, error) {
-
+func defSymbolDescriptor(pkg *packages.Package,	packageCache *source.GlobalCache,	def refs.Def, findPackage source.FindPackageFunc) (*symbolDescriptor, error) {
 	var err error
 	defPkg, _ := pkg.Imports[def.ImportPath]
 	if defPkg == nil {
