@@ -8,6 +8,7 @@ package source
 
 import (
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"net/url"
 	"path/filepath"
@@ -32,7 +33,7 @@ func toFilename(uri string) (string, error) {
 	}
 
 	uri = uri[len(fileSchemePrefix):]
-	if uri[0] == '/' {
+	if util.IsWindows() && uri[0] == '/' {
 		uri = uri[1:]
 	}
 

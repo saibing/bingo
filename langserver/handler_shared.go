@@ -1,7 +1,6 @@
 package langserver
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -23,24 +22,16 @@ type HandlerShared struct {
 	overlay *overlay // files to overlay
 }
 
-// FindPackageFunc matches the signature of loader.Config.FindPackage, except
-// also takes a context.Context.
-type FindPackageFunc func(ctx context.Context, conn jsonrpc2.JSONRPC2, packageCache *caches.PackageCache, importPath, fromDir string) (*packages.Package, error)
 
-func (h *HandlerShared) getFindPackageFunc() FindPackageFunc {
+
+func (h *HandlerShared) getFindPackageFunc() caches.FindPackageFunc {
 	return defaultFindPackageFunc
 }
 
-func defaultFindPackageFunc(ctx context.Context, conn jsonrpc2.JSONRPC2, packageCache *caches.PackageCache, importPath, fromDir string) (*packages.Package, error) {
+func defaultFindPackageFunc(packageCache *caches.PackageCache, importPath string) (*packages.Package, error) {
 	if strings.HasPrefix(importPath, "/") {
 		return nil, fmt.Errorf("import %q: cannot import absolute path", importPath)
 	}
-
-	//if build.IsLocalImport(importPath) {
-	//	dir := filepath.Join(fromDir, importPath)
-	//	return packageCache.Load(ctx, conn, dir, nil)
-	//}
-
 	return packageCache.Lookup(importPath), nil
 }
 

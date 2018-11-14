@@ -3,6 +3,7 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/goast"
 	"go/build"
 	"go/token"
 	"golang.org/x/tools/go/packages"
@@ -113,7 +114,7 @@ func (h *LangHandler) startPos(ctx context.Context, pkg *packages.Package, fileU
 		return pos, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, position.Line, position.Character, why)
 	}
 
-	pos = util.PosForFileOffset(pkg.Fset, filename, offset)
+	pos = goast.PosForFileOffset(pkg.Fset, filename, offset)
 	if pos == token.NoPos {
 		return pos, fmt.Errorf("invalid location: %s:#%d", filename, offset)
 	}

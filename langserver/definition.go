@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/refs"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
@@ -61,13 +62,13 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no locations.
-		if _, ok := err.(*util.InvalidNodeError); ok {
+		if _, ok := err.(*goast.InvalidNodeError); ok {
 			return []symbolLocationInformation{}, nil
 		}
 		return nil, err
 	}
 
-	pathNodes, err := util.GetPathNodes(pkg, pos, pos)
+	pathNodes, err := goast.GetPathNodes(pkg, pos, pos, h.lookupPackage)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +80,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 	case *ast.TypeSpec:
 		return h.lookupIdentDefinition(ctx, conn, pkg, pathNodes, node.Name)
 	default:
-		return nil, util.NewInvalidNodeError(pkg, firstNode)
+		return nil, goast.NewInvalidNodeError(pkg, firstNode)
 	}
 }
 
@@ -94,7 +95,7 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 		if p := obj.Pos(); p.IsValid() {
 			nodes = append(nodes, foundNode{
 				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
-				typ:   util.TypeLookup(pkg.TypesInfo.TypeOf(ident)),
+				typ:   goast.TypeLookup(pkg.TypesInfo.TypeOf(ident)),
 			})
 		} else {
 			// Builtins have an invalid Pos. Just don't emit a definition for

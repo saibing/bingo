@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/caches"
+	"github.com/saibing/bingo/langserver/internal/goast"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -30,18 +31,18 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
-		if _, ok := err.(*util.InvalidNodeError); ok {
+		if _, ok := err.(*goast.InvalidNodeError); ok {
 			return []lsp.Location{}, nil
 		}
 		return nil, err
 	}
 
-	pathNodes, err := util.GetPathNodes(pkg, pos, pos)
+	pathNodes, err := goast.GetPathNodes(pkg, pos, pos, h.lookupPackage)
 	if err != nil {
 		return nil, err
 	}
 
-	ident, err := util.FetchIdentFromPathNodes(pkg, pathNodes)
+	ident, err := goast.FetchIdentFromPathNodes(pkg, pathNodes)
 	if err != nil {
 		return nil, err
 	}

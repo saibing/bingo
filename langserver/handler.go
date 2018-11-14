@@ -6,14 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/caches"
-	"log"
-	"strconv"
-	"sync"
-	"time"
-
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
+	"log"
+	"sync"
 
 	"github.com/saibing/bingo/langserver/internal/util"
 )
@@ -182,18 +179,6 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 		if err := h.packageCache.Init(ctx, conn, h.FilePath(params.Root()), h.overlay.view); err != nil {
 			return nil, err
-		}
-
-		// PERF: Kick off a workspace/symbol in the background to warm up the server
-		if yes, _ := strconv.ParseBool(envWarmupOnInitialize); yes {
-			go func() {
-				ctx, cancel := context.WithDeadline(ctx, time.Now().Add(30*time.Second))
-				defer cancel()
-				_, _ = h.handleWorkspaceSymbol(ctx, conn, req, lspext.WorkspaceSymbolParams{
-					Query: "",
-					Limit: 100,
-				})
-			}()
 		}
 
 		kind := lsp.TDSKIncremental

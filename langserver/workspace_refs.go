@@ -111,12 +111,12 @@ func defSymbolDescriptor(
 	pkg *packages.Package,
 	packageCache *caches.PackageCache,
 	rootPath string, def refs.Def,
-	findPackage FindPackageFunc) (*symbolDescriptor, error) {
+	findPackage caches.FindPackageFunc) (*symbolDescriptor, error) {
 
 	var err error
 	defPkg, _ := pkg.Imports[def.ImportPath]
 	if defPkg == nil {
-		defPkg, err = findPackage(ctx, conn, packageCache, def.ImportPath, rootPath)
+		defPkg, err = findPackage(packageCache, def.ImportPath)
 		if err != nil {
 			return nil, err
 		}

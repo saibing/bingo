@@ -65,7 +65,7 @@ func toProtocolCompletionItems(items []source.CompletionItem, prefix string, ran
 				Label:    item.Label,
 				Detail:   item.Detail,
 				Kind:     toProtocolCompletionItemKind(item.Kind),
-				TextEdit: &lsp.TextEdit{Range: rangeInfo},
+				TextEdit: &lsp.TextEdit{Range: rangeInfo, NewText:item.Label},
 			})
 		}
 	}

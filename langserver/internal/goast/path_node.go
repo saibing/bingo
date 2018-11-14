@@ -1,7 +1,8 @@
-package util
+package goast
 
 import (
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -11,6 +12,7 @@ import (
 )
 
 
+type LookupPackageFunc func(importPath string) *packages.Package
 
 // PathEnclosingInterval returns the PackageInfo and ast.Node that
 // contain source interval [start, end), and all the node's ancestors
@@ -19,14 +21,14 @@ import (
 //
 // The zero value is returned if not found.
 //
-func PathEnclosingInterval(pkg *packages.Package, start, end token.Pos) (path []ast.Node, exact bool) {
-	path, exact = doEnclosingInterval(pkg, start, end)
+func PathEnclosingInterval(pkg *packages.Package, start, end token.Pos, lookup LookupPackageFunc) (path []ast.Node, exact bool) {
+	path, exact = doEnclosingInterval(pkg, start, end, lookup)
 	if path != nil && len(path) != 0 {
 		return path, exact
 	}
 
 	for _, importPkg := range pkg.Imports {
-		path, exact = doEnclosingInterval(importPkg, start, end)
+		path, exact = doEnclosingInterval(importPkg, start, end, lookup)
 		if path != nil && len(path) != 0 {
 			return path, exact
 		}
@@ -34,9 +36,16 @@ func PathEnclosingInterval(pkg *packages.Package, start, end token.Pos) (path []
 	return nil, false
 }
 
-func doEnclosingInterval(pkg *packages.Package, start, end token.Pos) ([]ast.Node, bool) {
+func doEnclosingInterval(pkg *packages.Package, start, end token.Pos, lookup LookupPackageFunc) ([]ast.Node, bool) {
 	if pkg == nil {
 		return nil, false
+	}
+
+	if pkg.Syntax == nil {
+		pkg = lookup(pkg.PkgPath)
+		if pkg == nil {
+			return nil, false
+		}
 	}
 
 	for _, f := range pkg.Syntax {
@@ -108,8 +117,8 @@ func (e *InvalidNodeError) Error() string {
 	return e.msg
 }
 
-func GetPathNodes(pkg *packages.Package, start, end token.Pos) ([]ast.Node, error) {
-	nodes, _ := PathEnclosingInterval(pkg, start, end)
+func GetPathNodes(pkg *packages.Package, start, end token.Pos, lookup LookupPackageFunc) ([]ast.Node, error) {
+	nodes, _ := PathEnclosingInterval(pkg, start, end, lookup)
 	if len(nodes) == 0 {
 		s := pkg.Fset.Position(start)
 		return nodes, fmt.Errorf("no node found at %s offset %d", s, s.Offset)
@@ -166,10 +175,10 @@ func search(root *packages.Package, path string, seen map[string]bool) *packages
 	return nil
 }
 
-func GetObjectPathNode(pkg *packages.Package, o types.Object) (nodes []ast.Node, ident *ast.Ident, err error) {
-	nodes, _ = GetPathNodes(pkg, o.Pos(), o.Pos())
+func GetObjectPathNode(pkg *packages.Package, o types.Object, lookup LookupPackageFunc) (nodes []ast.Node, ident *ast.Ident, err error) {
+	nodes, _ = GetPathNodes(pkg, o.Pos(), o.Pos(), lookup)
 	if len(nodes) == 0 {
-		nodes, err = GetPathNodes(searchPackage(pkg, o.Pkg().Path()), o.Pos(), o.Pos())
+		nodes, err = GetPathNodes(searchPackage(pkg, o.Pkg().Path()), o.Pos(), o.Pos(), lookup)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -182,7 +191,7 @@ func GetObjectPathNode(pkg *packages.Package, o types.Object) (nodes []ast.Node,
 func PosForFileOffset(fset *token.FileSet, filename string, offset int) token.Pos {
 	var f *token.File
 	fset.Iterate(func(ff *token.File) bool {
-		if PathEqual(ff.Name(), filename) {
+		if util.PathEqual(ff.Name(), filename) {
 			f = ff
 			return false // break out of loop
 		}
@@ -197,7 +206,7 @@ func PosForFileOffset(fset *token.FileSet, filename string, offset int) token.Po
 
 func GetSyntaxFile(pkg *packages.Package, filename string) *ast.File {
 	for i, file := range pkg.Syntax {
-		if PathEqual(pkg.CompiledGoFiles[i], filename) {
+		if util.PathEqual(pkg.CompiledGoFiles[i], filename) {
 			return file
 		}
 	}

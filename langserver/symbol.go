@@ -3,6 +3,7 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/build"
@@ -342,7 +343,7 @@ func (h *LangHandler) loadAstFromGlobalCache(ctx context.Context, conn jsonrpc2.
 		return nil, nil, err
 	}
 
-	astFile := util.GetSyntaxFile(pkg, util.UriToRealPath(fileURI))
+	astFile := goast.GetSyntaxFile(pkg, util.UriToRealPath(fileURI))
 	return pkg, astFile, nil
 }
 
@@ -385,7 +386,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 				return ctx.Err()
 			}
 
-			if len(pkg.CompiledGoFiles) == 0 || !strings.HasPrefix(pkg.CompiledGoFiles[0], h.packageCache.Root()) {
+			if len(results.results) >= 50 || !strings.HasPrefix(pkg.CompiledGoFiles[0], h.packageCache.Root()) {
 				par.Release()
 				return nil
 			}

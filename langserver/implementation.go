@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/caches"
+	"github.com/saibing/bingo/langserver/internal/goast"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -31,14 +32,14 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
-		if _, ok := err.(*util.InvalidNodeError); ok {
+		if _, ok := err.(*goast.InvalidNodeError); ok {
 			return []*lspext.ImplementationLocation{}, nil
 		}
 		return nil, err
 	}
 
-	filePos := util.PosForFileOffset(pkg.Fset, pkg.Fset.Position(pos).Filename, pkg.Fset.Position(pos).Offset)
-	pathNodes, _ := util.GetPathNodes(pkg, filePos, filePos)
+	filePos := goast.PosForFileOffset(pkg.Fset, pkg.Fset.Position(pos).Filename, pkg.Fset.Position(pos).Offset)
+	pathNodes, _ := goast.GetPathNodes(pkg, filePos, filePos, h.lookupPackage)
 	pathNodes, action := findInterestingNode(pkg, pathNodes)
 
 	return implements(h.packageCache, pkg, pathNodes, action)
@@ -156,7 +157,7 @@ func implements(packageCache *caches.PackageCache, pkg *packages.Package, path [
 		var obj types.Object
 		if method == nil {
 			// t is a type
-			nt, ok := util.Deref(t).(*types.Named)
+			nt, ok := goast.Deref(t).(*types.Named)
 			if !ok {
 				return nil // t is non-named
 			}

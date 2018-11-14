@@ -28,7 +28,6 @@ var (
 	maxparallelism     = flag.Int("maxparallelism", 0, "use at max N parallel goroutines to fulfill requests. Can be overridden by InitializationOptions.")
 	diagnostics        = flag.Bool("diagnostics", false, "enable diagnostics (extra memory burden). Can be overridden by InitializationOptions.")
 	funcSnippetEnabled = flag.Bool("func-snippet-enabled", true, "enable argument snippets on func completion. Can be overridden by InitializationOptions.")
-	formatTool         = flag.String("format-tool", "goimports", "which tool is used to format documents. Supported: goimports and gofmt. Can be overridden by InitializationOptions.")
 )
 
 // version is the version field we report back. If you are releasing a new version:
@@ -52,7 +51,6 @@ func main() {
 	cfg := langserver.NewDefaultConfig()
 	cfg.FuncSnippetEnabled = *funcSnippetEnabled
 	cfg.DiagnosticsEnabled = *diagnostics
-	cfg.FormatTool = *formatTool
 
 	if *maxparallelism > 0 {
 		cfg.MaxParallelism = *maxparallelism

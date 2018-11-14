@@ -7,6 +7,7 @@
 package source
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
@@ -443,7 +444,7 @@ func formatType(typ types.Type, qualifier types.Qualifier) (detail string, kind 
 
 // formatParams correctly format the parameters of a function.
 func formatParams(t *types.Tuple, variadic bool, qualifier types.Qualifier) string {
-	var b strings.Builder
+	var b bytes.Buffer
 	b.WriteByte('(')
 	for i := 0; i < t.Len(); i++ {
 		if i > 0 {

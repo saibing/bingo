@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -15,6 +15,10 @@ import (
 )
 
 type packagePool map[string]*packages.Package
+
+// FindPackageFunc matches the signature of loader.Config.FindPackage, except
+// also takes a context.Context.
+type FindPackageFunc func(packageCache *PackageCache, importPath string) (*packages.Package, error)
 
 type PackageCache struct {
 	mu      sync.RWMutex
@@ -26,8 +30,6 @@ type PackageCache struct {
 func New() *PackageCache {
 	return &PackageCache{pool: packagePool{}}
 }
-
-const windowsOS = "windows"
 
 func (c *PackageCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *source.View) error {
 	c.rootDir = root
@@ -47,7 +49,7 @@ func (c *PackageCache) Load(ctx context.Context, conn jsonrpc2.JSONRPC2, pkgDir 
 	loadDir := GetLoadDir(pkgDir)
 	cacheKey := loadDir
 
-	if runtime.GOOS == windowsOS {
+	if util.IsWindows() {
 		cacheKey = getCacheKeyFromDir(loadDir)
 	}
 
@@ -151,7 +153,7 @@ func (c *PackageCache) Lookup(pkgPath string) *packages.Package {
 }
 
 func GetLoadDir(dir string) string {
-	if runtime.GOOS != windowsOS {
+	if !util.IsWindows() {
 		return dir
 	}
 
@@ -168,7 +170,7 @@ func getCacheKeyFromFile(filename string) string {
 }
 
 func getCacheKeyFromDir(dir string) string {
-	if runtime.GOOS != windowsOS {
+	if !util.IsWindows() {
 		return dir
 	}
 

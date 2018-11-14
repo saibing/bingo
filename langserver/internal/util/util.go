@@ -132,3 +132,9 @@ func Panicf(r interface{}, format string, v ...interface{}) error {
 	}
 	return nil
 }
+
+const windowsOS = "windows"
+
+func IsWindows() bool {
+	return runtime.GOOS == windowsOS
+}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/slimsag/godocmd"
 	"go/ast"
 	"go/build"
@@ -32,7 +33,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
-		if _, ok := err.(*util.InvalidNodeError); ok {
+		if _, ok := err.(*goast.InvalidNodeError); ok {
 			return nil, nil
 		}
 		// This is a common error we get in production when a user is
@@ -45,30 +46,30 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		return nil, err
 	}
 
-	pathNodes, err := util.GetPathNodes(pkg, pos, pos)
+	pathNodes, err := goast.GetPathNodes(pkg, pos, pos, h.lookupPackage)
 	if err != nil {
 		return nil, err
 	}
 
 	switch node := pathNodes[0].(type) {
 	case *ast.Ident:
-		return hoverIdent(pkg, node, params.Position)
+		return h.hoverIdent(pkg, node, params.Position)
 	case *ast.BasicLit:
-		return hoverBasicLit(pkg, pathNodes, node, params.Position)
+		return h.hoverBasicLit(pkg, pathNodes, node, params.Position)
 	case *ast.TypeSpec:
-		return hoverIdent(pkg, node.Name, params.Position)
+		return h.hoverIdent(pkg, node.Name, params.Position)
 	}
 
-	return nil, util.NewInvalidNodeError(pkg, pathNodes[0])
+	return nil, goast.NewInvalidNodeError(pkg, pathNodes[0])
 }
 
-func hoverBasicLit(pkg *packages.Package, nodes []ast.Node, basicLit *ast.BasicLit, position lsp.Position) (*lsp.Hover, error) {
+func (h *LangHandler) hoverBasicLit(pkg *packages.Package, nodes []ast.Node, basicLit *ast.BasicLit, position lsp.Position) (*lsp.Hover, error) {
 	if len(nodes) == 1 {
 		return nil, nil
 	}
 
 	if node, ok := nodes[1].(*ast.ImportSpec); ok {
-		importPkg := pkg.Imports[strings.Trim(node.Path.Value, `"`)]
+		importPkg := h.getImportPackage(pkg, strings.Trim(node.Path.Value, `"`))
 		comments := packageDoc(importPkg.Syntax, importPkg.Name)
 		r := rangeForNode(pkg.Fset, node)
 		return &lsp.Hover{
@@ -80,7 +81,7 @@ func hoverBasicLit(pkg *packages.Package, nodes []ast.Node, basicLit *ast.BasicL
 	return nil, nil
 }
 
-func hoverIdent(pkg *packages.Package, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
+func (h *LangHandler) hoverIdent(pkg *packages.Package, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
 
 	o := pkg.TypesInfo.ObjectOf(ident)
 	t := pkg.TypesInfo.TypeOf(ident)
@@ -131,7 +132,7 @@ func hoverIdent(pkg *packages.Package, ident *ast.Ident, position lsp.Position) 
 		s = types.TypeString(t, qf)
 	}
 
-	comments, err := findComments(pkg, o, ident.Name)
+	comments, err := h.findComments(pkg, o, ident.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +147,21 @@ func hoverIdent(pkg *packages.Package, ident *ast.Ident, position lsp.Position) 
 	return &lsp.Hover{Contents: contents, Range: &r}, nil
 }
 
-func findComments(pkg *packages.Package, o types.Object, name string) (string, error) {
+func (h *LangHandler) getImportPackage(pkg *packages.Package, importPath string) *packages.Package {
+	importPkg := pkg.Imports[importPath]
+	if importPkg == nil || importPkg.Syntax == nil{
+		importPkg = h.lookupPackage(importPath)
+	}
+
+	return importPkg
+}
+
+func (h *LangHandler) lookupPackage(path string) *packages.Package {
+	pkg, _ := h.getFindPackageFunc()(h.packageCache, path)
+	return pkg
+}
+
+func (h *LangHandler) findComments(pkg *packages.Package, o types.Object, name string) (string, error) {
 	if o == nil {
 		return "", nil
 	}
@@ -154,15 +169,16 @@ func findComments(pkg *packages.Package, o types.Object, name string) (string, e
 	// Package names must be resolved specially, so do this now to avoid
 	// additional overhead.
 	if v, ok := o.(*types.PkgName); ok {
-		importPkg := pkg.Imports[v.Imported().Path()]
+		importPkg := h.getImportPackage(pkg, v.Imported().Path())
 		if importPkg == nil {
 			return "", fmt.Errorf("failed to import package %q", v.Imported().Path())
 		}
+
 		return packageDoc(importPkg.Syntax, name), nil
 	}
 
 	// Resolve the object o into its respective ast.Node
-	pathNodes, _, _ := util.GetObjectPathNode(pkg, o)
+	pathNodes, _, _ := goast.GetObjectPathNode(pkg, o, h.lookupPackage)
 	if len(pathNodes) == 0 {
 		return "", nil
 	}

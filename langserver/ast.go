@@ -1,11 +1,15 @@
 package langserver
 
 import (
+	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
+	"strings"
 
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
@@ -288,4 +292,29 @@ func findInterestingNode(pkg *packages.Package, path []ast.Node) ([]ast.Node, ac
 	}
 
 	return nil, actionUnknown // unreachable
+}
+
+func (h *LangHandler) typeCheck(ctx context.Context, conn jsonrpc2.JSONRPC2, params lsp.TextDocumentPositionParams) (*packages.Package, token.Pos, error) {
+	uri := source.FromDocumentURI(params.TextDocument.URI)
+
+	if strings.HasPrefix(string(uri), string(h.init.RootURI)) {
+		return h.loadFromSourceView(uri, params)
+	}
+
+	return h.loadFromGlobalCache(ctx, conn, params.TextDocument.URI, params.Position)
+}
+
+func (h *LangHandler) loadFromSourceView(uri source.URI,  params lsp.TextDocumentPositionParams) (*packages.Package, token.Pos, error) {
+	f := h.overlay.view.GetFile(uri)
+	pkg, err := f.GetPackage()
+	if err != nil {
+		return nil, token.NoPos, err
+	}
+	tok, err := f.GetToken()
+	if err != nil {
+		return nil, token.NoPos, err
+	}
+
+	pos := fromProtocolPosition(tok, params.Position)
+	return pkg, pos, nil
 }

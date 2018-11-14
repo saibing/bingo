@@ -1,17 +1,7 @@
 package langserver
 
 import (
-	"os"
 	"runtime"
-)
-
-var (
-	// GOLSP_WARMUP_ON_INITIALIZE toggles if we typeCheck the whole
-	// workspace in the background on initialize. This trades off initial
-	// CPU and memory to hide perceived latency of the first few
-	// requests. If the LSP server is long lived the tradeoff is usually
-	// worth it.
-	envWarmupOnInitialize = os.Getenv("GOLSP_WARMUP_ON_INITIALIZE")
 )
 
 // Config adjusts the behaviour of go-langserver. Please keep in sync with
@@ -23,16 +13,6 @@ type Config struct {
 	//
 	// Defaults to true if not specified.
 	FuncSnippetEnabled bool
-
-	// FormatTool decides which tool is used to format documents. Supported: goimports and gofmt
-	//
-	// Defaults to goimports if not specified.
-	FormatTool string
-
-	// GoimportsLocalPrefix sets the local prefix (comma-separated string) that goimports will use
-	//
-	// Defaults to empty string if not specified.
-	GoimportsLocalPrefix string
 
 	// DiagnosticsEnabled enables handling of diagnostics
 	//
@@ -57,12 +37,6 @@ func (c Config) Apply(o *InitializationOptions) Config {
 		c.FuncSnippetEnabled = *o.FuncSnippetEnabled
 	}
 
-	if o.FormatTool != nil {
-		c.FormatTool = *o.FormatTool
-	}
-	if o.GoimportsLocalPrefix != nil {
-		c.GoimportsLocalPrefix = *o.GoimportsLocalPrefix
-	}
 	if o.MaxParallelism != nil {
 		c.MaxParallelism = *o.MaxParallelism
 	}
@@ -81,7 +55,6 @@ func NewDefaultConfig() Config {
 
 	return Config{
 		FuncSnippetEnabled:      true,
-		FormatTool:              formatToolGoimports,
 		MaxParallelism:          maxparallelism,
 	}
 }
