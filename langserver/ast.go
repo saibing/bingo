@@ -11,7 +11,6 @@ import (
 	"golang.org/x/tools/go/packages"
 	"strings"
 
-	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 )
 
