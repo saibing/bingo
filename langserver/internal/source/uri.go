@@ -51,6 +51,12 @@ func toFilename(uri string) (string, error) {
 // ToURI returns a protocol URI for the supplied path.
 // It will always have the file scheme.
 func ToURI(path string) URI {
+	const prefix = "$GOROOT"
+	if strings.EqualFold(prefix, path[:len(prefix)]) {
+		suffix := path[len(prefix):]
+		//TODO: we need a better way to get the GOROOT that uses the packages api
+		path = runtime.GOROOT() + suffix
+	}
 	uri := filepath.ToSlash(path)
 
 	if uri[0] != '/' {
