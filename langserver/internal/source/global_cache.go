@@ -100,6 +100,11 @@ func (c *GlobalCache) Iterate(visit func(p *packages.Package) error) error {
 	seen := map[string]bool{}
 
 	for _, f := range c.view.files {
+		uri, _ := f.URI.Filename()
+		if !strings.HasPrefix(uri, c.rootDir) {
+			continue
+		}
+		
 		pkg, _ := f.GetPackage()
 		if pkg == nil || seen[pkg.PkgPath] {
 			continue
