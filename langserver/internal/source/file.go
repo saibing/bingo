@@ -48,6 +48,9 @@ type TextEdit struct {
 func (f *File) SetContent(content []byte) {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
+	if f.content != nil && content != nil && string(f.content) == string(content) {
+		return
+	}
 	f.content = content
 	// the ast and token fields are invalid
 	f.ast = nil
