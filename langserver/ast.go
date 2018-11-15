@@ -71,7 +71,7 @@ func goRangesToLSPLocations(fset *token.FileSet, nodes []*ast.Ident) []lsp.Locat
 // exclusive.
 func goRangeToLSPLocation(fset *token.FileSet, pos token.Pos, end token.Pos) lsp.Location {
 	return lsp.Location{
-		URI:   util.PathToURI(fset.Position(pos).Filename),
+		URI:   lsp.DocumentURI(source.ToURI(fset.Position(pos).Filename)),
 		Range: rangeForNode(fset, fakeNode{p: pos, e: end}),
 	}
 
