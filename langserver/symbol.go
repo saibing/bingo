@@ -365,7 +365,7 @@ func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn jsonrpc2.J
 		// If no limit is specified, default to a reasonable number
 		// for a user to look at. If they want more, they should
 		// refine the query.
-		params.Limit = 50
+		params.Limit = 100
 	}
 	return h.handleSymbol(ctx, conn, req, q, params.Limit)
 }
@@ -386,7 +386,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 				return ctx.Err()
 			}
 
-			if len(results.results) >= 50 || !strings.HasPrefix(pkg.CompiledGoFiles[0], h.globalCache.Root()) {
+			if len(results.results) >= limit {
 				par.Release()
 				return nil
 			}
