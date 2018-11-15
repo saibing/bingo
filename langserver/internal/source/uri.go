@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"runtime"
 )
 
 const fileSchemePrefix = "file://"
