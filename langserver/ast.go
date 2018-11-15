@@ -296,8 +296,9 @@ func findInterestingNode(pkg *packages.Package, path []ast.Node) ([]ast.Node, ac
 
 func (h *LangHandler) typeCheck(ctx context.Context, conn jsonrpc2.JSONRPC2, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
 	uri := source.FromDocumentURI(fileURI)
+	root := source.FromDocumentURI(h.init.RootURI)
 
-	if strings.HasPrefix(string(uri), string(h.init.RootURI)) {
+	if strings.HasPrefix(string(uri), string(root)) {
 		return h.loadFromSourceView(uri, position)
 	}
 
