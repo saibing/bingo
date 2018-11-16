@@ -6,17 +6,14 @@ import (
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/util"
+	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
-	"math"
 	"strings"
-	"sync"
-
-	"github.com/saibing/bingo/langserver/internal/util"
-	"github.com/saibing/bingo/pkg/lsp"
-	"github.com/sourcegraph/jsonrpc2"
 )
 
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
@@ -55,153 +52,82 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		}
 		return nil, fmt.Errorf("no package found for object %s", obj)
 	}
-	defPkg := strings.TrimSuffix(obj.Pkg().Path(), "_test")
 
-	pkgInWorkspace := func(path string) bool {
-		if h.init.RootImportPath == "" {
-			return true
-		}
-		return util.PathHasPrefix(path, h.init.RootImportPath)
+	refs, err := h.findReferences(context.Background(), conn, pkg.Fset, h.globalCache, obj)
+	if err != nil {
+		// If we are canceled, cancel loop early
+		return nil, err
 	}
-
-	// findRefCtx is used in the findReferences function. It has its own
-	// context so we can stop finding references once we have reached our
-	// limit.
-	findRefCtx, stop := context.WithCancel(ctx)
-	defer stop()
-
-	var (
-		// locsC receives the final collected references via
-		// refStreamAndCollect.
-		locsC = make(chan []lsp.Location)
-
-		// refs is a stream of raw references found by findReferences or findReferencesPkgLevel.
-		refs = make(chan *ast.Ident)
-
-		// findRefErr is non-nil if findReferences fails.
-		findRefErr error
-	)
-
-	// Start a goroutine to read from the refs chan. It will read all the
-	// refs until the chan is closed. It is responsible to stream the
-	// references back to the client, as well as build up the final slice
-	// which we return as the response.
-	go func() {
-		locsC <- refStreamAndCollect(ctx, conn, req, pkg.Fset, refs, params.Context.XLimit, stop)
-		close(locsC)
-	}()
 
 	// Don't include declare if it is outside of workspace.
+	defPkg := strings.TrimSuffix(obj.Pkg().Path(), "_test")
 	if params.Context.IncludeDeclaration && util.PathHasPrefix(defPkg, h.init.RootImportPath) {
-		refs <- &ast.Ident{NamePos: obj.Pos(), Name: obj.Name()}
+		refs = append(refs, &ast.Ident{NamePos: obj.Pos(), Name: obj.Name()})
 	}
 
-	findRefErr = findReferences(findRefCtx, pkg.Fset, h.globalCache, pkgInWorkspace, obj, refs)
-	if findRefErr != nil {
-		// If we are canceled, cancel loop early
-		return nil, findRefErr
+	return refStreamAndCollect(pkg.Fset, refs, params.Context.XLimit), nil
+}
+
+func (h *LangHandler) pkgInWorkspace(path string) bool {
+	if h.init.RootImportPath == "" {
+		return true
 	}
-
-	// Tell refStreamAndCollect that we are done finding references. It
-	// will then send the all the collected references to locsC.
-	close(refs)
-	locs := <-locsC
-
-	// If we find references then we can ignore findRefErr. It should only
-	// be non-nil due to timeouts or our last findReferences doesn't find
-	// the def.
-	if len(locs) == 0 && findRefErr != nil {
-		return nil, findRefErr
-	}
-
-	if locs == nil {
-		locs = []lsp.Location{}
-	}
-
-	return locs, nil
+	return util.PathHasPrefix(path, h.init.RootImportPath)
 }
 
 // refStreamAndCollect returns all refs read in from chan until it is
 // closed. While it is reading, it will also occasionally stream out updates of
 // the refs received so far.
-func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, fset *token.FileSet, refs <-chan *ast.Ident, limit int, stop func()) []lsp.Location {
+func refStreamAndCollect(fset *token.FileSet, refs []*ast.Ident, limit int) []lsp.Location {
 	if limit == 0 {
 		// If we don't have a limit, just set it to a value we should never exceed
-		limit = math.MaxInt32
+		limit = len(refs)
 	}
 
-	var (
-		locs []lsp.Location
-	)
-
-	for {
-		select {
-		case n, ok := <-refs:
-			if !ok {
-				// send a final update
-				return locs
-			}
-			if len(locs) >= limit {
-				stop()
-				continue
-			}
-			locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
-		}
+	l := len(refs)
+	if limit < l {
+		l = limit
 	}
+
+	var locs []lsp.Location
+
+	for i := 0; i < l; i++ {
+		n := refs[i]
+		locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
+	}
+
+	return locs
 }
 
 // findReferences will find all references to obj. It will only return
 // references from packages in pkg.Imports.
-func findReferences(ctx context.Context, fset *token.FileSet, packageCache *source.GlobalCache, pkgInWorkspace func(string) bool, obj types.Object, refs chan<- *ast.Ident) error {
+func (h *LangHandler) findReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, fset *token.FileSet, packageCache *source.GlobalCache, obj types.Object) ([]*ast.Ident, error) {
 	// Bail out early if the context is canceled
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
+	var refs []*ast.Ident
+	//if ctx.Err() != nil {
+	//	return nil, ctx.Err()
+	//}
 
-	defPkg := strings.TrimSuffix(obj.Pkg().Path(), "_test")
+	defPkgPath := strings.TrimSuffix(obj.Pkg().Path(), "_test")
 	objPos := fset.Position(obj.Pos())
 
-	// The remainder of this function is somewhat tricky because it
-	// operates on the concurrent stream of packages observed by the
-	// loader's AfterTypeCheck hook.
+	var queryObj types.Object
 
-	var (
-		mu   sync.Mutex
-		qobj types.Object
-	)
+	defPkg := h.globalCache.Lookup(defPkgPath)
+	// Find the object by its position (slightly ugly).
+	queryObj = findObject(defPkg.Fset, defPkg.TypesInfo, objPos)
+	if queryObj == nil {
+		return nil, fmt.Errorf("object at %s not found in package %s", objPos, defPkgPath)
+	}
 
 	f := func(pkg *packages.Package) error {
-		collectPkg := pkgInWorkspace
-
-		if _, ok := pkg.Imports[defPkg]; !ok && pkg.PkgPath != defPkg {
+		if _, ok := pkg.Imports[defPkgPath]; !ok && pkg.PkgPath != defPkgPath {
 			return nil
 		}
 
-		// Record the query object and its package when we see
-		// it. We can't reuse obj from the initial typeCheck
-		// because each go/loader Load invocation creates new
-		// objects, and we need to test for equality later when we
-		// look up refs.
-		mu.Lock()
-		if qobj == nil && pkg.PkgPath == defPkg {
-			// Find the object by its position (slightly ugly).
-			qobj = findObject(pkg.Fset, pkg.TypesInfo, objPos)
-			if qobj == nil {
-				// It really ought to be there; we found it once
-				// already.
-				return fmt.Errorf("object at %s not found in package %s", objPos, defPkg)
-			}
-		}
-		queryObj := qobj
-		mu.Unlock()
-
-		// Look for references to the query object. Only collect
-		// those that are in this workspace.
-		if queryObj != nil && collectPkg(pkg.PkgPath) {
-			for id, obj := range pkg.TypesInfo.Uses {
-				if sameObj(queryObj, obj) {
-					refs <- id
-				}
+		for id, obj := range pkg.TypesInfo.Uses {
+			if sameObj(queryObj, obj) {
+				refs = append(refs, id)
 			}
 		}
 
@@ -210,14 +136,10 @@ func findReferences(ctx context.Context, fset *token.FileSet, packageCache *sour
 
 	err := packageCache.Iterate(f)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if qobj == nil {
-		return errors.New("query object not found during reloading")
-	}
-
-	return nil
+	return refs, nil
 }
 
 // findObject returns the object defined at the specified position.
