@@ -34,6 +34,18 @@ func NewView() *View {
 	}
 }
 
+// IsExist return true if package is not nil
+func (v *View) IsExist(uri URI) bool {
+	v.mu.Lock()
+	f, found := v.files[uri]
+	v.mu.Unlock()
+	if !found {
+		return false
+	}
+
+	return f.pkg != nil
+}
+
 // GetFile returns a File for the given uri.
 // It will always succeed, adding the file to the managed set if needed.
 func (v *View) GetFile(uri URI) *File {
