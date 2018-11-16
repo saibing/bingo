@@ -14,23 +14,14 @@ type InitializationOptions struct {
 	// FuncSnippetEnabled is an optional version of Config.FuncSnippetEnabled
 	FuncSnippetEnabled *bool `json:"funcSnippetEnabled"`
 
-	// GocodeCompletionEnabled is an optional version of
-	// Config.GocodeCompletionEnabled
-	GocodeCompletionEnabled *bool `json:"gocodeCompletionEnabled"`
+	// DiagnosticsEnabled enables handling of diagnostics
+	//
+	// Defaults to false if not specified.
+	DiagnosticsEnabled *bool `json:"diagnosticsEnabled"`
 
-	// FormatTool is an optional version of
-	// Config.FormatTool
-	FormatTool *string `json:"formatTool"`
-
-	// GoimportsLocalPrefix is an optional version of
-	// Config.GoimportsLocalPrefix
-	GoimportsLocalPrefix *string `json:"goimportsLocalPrefix"`
 
 	// MaxParallelism is an optional version of Config.MaxParallelism
 	MaxParallelism *int `json:"maxParallelism"`
-
-	// UseBinaryPkgCache is an optional version of Config.UseBinaryPkgCache
-	UseBinaryPkgCache *bool `json:"useBinaryPkgCache"`
 }
 
 type InitializeParams struct {

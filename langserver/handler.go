@@ -89,7 +89,7 @@ func (h *LangHandler) reset(conn *jsonrpc2.Conn, init *InitializeParams) error {
 	if !h.HandlerShared.Shared {
 		// Only reset the shared data if this lang server is running
 		// by itself.
-		if err := h.HandlerShared.Reset(conn, !init.NoOSFileSystemAccess); err != nil {
+		if err := h.HandlerShared.Reset(conn, h.DefaultConfig.DiagnosticsEnabled); err != nil {
 			return err
 		}
 	}

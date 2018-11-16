@@ -13,21 +13,21 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-type packagePool map[string]*packages.Package
+type uri2Package map[string]*packages.Package
 
 // FindPackageFunc matches the signature of loader.Config.FindPackage, except
 // also takes a context.Context.
-type FindPackageFunc func(packageCache *GlobalCache, importPath string) (*packages.Package, error)
+type FindPackageFunc func(globalCache *GlobalCache, importPath string) (*packages.Package, error)
 
 type GlobalCache struct {
 	mu      sync.RWMutex
-	pool    packagePool
+	urlMap  uri2Package
 	rootDir string
 	view    *View
 }
 
 func NewGlobalCache() *GlobalCache {
-	return &GlobalCache{pool: packagePool{}}
+	return &GlobalCache{urlMap: uri2Package{}}
 }
 
 func (c *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
@@ -54,7 +54,7 @@ func (c *GlobalCache) Load(ctx context.Context, conn jsonrpc2.JSONRPC2, pkgDir s
 
 	c.mu.RLock()
 
-	pkg := c.pool[cacheKey]
+	pkg := c.urlMap[cacheKey]
 	if pkg != nil {
 		c.mu.RUnlock()
 		return pkg, nil
@@ -63,14 +63,14 @@ func (c *GlobalCache) Load(ctx context.Context, conn jsonrpc2.JSONRPC2, pkgDir s
 	c.mu.RUnlock()
 	c.buildCache(context.Background(), conn, overlay)
 
-	return c.pool[cacheKey], nil
+	return c.urlMap[cacheKey], nil
 }
 
 func (c *GlobalCache) buildCache(ctx context.Context, conn jsonrpc2.JSONRPC2, overlay map[string][]byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.pool = packagePool{}
+	c.urlMap = uri2Package{}
 
 	loadDir := GetLoadDir(c.rootDir)
 
@@ -116,7 +116,7 @@ func (c *GlobalCache) Iterate(visit func(p *packages.Package) error) error {
 		}
 	}
 
-	for _, pkg := range c.pool {
+	for _, pkg := range c.urlMap {
 		if seen[pkg.PkgPath] {
 			continue
 		}
@@ -151,11 +151,11 @@ func (c *GlobalCache) cache(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg *pa
 
 	cacheKey := getCacheKeyFromFile(pkg.CompiledGoFiles[0])
 
-	if _, ok := c.pool[cacheKey]; ok {
+	if _, ok := c.urlMap[cacheKey]; ok {
 		return
 	}
 
-	c.pool[cacheKey] = pkg
+	c.urlMap[cacheKey] = pkg
 
 	msg := fmt.Sprintf("cached package %s", cacheKey)
 	conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
@@ -167,7 +167,7 @@ func (c *GlobalCache) cache(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg *pa
 func (c *GlobalCache) Lookup(pkgPath string) *packages.Package {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	for _, pkg := range c.pool {
+	for _, pkg := range c.urlMap {
 		if pkg.PkgPath == pkgPath {
 			return pkg
 		}

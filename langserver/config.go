@@ -37,6 +37,10 @@ func (c Config) Apply(o *InitializationOptions) Config {
 		c.FuncSnippetEnabled = *o.FuncSnippetEnabled
 	}
 
+	if o.DiagnosticsEnabled != nil {
+		c.DiagnosticsEnabled = *o.DiagnosticsEnabled
+	}
+
 	if o.MaxParallelism != nil {
 		c.MaxParallelism = *o.MaxParallelism
 	}

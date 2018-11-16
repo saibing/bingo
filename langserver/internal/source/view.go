@@ -34,8 +34,8 @@ func NewView() *View {
 	}
 }
 
-// IsExist return true if package is not nil
-func (v *View) IsExist(uri URI) bool {
+// HasParsed return true if package is not nil
+func (v *View) HasParsed(uri URI) bool {
 	v.mu.Lock()
 	f, found := v.files[uri]
 	v.mu.Unlock()

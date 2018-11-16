@@ -297,7 +297,7 @@ func (h *LangHandler) typeCheck(ctx context.Context, conn jsonrpc2.JSONRPC2, fil
 	uri := source.FromDocumentURI(fileURI)
 	root := source.FromDocumentURI(h.init.RootURI)
 
-	if h.overlay.view.IsExist(uri) && strings.HasPrefix(string(uri), string(root)) {
+	if h.overlay.view.HasParsed(uri) && strings.HasPrefix(string(uri), string(root)) {
 		return h.loadFromSourceView(uri, position)
 	}
 

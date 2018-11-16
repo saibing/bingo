@@ -35,17 +35,11 @@ func defaultFindPackageFunc(packageCache *source.GlobalCache, importPath string)
 	return packageCache.Lookup(importPath), nil
 }
 
-func (h *HandlerShared) Reset(conn *jsonrpc2.Conn, useOSFS bool) error {
+func (h *HandlerShared) Reset(conn *jsonrpc2.Conn, diagnosticsEnabled bool) error {
 	h.Mu.Lock()
 	defer h.Mu.Unlock()
-	h.overlay = newOverlay(conn)
+	h.overlay = newOverlay(conn, diagnosticsEnabled)
 	h.FS = NewAtomicFS()
-
-	if useOSFS {
-		// The overlay FS takes precedence, but we fall back to the OS
-		// file system.
-		h.FS.Bind("/", ctxvfs.OS("/"), "/", ctxvfs.BindAfter)
-	}
-	//h.FS.Bind("/", h.overlay.FS(), "/", ctxvfs.BindBefore)
+	h.FS.Bind("/", ctxvfs.OS("/"), "/", ctxvfs.BindAfter)
 	return nil
 }

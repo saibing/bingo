@@ -102,12 +102,13 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 // overlay owns the overlay filesystem, as well as handling LSP filesystem
 // requests.
 type overlay struct {
-	conn *jsonrpc2.Conn
-	view *source.View
+	conn               *jsonrpc2.Conn
+	view               *source.View
+	diagnosticsEnabled bool
 }
 
-func newOverlay(conn *jsonrpc2.Conn) *overlay {
-	return &overlay{conn: conn, view: source.NewView()}
+func newOverlay(conn *jsonrpc2.Conn, diagnosticsEnabled bool) *overlay {
+	return &overlay{conn: conn, view: source.NewView(), diagnosticsEnabled:diagnosticsEnabled}
 }
 
 // FS returns a vfs for the overlay.
@@ -115,14 +116,14 @@ func (h *overlay) FS() ctxvfs.FileSystem {
 	return nil
 }
 
-func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI, text string, immediate bool) {
-	if immediate {
-		h.view.GetFile(source.FromDocumentURI(uri)).SetContent([]byte(text))
+func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI, text string) {
+	h.view.GetFile(source.FromDocumentURI(uri)).SetContent([]byte(text))
+
+	if !h.diagnosticsEnabled {
 		return
 	}
 
 	go func() {
-		h.view.GetFile(source.FromDocumentURI(uri)).SetContent([]byte(text))
 		reports, err := diagnostics(h.view, uri)
 		if err == nil {
 			for filename, diagnostics := range reports {
@@ -141,7 +142,7 @@ func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI,
 }
 
 func (h *overlay) didOpen(ctx context.Context, params *lsp.DidOpenTextDocumentParams) {
-	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, params.TextDocument.Text, true)
+	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, params.TextDocument.Text)
 }
 
 func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocumentParams) error {
@@ -155,7 +156,7 @@ func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocume
 		return err
 	}
 
-	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, string(contents), true)
+	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, string(contents))
 	return nil
 }
 
@@ -196,13 +197,6 @@ func applyContentChanges(uri lsp.DocumentURI, contents []byte, changes []lsp.Tex
 
 func (h *overlay) didClose(params *lsp.DidCloseTextDocumentParams) {
 	//h.view.GetFile(source.FromDocumentURI(params.TextDocument.URI)).SetContent(nil)
-}
-
-func uriToOverlayPath(uri lsp.DocumentURI) string {
-	if util.IsURI(uri) {
-		return strings.TrimPrefix(util.UriToPath(uri), "/")
-	}
-	return string(uri)
 }
 
 func (h *overlay) get(uri lsp.DocumentURI) ([]byte, bool) {

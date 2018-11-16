@@ -53,7 +53,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		return nil, fmt.Errorf("no package found for object %s", obj)
 	}
 
-	refs, err := h.findReferences(context.Background(), conn, pkg.Fset, h.globalCache, obj)
+	refs, err := h.findReferences(ctx, conn, pkg.Fset, h.globalCache, obj)
 	if err != nil {
 		// If we are canceled, cancel loop early
 		return nil, err
@@ -66,13 +66,6 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	}
 
 	return refStreamAndCollect(pkg.Fset, refs, params.Context.XLimit), nil
-}
-
-func (h *LangHandler) pkgInWorkspace(path string) bool {
-	if h.init.RootImportPath == "" {
-		return true
-	}
-	return util.PathHasPrefix(path, h.init.RootImportPath)
 }
 
 // refStreamAndCollect returns all refs read in from chan until it is
@@ -104,9 +97,9 @@ func refStreamAndCollect(fset *token.FileSet, refs []*ast.Ident, limit int) []ls
 func (h *LangHandler) findReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, fset *token.FileSet, packageCache *source.GlobalCache, obj types.Object) ([]*ast.Ident, error) {
 	// Bail out early if the context is canceled
 	var refs []*ast.Ident
-	//if ctx.Err() != nil {
-	//	return nil, ctx.Err()
-	//}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 
 	defPkgPath := strings.TrimSuffix(obj.Pkg().Path(), "_test")
 	objPos := fset.Position(obj.Pos())
