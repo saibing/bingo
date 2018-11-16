@@ -98,10 +98,16 @@ func (c *GlobalCache) fsNotify() error {
 	if err != nil {
 		return err
 	}
-	defer watcher.Close()
 
-	done := make(chan bool)
+	err = watcher.Add(filepath.Join(c.rootDir, "go.mod"))
+	if err != nil {
+		watcher.Close()
+		return err
+	}
+
 	go func() {
+		defer watcher.Close()
+
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -124,12 +130,6 @@ func (c *GlobalCache) fsNotify() error {
 			}
 		}
 	}()
-
-	err = watcher.Add(filepath.Join(c.rootDir, "go.mod"))
-	if err != nil {
-		return err
-	}
-	<-done
 
 	return nil
 }

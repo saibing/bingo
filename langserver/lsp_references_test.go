@@ -63,7 +63,7 @@ func TestReferences(t *testing.T) {
 	})
 
 	t.Run("go module", func(t *testing.T) {
-		test(t, "gomodule/a.go:1:57", []string{"gomodule/a.go:1:57", "gomodule/a.go:1:72"})
+		test(t, "gomodule/a.go:1:57", []string{"gomodule/a.go:1:57", "gomodule/a.go:1:72", githubModule + "/d.go:1:35"})
 	})
 
 	t.Run("unexpected paths", func(t *testing.T) {
@@ -100,7 +100,11 @@ func doReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 	}
 
 	for i := range want {
-		want[i] = filepath.ToSlash(filepath.Join(exported.Config.Dir, want[i]))
+		if strings.HasPrefix(want[i], githubModule) {
+			want[i] = filepath.ToSlash(filepath.Join(gopathDir, want[i]))
+		} else {
+			want[i] = filepath.ToSlash(filepath.Join(exported.Config.Dir, want[i]))
+		}
 	}
 	sort.Strings(references)
 	sort.Strings(want)

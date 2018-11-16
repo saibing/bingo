@@ -283,7 +283,8 @@ func getGOPATH() string {
 
 var (
 	gopathDir = getGOPATH()
-	gomoduleDir = filepath.Join(gopathDir, "pkg/mod/github.com/saibing/dep@v1.0.2")
+	githubModule = "pkg/mod/github.com/saibing/dep@v1.0.2"
+	gomoduleDir = filepath.Join(gopathDir, githubModule)
 )
 
 func initServer(rootDir string) {
