@@ -141,7 +141,7 @@ func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI,
 }
 
 func (h *overlay) didOpen(ctx context.Context, params *lsp.DidOpenTextDocumentParams) {
-	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, params.TextDocument.Text, false)
+	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, params.TextDocument.Text, true)
 }
 
 func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocumentParams) error {
