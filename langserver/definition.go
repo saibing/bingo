@@ -3,10 +3,8 @@ package langserver
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/refs"
-	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
@@ -51,14 +49,7 @@ type foundNode struct {
 }
 
 func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]symbolLocationInformation, error) {
-	if !util.IsURI(params.TextDocument.URI) {
-		return nil, &jsonrpc2.Error{
-			Code:    jsonrpc2.CodeInvalidParams,
-			Message: fmt.Sprintf("%s not yet supported for out-of-workspace URI (%q)", req.Method, params.TextDocument.URI),
-		}
-	}
-
-	pkg, pos, err := h.typeCheck(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, pos, err := h.typeCheck(ctx, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no locations.

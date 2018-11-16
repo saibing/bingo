@@ -19,7 +19,7 @@ import (
 
 func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]*lspext.ImplementationLocation, error) {
 	// Do initial cached, standard typeCheck pass to get position arg.
-	pkg, pos, err := h.typeCheck(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, pos, err := h.typeCheck(ctx, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.

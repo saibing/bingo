@@ -17,7 +17,7 @@ import (
 )
 
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
-	pkg, pos, err := h.typeCheck(ctx, conn, params.TextDocument.URI, params.Position)
+	pkg, pos, err := h.typeCheck(ctx, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
@@ -106,7 +106,7 @@ func (h *LangHandler) findReferences(ctx context.Context, conn jsonrpc2.JSONRPC2
 
 	var queryObj types.Object
 
-	defPkg := h.globalCache.Lookup(defPkgPath)
+	defPkg := h.globalCache.GetFromPackagePath(defPkgPath)
 	// Find the object by its position (slightly ugly).
 	queryObj = findObject(defPkg.Fset, defPkg.TypesInfo, objPos)
 	if queryObj == nil {

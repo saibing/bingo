@@ -301,7 +301,7 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 	if strings.HasPrefix(string(uri), string(h.init.RootURI)) {
 		pkg, astFile, err = h.loadAstFromSourceView(uri)
 	} else {
-		pkg, astFile, err = h.loadAstFromGlobalCache(ctx, conn, params.TextDocument.URI)
+		pkg, astFile, err = h.loadAstFromGlobalCache(params.TextDocument.URI)
 	}
 
 	if err != nil {
@@ -335,14 +335,9 @@ func (h *LangHandler) loadAstFromSourceView(uri source.URI) (*packages.Package, 
 	return pkg, astFile, nil
 }
 
-func (h *LangHandler) loadAstFromGlobalCache(ctx context.Context, conn jsonrpc2.JSONRPC2, fileURI lsp.DocumentURI) (*packages.Package, *ast.File, error) {
+func (h *LangHandler) loadAstFromGlobalCache(fileURI lsp.DocumentURI) (*packages.Package, *ast.File, error) {
 	filename := h.FilePath(fileURI)
-
-	pkg, err := h.load(ctx, conn, filename)
-	if err != nil {
-		return nil, nil, err
-	}
-
+	pkg := h.load(filename)
 	astFile := goast.GetSyntaxFile(pkg, util.UriToRealPath(fileURI))
 	return pkg, astFile, nil
 }

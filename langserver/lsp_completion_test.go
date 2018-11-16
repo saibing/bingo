@@ -34,7 +34,7 @@ func TestCompletion(t *testing.T) {
 	}
 
 	t.Run("basic", func(t *testing.T) {
-		test(t, "basic/b.go:1:24", "1:23-1:24 A() function ")
+		test(t, "basic/b.go:1:24", "1:23-1:24 A function func()")
 	})
 
 	t.Run("xtest", func(t *testing.T) {

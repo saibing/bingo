@@ -138,3 +138,15 @@ const windowsOS = "windows"
 func IsWindows() bool {
 	return runtime.GOOS == windowsOS
 }
+
+func GetRealDir(dir string) string {
+	if !IsWindows() {
+		return dir
+	}
+
+	if dir[0] == '/' {
+		return dir[1:]
+	}
+
+	return dir
+}

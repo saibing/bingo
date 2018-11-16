@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/source"
-	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -293,7 +292,7 @@ func findInterestingNode(pkg *packages.Package, path []ast.Node) ([]ast.Node, ac
 	return nil, actionUnknown // unreachable
 }
 
-func (h *LangHandler) typeCheck(ctx context.Context, conn jsonrpc2.JSONRPC2, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
+func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
 	uri := source.FromDocumentURI(fileURI)
 	root := source.FromDocumentURI(h.init.RootURI)
 
@@ -301,7 +300,7 @@ func (h *LangHandler) typeCheck(ctx context.Context, conn jsonrpc2.JSONRPC2, fil
 		return h.loadFromSourceView(uri, position)
 	}
 
-	return h.loadFromGlobalCache(ctx, conn, fileURI, position)
+	return h.loadFromGlobalCache(ctx, fileURI, position)
 }
 
 func (h *LangHandler) loadFromSourceView(uri source.URI,  position lsp.Position) (*packages.Package, token.Pos, error) {

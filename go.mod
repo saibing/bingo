@@ -2,6 +2,7 @@ module github.com/saibing/bingo
 
 require (
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
+	github.com/fsnotify/fsnotify v1.4.7
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gogo/protobuf v1.1.1 // indirect
 	github.com/golang/protobuf v1.2.0 // indirect

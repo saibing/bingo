@@ -14,7 +14,6 @@ import (
 	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/saibing/bingo/pkg/lsp"
-	"github.com/sourcegraph/jsonrpc2"
 )
 
 // buildPackageForNamedFileInMultiPackageDir returns a package that
@@ -73,7 +72,7 @@ func isMultiplePackageError(err error) bool {
 	return ok
 }
 
-func (h *LangHandler) loadFromGlobalCache(ctx context.Context, conn jsonrpc2.JSONRPC2,  fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
+func (h *LangHandler) loadFromGlobalCache(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
 	pos := token.NoPos
 
 	if !util.IsURI(fileURI) {
@@ -82,21 +81,12 @@ func (h *LangHandler) loadFromGlobalCache(ctx context.Context, conn jsonrpc2.JSO
 
 	filename := h.FilePath(fileURI)
 
-	pkg, err := h.load(ctx, conn, filename)
-	if mpErr, ok := err.(*build.MultiplePackageError); ok {
-		pkg, err = buildPackageForNamedFileInMultiPackageDir(pkg, mpErr, path.Base(filename))
-		if err != nil {
-			return nil, pos, err
-		}
-	} else if err != nil {
-		return nil, pos, err
-	}
-
+	pkg := h.load(filename)
 	if pkg == nil {
 		return nil, pos, fmt.Errorf("%s does not exist", filename)
 	}
 
-	pos, err = h.startPos(ctx, pkg, fileURI, position)
+	pos, err := h.startPos(ctx, pkg, fileURI, position)
 	return pkg, pos, err
 }
 
@@ -122,6 +112,6 @@ func (h *LangHandler) startPos(ctx context.Context, pkg *packages.Package, fileU
 	return pos, nil
 }
 
-func (h *LangHandler) load(ctx context.Context, conn jsonrpc2.JSONRPC2, filename string) (*packages.Package, error) {
-	return h.globalCache.Load(ctx, conn, path.Dir(filename), nil)
+func (h *LangHandler) load(filename string) *packages.Package {
+	return h.globalCache.GetFromURI(util.GetRealDir(path.Dir(filename)))
 }

@@ -32,7 +32,7 @@ func defaultFindPackageFunc(packageCache *source.GlobalCache, importPath string)
 	if strings.HasPrefix(importPath, "/") {
 		return nil, fmt.Errorf("import %q: cannot import absolute path", importPath)
 	}
-	return packageCache.Lookup(importPath), nil
+	return packageCache.GetFromPackagePath(importPath), nil
 }
 
 func (h *HandlerShared) Reset(conn *jsonrpc2.Conn, diagnosticsEnabled bool) error {
