@@ -13,7 +13,6 @@ func invokeGo(ctx context.Context, dir string,  args ...string) (*bytes.Buffer, 
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
-	stdout.WriteByte('[')
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = dir
 	cmd.Stdout = stdout
@@ -37,6 +36,5 @@ func invokeGo(ctx context.Context, dir string,  args ...string) (*bytes.Buffer, 
 		return nil, fmt.Errorf("'go %v' failed: %s", args, string(stderr.Bytes()))
 	}
 
-	stdout.WriteByte(']')
 	return stdout, nil
 }

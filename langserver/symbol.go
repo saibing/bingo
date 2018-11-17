@@ -6,18 +6,13 @@ import (
 	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
-	"go/build"
-	"go/parser"
 	"go/token"
 	"golang.org/x/tools/go/packages"
 	"log"
-	"os"
 	"path"
 	"sort"
 	"strings"
 	"sync"
-
-	"golang.org/x/tools/go/buildutil"
 
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
@@ -200,8 +195,7 @@ func score(q Query, s symbolPair) (scor int) {
 		return 0
 	}
 	filename := util.UriToPath(s.Location.URI)
-	isVendor := strings.HasPrefix(filename, "vendor/") || strings.Contains(filename, "/vendor/")
-	if q.Filter == FilterExported && isVendor {
+	if q.Filter == FilterExported {
 		// is:exported excludes vendor symbols always.
 		return 0
 	}
@@ -210,11 +204,7 @@ func score(q Query, s symbolPair) (scor int) {
 		return 0
 	}
 	if len(q.Tokens) == 0 { // early return if empty query
-		if isVendor {
-			return 1 // lower score for vendor symbols
-		} else {
-			return 2
-		}
+		return 2
 	}
 	for i, tok := range q.Tokens {
 		tok := strings.ToLower(tok)
@@ -547,48 +537,9 @@ func declNamePos(decl *ast.GenDecl, name string) token.Pos {
 	return decl.TokPos
 }
 
-// parseDir mirrors parser.ParseDir, but uses the passed in build context's VFS. In other words,
-// buildutil.parseFile : parser.ParseFile :: parseDir : parser.ParseDir
-func parseDir(fset *token.FileSet, bctx *build.Context, path string, filter func(os.FileInfo) bool, mode parser.Mode) (pkgs map[string]*ast.Package, first error) {
-	list, err := buildutil.ReadDir(bctx, path)
-	if err != nil {
-		return nil, err
-	}
-
-	pkgs = map[string]*ast.Package{}
-	for _, d := range list {
-		if strings.HasSuffix(d.Name(), ".go") && (filter == nil || filter(d)) {
-			filename := buildutil.JoinPath(bctx, path, d.Name())
-			if src, err := buildutil.ParseFile(fset, bctx, nil, buildutil.JoinPath(bctx, path, d.Name()), filename, mode); err == nil {
-				name := src.Name.Name
-				pkg, found := pkgs[name]
-				if !found {
-					pkg = &ast.Package{
-						Name:  name,
-						Files: map[string]*ast.File{},
-					}
-					pkgs[name] = pkg
-				}
-				pkg.Files[filename] = src
-			} else if first == nil {
-				first = err
-			}
-		}
-	}
-
-	return
-}
-
 func isExported(sym *symbolPair) bool {
 	if sym.ContainerName == "" {
 		return ast.IsExported(sym.Name)
 	}
 	return ast.IsExported(sym.ContainerName) && ast.IsExported(sym.Name)
-}
-
-func maybeLogImportError(pkg string, err error) {
-	_, isNoGoError := err.(*build.NoGoError)
-	if !(isNoGoError || !isMultiplePackageError(err) || strings.HasPrefix(pkg, "github.com/golang/go/test/")) {
-		log.Printf("skipping possible package %s: %s", pkg, err)
-	}
 }

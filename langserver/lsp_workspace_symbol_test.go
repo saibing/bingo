@@ -192,7 +192,7 @@ func doWorkspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn,
 	}
 
 	if !reflect.DeepEqual(results, want) {
-		t.Errorf("\ngot %#v, \nwant %q", results, want)
+		t.Errorf("\n%s\ngot %#v, \nwant %q", params.Query, results, want)
 	}
 }
 

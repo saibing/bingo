@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"github.com/saibing/bingo/langserver/internal/util"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -136,6 +138,15 @@ func (c *GlobalCache) fsNotify() error {
 }
 
 func (c *GlobalCache) readModuleFromFile() (map[string]moduleInfo, error) {
+	moduleFile := filepath.Join(c.rootDir, "go.mod")
+	_, err := os.Stat(moduleFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = fmt.Errorf("%s does not exist, please use 'go mod init' to create it", moduleFile)
+		}
+		return nil, err
+	}
+
 	buf, err := invokeGo(context.Background(), c.rootDir, "list", "-m", "-json", "all")
 	if err != nil {
 		return nil, err
@@ -143,9 +154,18 @@ func (c *GlobalCache) readModuleFromFile() (map[string]moduleInfo, error) {
 
 	var modules []moduleInfo
 
-	err = json.Unmarshal(buf.Bytes(), &modules)
-	if err != nil {
-		return nil, err
+	decoder := json.NewDecoder(buf)
+
+	var module moduleInfo
+	for {
+		err = decoder.Decode(&module)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		modules = append(modules, module)
 	}
 
 	moduleMap := map[string]moduleInfo{}
