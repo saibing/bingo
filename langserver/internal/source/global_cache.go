@@ -29,6 +29,7 @@ type GlobalCache struct {
 	view           *View
 	urlMap         uri2Package
 	pathMap		   path2Package
+	searchOrder    []string
 	rootDir        string
 	mainModulePath string
 	moduleMap      map[string]moduleInfo
@@ -226,15 +227,29 @@ func (c *GlobalCache) setCache(ctx context.Context, pkgList []*packages.Package)
 
 	c.urlMap = uri2Package{}
 	c.pathMap = path2Package{}
+
+	var thirdParty []string
+	var stdLib []string
+
 	for _, pkg := range pkgList {
 		c.cache(ctx, pkg)
+		if strings.HasPrefix(pkg.PkgPath, c.mainModulePath) {
+			c.searchOrder = append(c.searchOrder, pkg.PkgPath)
+		} else if strings.Contains(pkg.PkgPath, ".") {
+			thirdParty = append(thirdParty, pkg.PkgPath)
+		} else {
+			stdLib = append(stdLib, pkg.PkgPath)
+		}
 	}
+
+	c.searchOrder = append(c.searchOrder, thirdParty...)
+	c.searchOrder = append(c.searchOrder, stdLib...)
 
 	msg := fmt.Sprintf("cache package for %s successfully!", c.rootDir)
 	c.conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: msg})
 }
 
-func (c *GlobalCache) Iterate(visit func(p *packages.Package) error) error {
+func (c *GlobalCache) Search(visit func(p *packages.Package) error) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -257,14 +272,14 @@ func (c *GlobalCache) Iterate(visit func(p *packages.Package) error) error {
 		}
 	}
 
-	for _, pkg := range c.urlMap {
-		if seen[pkg.PkgPath] {
+	for _, pkgPath := range c.searchOrder {
+		if seen[pkgPath] {
 			continue
 		}
 
-		seen[pkg.PkgPath] = true
+		seen[pkgPath] = true
 
-		if err := visit(pkg); err != nil {
+		if err := visit(c.pathMap[pkgPath]); err != nil {
 			return err
 		}
 	}

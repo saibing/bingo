@@ -127,7 +127,7 @@ func (h *LangHandler) findReferences(ctx context.Context, conn jsonrpc2.JSONRPC2
 		return nil
 	}
 
-	err := packageCache.Iterate(f)
+	err := packageCache.Search(f)
 	if err != nil {
 		return nil, err
 	}

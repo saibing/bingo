@@ -39,7 +39,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 		return err
 	}
 
-	err := h.globalCache.Iterate(f)
+	err := h.globalCache.Search(f)
 	if err != nil {
 		return nil, err
 	}

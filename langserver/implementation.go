@@ -86,7 +86,7 @@ func implements(packageCache *source.GlobalCache, pkg *packages.Package, path []
 		return nil
 	}
 
-	err := packageCache.Iterate(f)
+	err := packageCache.Search(f)
 	if err != nil {
 		return nil, err
 	}

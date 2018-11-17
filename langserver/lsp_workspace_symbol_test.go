@@ -17,6 +17,8 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
+const exportedOnUnexported = "exported_on_unexported"
+
 func TestWorkspaceSymbol(t *testing.T) {
 	exported = packagestest.Export(t, packagestest.Modules, testdata)
 	defer exported.Cleanup()
@@ -86,7 +88,7 @@ func TestWorkspaceSymbol(t *testing.T) {
 
 	t.Run("exported defs unexported type", func(t *testing.T) {
 		test(t, map[*lspext.WorkspaceSymbolParams][]string{
-			{Query: "is:exported"}: {},
+			{Query: "is:exported"}: {exportedOnUnexported},
 		})
 	})
 
@@ -167,11 +169,17 @@ func doWorkspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn,
 
 	var pkgDir string
 	for i := range want {
-		if i == 0 {
-			splits := strings.Split(want[i], "/")
-			pkgDir = splits[0]
+		if want[i] == exportedOnUnexported {
+			want = nil
+			pkgDir = exportedOnUnexported
+			break
+		} else {
+			if i == 0 {
+				splits := strings.Split(want[i], "/")
+				pkgDir = splits[0]
+			}
+			want[i] = filepath.ToSlash(filepath.Join(rootDir, want[i]))
 		}
-		want[i] = filepath.ToSlash(filepath.Join(rootDir, want[i]))
 	}
 
 	var results []string
@@ -179,12 +187,12 @@ func doWorkspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn,
 		symbol := util.UriToRealPath(lsp.DocumentURI(symbols[i]))
 		prefix := filepath.Join(rootDir, pkgDir)
 		if strings.HasPrefix(symbol, prefix) {
-			results = append(results, symbol)
+			results = append(results, filepath.ToSlash(symbol))
 		}
 	}
 
 	if !reflect.DeepEqual(results, want) {
-		t.Errorf("got %#v, want %q", results, want)
+		t.Errorf("\ngot %#v, \nwant %q", results, want)
 	}
 }
 

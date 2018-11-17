@@ -19,7 +19,6 @@ import (
 
 	"golang.org/x/tools/go/buildutil"
 
-	"github.com/neelance/parallel"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
@@ -367,43 +366,26 @@ func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn jsonrpc2.J
 
 func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, query Query, limit int) ([]lsp.SymbolInformation, error) {
 	results := resultSorter{Query: query, results: make([]scoredSymbol, 0)}
-	{
-		par := parallel.NewRun(h.config.MaxParallelism)
 
-		f := func(pkg *packages.Package) error {
-			par.Acquire()
+	f := func(pkg *packages.Package) error {
+		// If the context is cancelled, breaking the loop here
+		// will allow us to return partial results, and
+		// avoiding starting new computations.
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 
-			// If the context is cancelled, breaking the loop here
-			// will allow us to return partial results, and
-			// avoiding starting new computations.
-			if ctx.Err() != nil {
-				par.Release()
-				return ctx.Err()
-			}
-
-			if len(results.results) >= limit {
-				par.Release()
-				return nil
-			}
-
-			go func(pkg *packages.Package) {
-				// Prevent any uncaught panics from taking the
-				// entire server down. For an example see
-				// https://github.com/golang/go/issues/17788
-				defer func() {
-					par.Release()
-					_ = util.Panicf(recover(), "%v for pkg %v", req.Method, pkg)
-				}()
-				h.collectFromPkg(pkg, &results)
-			}(pkg)
-
+		if len(results.results) >= limit {
 			return nil
 		}
 
-		h.globalCache.Iterate(f)
+		h.collectFromPkg(pkg, &results)
 
-		_ = par.Wait()
+		return nil
 	}
+
+	h.globalCache.Search(f)
+
 	sort.Sort(&results)
 	if len(results.results) > limit && limit > 0 {
 		results.results = results.results[:limit]
@@ -412,15 +394,10 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 	return results.Results(), nil
 }
 
-type pkgSymResult struct {
-	ready   chan struct{} // closed to broadcast readiness
-	symbols []lsp.SymbolInformation
-}
-
 // collectFromPkg collects all the symbols from the specified package
 // into the results. It uses LangHandler's package symbol cache to
 // speed up repeated calls.
-func (h *LangHandler) collectFromPkg(pkg *packages.Package,  results *resultSorter) {
+func (h *LangHandler) collectFromPkg(pkg *packages.Package, results *resultSorter) {
 	symbols := astPkgToSymbols(pkg)
 	if symbols == nil {
 		return
@@ -436,9 +413,9 @@ func (h *LangHandler) collectFromPkg(pkg *packages.Package,  results *resultSort
 
 // SymbolCollector stores symbol information for an AST
 type SymbolCollector struct {
-	pkgSyms  []symbolPair
-	pkg *packages.Package
-	fs       *token.FileSet
+	pkgSyms []symbolPair
+	pkg     *packages.Package
+	fs      *token.FileSet
 }
 
 func recvString(recv ast.Expr) string {
