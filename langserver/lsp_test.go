@@ -244,23 +244,6 @@ const s1 = 42
 var s3 int
 var s4 func()`,
 			"completion/b.go": `package p; import "fmt"; var _ = fmt.Printl`,
-			"completion/c.go": `package p; import "fmt"; var _ = fmt.`,
-			"completion/d.go": `package p
-
-import (
-	"fmt"
-)
-
-func mymain() {
-	fmt.Println("hello")
-	fmt.Printf("%s", "hello")
-	fmt.Println("hello")
-	fmt.Println("hello")
-	fmt.Println("hello")
-	fmt.Println("hello")
-	fmt.
-}
-`,
 		},
 	},
 }
