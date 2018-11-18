@@ -79,14 +79,7 @@ package main;  func B() { p.A(); B() }`,
 			"xreferences/c.go": `package p; import "fmt"; var _ = fmt.Println; var z int`,
 
 			"test/a.go": `package p; var A int`,
-			"test/a_test.go": `package p
-
-import (
-	"github.com/saibing/bingo/langserver/test/pkg/test/b"
-	"testing"
-)
-
-var X = b.B; func TestB(t *testing.T) {}`,
+			"test/a_test.go": `package p; import "testing"; import "github.com/saibing/bingo/langserver/test/pkg/test/b"; var X = b.B; func TestB(t *testing.T) {}`,
 			"test/b/b.go": `package b; var B int; func C() int { return B };`,
 			"test/c/c.go": `package c; import "github.com/saibing/bingo/langserver/test/pkg/test/b"; var X = b.B;`,
 
@@ -275,6 +268,7 @@ func initServer(rootDir string) {
 	fmt.Printf("root uri is %s\n", root)
 	cfg := NewDefaultConfig()
 	cfg.FuncSnippetEnabled = true
+	cfg.NoGlobalCache = true
 
 	h = &LangHandler{
 		DefaultConfig: cfg,

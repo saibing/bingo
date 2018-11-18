@@ -133,7 +133,7 @@ func doDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 	}
 
 	if definition != want  {
-		t.Errorf("got %q, want %q", definition, want)
+		t.Errorf("\n%s\ngot %q, \nwant %q", pos, definition, want)
 	}
 }
 

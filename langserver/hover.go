@@ -51,9 +51,25 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		return h.hoverBasicLit(pkg, pathNodes, node, params.Position)
 	case *ast.TypeSpec:
 		return h.hoverIdent(pkg, node.Name, params.Position)
+	case *ast.CallExpr:
+		return h.hoverCallExpr(pkg, pathNodes, node, params.Position)
+	case *ast.SelectorExpr:
+		return h.hoverIdent(pkg, node.Sel, params.Position)
 	}
 
 	return nil, goast.NewInvalidNodeError(pkg, pathNodes[0])
+}
+
+func (h *LangHandler) hoverCallExpr(pkg *packages.Package, nodes []ast.Node, call *ast.CallExpr, position lsp.Position) (*lsp.Hover, error) {
+	if ident, ok := call.Fun.(*ast.Ident); ok {
+		return h.hoverIdent(pkg, ident, position)
+	}
+
+	if selExpr, ok := call.Fun.(*ast.SelectorExpr); ok {
+		return h.hoverIdent(pkg, selExpr.Sel, position)
+	}
+
+	return nil, goast.NewInvalidNodeError(pkg, nodes[0])
 }
 
 func (h *LangHandler) hoverBasicLit(pkg *packages.Package, nodes []ast.Node, basicLit *ast.BasicLit, position lsp.Position) (*lsp.Hover, error) {

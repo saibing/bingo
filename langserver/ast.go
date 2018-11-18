@@ -296,14 +296,16 @@ func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, po
 	uri := source.FromDocumentURI(fileURI)
 	root := source.FromDocumentURI(h.init.RootURI)
 
-	if h.overlay.view.HasParsed(uri) && strings.HasPrefix(string(uri), string(root)) {
-		return h.loadFromSourceView(uri, position)
+	if strings.HasPrefix(string(uri), string(root)) {
+		if h.DefaultConfig.NoGlobalCache || h.overlay.view.HasParsed(uri) {
+			return h.loadFromSourceView(uri, position)
+		}
 	}
 
 	return h.loadFromGlobalCache(ctx, fileURI, position)
 }
 
-func (h *LangHandler) loadFromSourceView(uri source.URI,  position lsp.Position) (*packages.Package, token.Pos, error) {
+func (h *LangHandler) loadFromSourceView(uri source.URI, position lsp.Position) (*packages.Package, token.Pos, error) {
 	f := h.overlay.view.GetFile(uri)
 	pkg, err := f.GetPackage()
 	if err != nil {

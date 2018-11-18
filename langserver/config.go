@@ -19,6 +19,9 @@ type Config struct {
 	// Defaults to false if not specified.
 	DiagnosticsEnabled bool
 
+	// NoGlobalCache do not use global package cache when hover and go to definition
+	NoGlobalCache bool
+
 	// MaxParallelism controls the maximum number of goroutines that should be used
 	// to fulfill requests. This is useful in editor environments where users do
 	// not want results ASAP, but rather just semi quickly without eating all of
@@ -39,6 +42,10 @@ func (c Config) Apply(o *InitializationOptions) Config {
 
 	if o.DiagnosticsEnabled != nil {
 		c.DiagnosticsEnabled = *o.DiagnosticsEnabled
+	}
+
+	if o.NoGlobalCache != nil {
+		c.NoGlobalCache = *o.NoGlobalCache
 	}
 
 	if o.MaxParallelism != nil {

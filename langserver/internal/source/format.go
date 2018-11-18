@@ -17,6 +17,11 @@ func Format(ctx context.Context, f *File, rng Range) ([]TextEdit, error) {
 		return nil, err
 	}
 
+	pkg, err := f.GetPackage()
+	if err != nil {
+		return nil, err
+	}
+
 	// TODO(rstambler): use astutil.PathEnclosingInterval to
 	// find the largest ast.Node n contained within start:end, and format the
 	// region n.Pos-n.End instead.
@@ -26,7 +31,7 @@ func Format(ctx context.Context, f *File, rng Range) ([]TextEdit, error) {
 	// This should be acceptable for all users, who likely be prompted to rebuild
 	// the LSP server on each Go release.
 	buf := &bytes.Buffer{}
-	if err := format.Node(buf, f.view.Config.Fset, fAST); err != nil {
+	if err := format.Node(buf, pkg.Fset, fAST); err != nil {
 		return nil, err
 	}
 	// TODO(rstambler): Compute text edits instead of replacing whole file.

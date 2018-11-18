@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"github.com/saibing/bingo/langserver/internal/util"
+	"go/token"
 	"io"
 	"os"
 	"path/filepath"
@@ -224,16 +225,12 @@ func (c *GlobalCache) hasChanged(moduleMap map[string]moduleInfo) bool {
 }
 
 func (c *GlobalCache) buildCache(ctx context.Context) ([]*packages.Package, error) {
-	cfg := &packages.Config{
-		Dir:      c.rootDir,
-		Fset:    c.view.Config.Fset,
-		Mode:    packages.LoadAllSyntax,
-		Context: ctx,
-		Tests:   true,
-		Overlay: nil,
-	}
+	cfg := *c.view.Config
+	cfg.Dir = c.rootDir
+	cfg.Mode = packages.LoadAllSyntax
+	cfg.Fset = token.NewFileSet()
 
-	pkgList, err := packages.Load(cfg,  c.rootDir+"/...")
+	pkgList, err := packages.Load(&cfg,  c.rootDir+"/...")
 	if err != nil {
 		c.conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: err.Error()})
 	}

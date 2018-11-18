@@ -26,7 +26,6 @@ func NewView() *View {
 	return &View{
 		Config: &packages.Config{
 			Mode:    packages.LoadSyntax,
-			Fset:    token.NewFileSet(),
 			Tests:   true,
 			Overlay: make(map[string][]byte),
 		},
@@ -73,6 +72,8 @@ func (v *View) parse(uri URI) error {
 	if err != nil {
 		return err
 	}
+
+	v.Config.Fset = token.NewFileSet()
 	pkgs, err := packages.Load(v.Config, fmt.Sprintf("file=%s", path))
 	if len(pkgs) == 0 {
 		if err == nil {
@@ -84,7 +85,7 @@ func (v *View) parse(uri URI) error {
 		// add everything we find to the files cache
 		for _, fAST := range pkg.Syntax {
 			// if a file was in multiple packages, which token/ast/pkg do we store
-			fToken := v.Config.Fset.File(fAST.Pos())
+			fToken := pkg.Fset.File(fAST.Pos())
 			fURI := ToURI(fToken.Name())
 			f := v.getFile(fURI)
 			f.token = fToken

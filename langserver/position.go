@@ -10,30 +10,6 @@ import (
 	"go/token"
 )
 
-// fromProtocolLocation converts from a protocol location to a source range.
-// It will return an error if the file of the location was not valid.
-// It uses fromProtocolRange to convert the start and end positions.
-func fromProtocolLocation(v *source.View, loc lsp.Location) (source.Range, error) {
-	f := v.GetFile(source.FromDocumentURI(loc.URI))
-	tok, err := f.GetToken()
-	if err != nil {
-		return source.Range{}, err
-	}
-	return fromProtocolRange(tok, loc.Range), nil
-}
-
-// toProtocolLocation converts from a source range back to a protocol location.
-func toProtocolLocation(v *source.View, r source.Range) lsp.Location {
-	tokFile := v.Config.Fset.File(r.Start)
-	file := v.GetFile(source.ToURI(tokFile.Name()))
-	return lsp.Location{
-		URI: lsp.DocumentURI(file.URI),
-		Range: lsp.Range{
-			Start: toProtocolPosition(tokFile, r.Start),
-			End:   toProtocolPosition(tokFile, r.End),
-		},
-	}
-}
 
 // fromProtocolRange converts a protocol range to a source range.
 // It uses fromProtocolPosition to convert the start and end positions, which

@@ -70,9 +70,25 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		return h.lookupIdentDefinition(ctx, conn, pkg, pathNodes, node)
 	case *ast.TypeSpec:
 		return h.lookupIdentDefinition(ctx, conn, pkg, pathNodes, node.Name)
+	case *ast.CallExpr:
+		return h.lookupCallExprDefinition(ctx, conn, pkg, pathNodes, node)
+	case *ast.SelectorExpr:
+		return h.lookupIdentDefinition(ctx, conn, pkg, pathNodes, node.Sel)
 	default:
 		return nil, goast.NewInvalidNodeError(pkg, firstNode)
 	}
+}
+
+func (h *LangHandler) lookupCallExprDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg *packages.Package, pathNodes []ast.Node, call *ast.CallExpr) ([]symbolLocationInformation, error) {
+	if ident, ok := call.Fun.(*ast.Ident); ok {
+		return h.lookupIdentDefinition(ctx, conn, pkg, pathNodes, ident)
+	}
+
+	if selExpr, ok := call.Fun.(*ast.SelectorExpr); ok {
+		return h.lookupIdentDefinition(ctx, conn, pkg, pathNodes, selExpr.Sel)
+	}
+
+	return nil, goast.NewInvalidNodeError(pkg, pathNodes[0])
 }
 
 func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg *packages.Package, pathNodes []ast.Node, ident *ast.Ident) ([]symbolLocationInformation, error) {
