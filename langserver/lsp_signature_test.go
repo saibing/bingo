@@ -37,13 +37,13 @@ func TestSignature(t *testing.T) {
 
 	t.Run("signature help", func(t *testing.T) {
 		test(t, map[string]string{
-			"signature/b.go:1:28": "func() 0",
-			"signature/b.go:1:33": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
-			"signature/b.go:1:40": "func(foo int, bar func(baz int) int) int Comments for A\n 1",
-			"signature/b.go:1:46": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
-			"signature/b.go:1:51": "func(x int, y int) int Comments for C\n 0",
-			"signature/b.go:1:53": "func(x int, y int) int Comments for C\n 1",
-			"signature/b.go:1:54": "func(x int, y int) int Comments for C\n 1",
+			"signature/b.go:1:28": "B() 0",
+			"signature/b.go:1:33": "A(foo int, bar func(baz int) int) 0",
+			"signature/b.go:1:40": "A(foo int, bar func(baz int) int) 1",
+			"signature/b.go:1:46": "A(foo int, bar func(baz int) int) 0",
+			"signature/b.go:1:51": "C(x int, y int) 0",
+			"signature/b.go:1:53": "C(x int, y int) 1",
+			"signature/b.go:1:54": "C(x int, y int) 1",
 		})
 	})
 }
@@ -73,7 +73,7 @@ func doSignatureTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootUR
 		t.Fatal(err)
 	}
 	if signature != want {
-		t.Fatalf("got %q, want %q", signature, want)
+		t.Fatalf("\ngot %q, \nwant %q", signature, want)
 	}
 }
 
