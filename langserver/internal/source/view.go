@@ -26,6 +26,7 @@ func NewView() *View {
 	return &View{
 		Config: &packages.Config{
 			Mode:    packages.LoadSyntax,
+			Fset:    token.NewFileSet(),
 			Tests:   true,
 			Overlay: make(map[string][]byte),
 		},
@@ -73,7 +74,6 @@ func (v *View) parse(uri URI) error {
 		return err
 	}
 
-	v.Config.Fset = token.NewFileSet()
 	pkgs, err := packages.Load(v.Config, fmt.Sprintf("file=%s", path))
 	if len(pkgs) == 0 {
 		if err == nil {

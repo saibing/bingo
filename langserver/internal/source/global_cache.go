@@ -64,12 +64,8 @@ func (c *GlobalCache) GetFromPackagePath(pkgPath string) *packages.Package {
 	return c.pathMap[pkgPath]
 }
 
-func (c *GlobalCache) GetFromURI(pkgDir string) *packages.Package {
-	cacheKey := pkgDir
-	if util.IsWindows() {
-		cacheKey = getCacheKeyFromDir(pkgDir)
-	}
-
+func (c *GlobalCache) GetFromFilename(filename string) *packages.Package {
+	cacheKey := getCacheKeyFromFile(filename)
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.urlMap[cacheKey]
@@ -273,8 +269,12 @@ func (c *GlobalCache) Search(visit func(p *packages.Package) error) error {
 	seen := map[string]bool{}
 
 	for _, f := range c.view.files {
-		uri, _ := f.URI.Filename()
-		if !strings.HasPrefix(uri, c.rootDir) {
+		filename, _ := f.URI.Filename()
+		if !strings.HasPrefix(filename, c.rootDir) {
+			continue
+		}
+
+		if !c.view.HasParsed(f.URI) {
 			continue
 		}
 
@@ -305,21 +305,18 @@ func (c *GlobalCache) Search(visit func(p *packages.Package) error) error {
 }
 
 func (c *GlobalCache) cache(ctx context.Context, pkg *packages.Package) {
+	if _, ok := c.pathMap[pkg.PkgPath]; ok {
+		return
+	}
+
 	c.pathMap[pkg.PkgPath] = pkg
 
-	if len(pkg.CompiledGoFiles) == 0 {
-		return
+	for _, file := range pkg.CompiledGoFiles {
+		cacheKey := getCacheKeyFromFile(file)
+		c.urlMap[cacheKey] = pkg
 	}
 
-	cacheKey := getCacheKeyFromFile(pkg.CompiledGoFiles[0])
-
-	if _, ok := c.urlMap[cacheKey]; ok {
-		return
-	}
-
-	c.urlMap[cacheKey] = pkg
-
-	msg := fmt.Sprintf("cached package %s for dir %s", pkg.PkgPath, cacheKey)
+	msg := fmt.Sprintf("cached package %s", pkg.PkgPath)
 	c.conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
 	for _, importPkg := range pkg.Imports {
 		c.cache(ctx, importPkg)
@@ -328,21 +325,16 @@ func (c *GlobalCache) cache(ctx context.Context, pkg *packages.Package) {
 
 
 func getCacheKeyFromFile(filename string) string {
-	dir := filepath.Dir(filename)
-	return getCacheKeyFromDir(dir)
-}
-
-func getCacheKeyFromDir(dir string) string {
 	if !util.IsWindows() {
-		return dir
+		return filename
 	}
 
-	dirs := strings.Split(dir, ":")
-	if len(dirs) >= 2 {
-		dirs[0] = strings.ToUpper(dirs[0])
-		dir = strings.Join(dirs, ":")
+	nodes := strings.Split(filename, ":")
+	if len(nodes) >= 2 {
+		nodes[0] = strings.ToUpper(nodes[0])
+		filename = strings.Join(nodes, ":")
 	}
 
-	dir = strings.Replace(dir, "\\", "/", -1)
-	return dir
+	filename = strings.Replace(filename, "\\", "/", -1)
+	return filename
 }

@@ -4,73 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/goast"
-	"go/build"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"go/token"
 	"golang.org/x/tools/go/packages"
-	"path"
-	"path/filepath"
-	"strings"
-
-	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/saibing/bingo/pkg/lsp"
 )
-
-// buildPackageForNamedFileInMultiPackageDir returns a package that
-// refer to the package named by filename. If there are multiple
-// (e.g.) main packages in a dir in separate files, this lets you
-// synthesize a *packages.Package that just refers to one. It's necessary
-// to handle that case.
-func buildPackageForNamedFileInMultiPackageDir(bpkg *packages.Package, m *build.MultiplePackageError, filename string) (*packages.Package, error) {
-	copy := *bpkg
-	bpkg = &copy
-
-	// First, find which package name each filename is in.
-	fileToPkgName := make(map[string]string, len(m.Files))
-	for i, f := range m.Files {
-		fileToPkgName[f] = m.Packages[i]
-	}
-
-	pkgName := fileToPkgName[filename]
-	if pkgName == "" {
-		return nil, fmt.Errorf("package %q in %s has no file %q", bpkg.PkgPath, filepath.Dir(filename), filename)
-	}
-
-	filterToFilesInPackage := func(files []string, pkgName string) []string {
-		var keep []string
-		for _, f := range files {
-			if fileToPkgName[f] == pkgName {
-				keep = append(keep, f)
-			}
-		}
-		return keep
-	}
-
-	// Trim the *GoFiles fields to only those files in the same
-	// package.
-	bpkg.Name = pkgName
-	if pkgName == "main" {
-		// TODO(sqs): If the package name is "main", and there are
-		// multiple main packages that are separate programs (and,
-		// e.g., expected to be run directly run `go run main1.go
-		// main2.go`), then this will break because it will try to
-		// compile them all together. There's no good way to handle
-		// that case that I can think of, other than with heuristics.
-	}
-	var nonXTestPkgName string
-	if strings.HasSuffix(pkgName, "_test") {
-		nonXTestPkgName = strings.TrimSuffix(pkgName, "_test")
-	} else {
-		nonXTestPkgName = pkgName
-	}
-	bpkg.GoFiles = filterToFilesInPackage(bpkg.GoFiles, nonXTestPkgName)
-	return bpkg, nil
-}
-
-func isMultiplePackageError(err error) bool {
-	_, ok := err.(*build.MultiplePackageError)
-	return ok
-}
 
 func (h *LangHandler) loadFromGlobalCache(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
 	pos := token.NoPos
@@ -113,5 +52,5 @@ func (h *LangHandler) startPos(ctx context.Context, pkg *packages.Package, fileU
 }
 
 func (h *LangHandler) load(filename string) *packages.Package {
-	return h.globalCache.GetFromURI(util.GetRealDir(path.Dir(filename)))
+	return h.globalCache.GetFromFilename(util.GetRealPath(filename))
 }

@@ -213,7 +213,7 @@ func (h *HandlerShared) FilePath(uri lsp.DocumentURI) string {
 	if !strings.HasPrefix(path, "/") {
 		panic(fmt.Sprintf("bad uri %q (path %q MUST have leading slash; it can't be relative)", uri, path))
 	}
-	return util.GetRealDir(path)
+	return util.GetRealPath(path)
 }
 
 func (h *HandlerShared) readFile(ctx context.Context, uri lsp.DocumentURI) ([]byte, error) {

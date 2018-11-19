@@ -76,7 +76,7 @@ func TestHover(t *testing.T) {
 	})
 
 	t.Run("go root", func(t *testing.T) {
-		test(t, "goroot/a.go:1:40", "func Println(a ...interface{}) (n int, err error)")
+		test(t, "goroot/a.go:1:40", "func Println(a ...interface{}) (n int, err error); Println formats using the default formats for its operands and writes to standard output. Spaces are always added between operands and a newline is appended. It returns the number of bytes written and any write error encountered. \n\n")
 	})
 
 	t.Run("go project", func(t *testing.T) {
@@ -95,12 +95,12 @@ func TestHover(t *testing.T) {
 		test(t, "docs/a.go:7:9", "package p; Package p is a package with lots of great things. \n\n")
 		//"a.go:9:9": "", TODO: handle hovering on import statements (ast.BasicLit)
 		test(t, "docs/a.go:12:5", "var logit func(); logit is pkg2.X \n\n")
-		test(t, "docs/a.go:12:13", "package pkg2 (\"github.com/saibing/dep/pkg2\")")
-		test(t, "docs/a.go:12:18", "func X()")
+		test(t, "docs/a.go:12:13", "package pkg2 (\"github.com/saibing/dep/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n")
+		test(t, "docs/a.go:12:18", "func X(); X does the unknown. \n\n")
 		test(t, "docs/a.go:15:6", "type T struct; T is a struct. \n\n; struct {\n    F string\n    H Header\n}")
 		test(t, "docs/a.go:17:2", "struct field F string; F is a string field. \n\n")
 		test(t, "docs/a.go:20:2", "struct field H github.com/saibing/dep/pkg2.Header; H is a header. \n\n")
-		test(t, "docs/a.go:20:4", "package pkg2 (\"github.com/saibing/dep/pkg2\")")
+		test(t, "docs/a.go:20:4", "package pkg2 (\"github.com/saibing/dep/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n")
 		test(t, "docs/a.go:24:5", "var Foo string; Foo is the best string. \n\n")
 		test(t, "docs/a.go:31:2", "var I2 int; I2 is an int \n\n")
 

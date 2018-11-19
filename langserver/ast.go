@@ -297,7 +297,7 @@ func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, po
 	root := source.FromDocumentURI(h.init.RootURI)
 
 	if strings.HasPrefix(string(uri), string(root)) {
-		if h.DefaultConfig.NoGlobalCache || h.overlay.view.HasParsed(uri) {
+		if h.overlay.view.HasParsed(uri) {
 			return h.loadFromSourceView(uri, position)
 		}
 	}

@@ -139,14 +139,14 @@ func IsWindows() bool {
 	return runtime.GOOS == windowsOS
 }
 
-func GetRealDir(dir string) string {
+func GetRealPath(filename string) string {
 	if !IsWindows() {
-		return dir
+		return filename
 	}
 
-	if dir[0] == '/' {
-		return dir[1:]
+	if filename[0] == '/' {
+		return filename[1:]
 	}
 
-	return dir
+	return filename
 }
