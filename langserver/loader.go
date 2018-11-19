@@ -14,15 +14,9 @@ import (
 func (h *LangHandler) loadFromGlobalCache(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
 	pos := token.NoPos
 
-	if !util.IsURI(fileURI) {
-		return nil, pos, fmt.Errorf("typechecking of out-of-workspace URI (%q) is not yet supported", fileURI)
-	}
-
-	filename := h.FilePath(fileURI)
-
-	pkg := h.load(filename)
+	pkg := h.load(fileURI)
 	if pkg == nil {
-		return nil, pos, fmt.Errorf("%s does not exist", filename)
+		return nil, pos, fmt.Errorf("%s does not exist", fileURI)
 	}
 
 	pos, err := h.startPos(ctx, pkg, fileURI, position)
@@ -51,6 +45,6 @@ func (h *LangHandler) startPos(ctx context.Context, pkg *packages.Package, fileU
 	return pos, nil
 }
 
-func (h *LangHandler) load(filename string) *packages.Package {
-	return h.globalCache.GetFromFilename(util.GetRealPath(filename))
+func (h *LangHandler) load(uri lsp.DocumentURI) *packages.Package {
+	return h.globalCache.GetFromFilename(util.GetRealPath(h.FilePath(uri)))
 }

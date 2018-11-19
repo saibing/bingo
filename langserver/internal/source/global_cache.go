@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
-	"github.com/saibing/bingo/langserver/internal/util"
 	"go/token"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -19,7 +19,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-type uri2Package map[string]*packages.Package
 type path2Package map[string]*packages.Package
 
 // FindPackageFunc matches the signature of loader.Config.FindPackage, except
@@ -28,18 +27,18 @@ type FindPackageFunc func(globalCache *GlobalCache, importPath string) (*package
 
 type GlobalCache struct {
 	mu             sync.RWMutex
-	conn jsonrpc2.JSONRPC2
+	conn           jsonrpc2.JSONRPC2
 	view           *View
-	urlMap         uri2Package
-	pathMap		   path2Package
+	pathMap        path2Package
 	searchOrder    []string
 	rootDir        string
 	mainModulePath string
 	moduleMap      map[string]moduleInfo
+	goroot         string
 }
 
 func NewGlobalCache() *GlobalCache {
-	return &GlobalCache{}
+	return &GlobalCache{goroot: runtime.GOROOT()}
 }
 
 type moduleInfo struct {
@@ -64,11 +63,37 @@ func (c *GlobalCache) GetFromPackagePath(pkgPath string) *packages.Package {
 	return c.pathMap[pkgPath]
 }
 
+func (c *GlobalCache) getPackagePath(filename string) string {
+	var pkgPath string
+	dir := filepath.Dir(filename)
+	base := filepath.Base(filename)
+
+	if strings.HasPrefix(dir, c.goroot) {
+		pkgPath = dir[len(c.goroot):]
+	} else {
+		for k, v := range c.moduleMap {
+			if strings.HasPrefix(dir, k) {
+				pkgPath = filepath.Join(v.Path + dir[len(k):])
+				break
+			}
+		}
+	}
+
+	if strings.HasSuffix(base, "_test.go") {
+		pkgPath += ".test"
+	}
+
+	pkgPath = filepath.ToSlash(pkgPath)
+
+	return pkgPath
+}
+
 func (c *GlobalCache) GetFromFilename(filename string) *packages.Package {
-	cacheKey := getCacheKeyFromFile(filename)
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.urlMap[cacheKey]
+
+	pkgPath := c.getPackagePath(filename)
+	return c.pathMap[pkgPath]
 }
 
 func (c *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
@@ -166,7 +191,7 @@ func (c *GlobalCache) readModuleFromFile() (map[string]moduleInfo, error) {
 	}
 
 	moduleMap := map[string]moduleInfo{}
-	for _, module := range  modules {
+	for _, module := range modules {
 		moduleMap[module.Dir] = module
 	}
 
@@ -226,7 +251,7 @@ func (c *GlobalCache) buildCache(ctx context.Context) ([]*packages.Package, erro
 	cfg.Mode = packages.LoadAllSyntax
 	cfg.Fset = token.NewFileSet()
 
-	pkgList, err := packages.Load(&cfg,  c.rootDir+"/...")
+	pkgList, err := packages.Load(&cfg, c.rootDir+"/...")
 	if err != nil {
 		c.conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: err.Error()})
 	}
@@ -234,11 +259,10 @@ func (c *GlobalCache) buildCache(ctx context.Context) ([]*packages.Package, erro
 	return pkgList, err
 }
 
-func (c *GlobalCache) setCache(ctx context.Context, pkgList []*packages.Package)  {
+func (c *GlobalCache) setCache(ctx context.Context, pkgList []*packages.Package) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.urlMap = uri2Package{}
 	c.pathMap = path2Package{}
 
 	var thirdParty []string
@@ -311,30 +335,9 @@ func (c *GlobalCache) cache(ctx context.Context, pkg *packages.Package) {
 
 	c.pathMap[pkg.PkgPath] = pkg
 
-	for _, file := range pkg.CompiledGoFiles {
-		cacheKey := getCacheKeyFromFile(file)
-		c.urlMap[cacheKey] = pkg
-	}
-
 	msg := fmt.Sprintf("cached package %s", pkg.PkgPath)
 	c.conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
 	for _, importPkg := range pkg.Imports {
 		c.cache(ctx, importPkg)
 	}
-}
-
-
-func getCacheKeyFromFile(filename string) string {
-	if !util.IsWindows() {
-		return filename
-	}
-
-	nodes := strings.Split(filename, ":")
-	if len(nodes) >= 2 {
-		nodes[0] = strings.ToUpper(nodes[0])
-		filename = strings.Join(nodes, ":")
-	}
-
-	filename = strings.Replace(filename, "\\", "/", -1)
-	return filename
 }

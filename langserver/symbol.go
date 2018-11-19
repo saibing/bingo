@@ -325,8 +325,7 @@ func (h *LangHandler) loadAstFromSourceView(uri source.URI) (*packages.Package, 
 }
 
 func (h *LangHandler) loadAstFromGlobalCache(fileURI lsp.DocumentURI) (*packages.Package, *ast.File, error) {
-	filename := h.FilePath(fileURI)
-	pkg := h.load(filename)
+	pkg := h.load(fileURI)
 	astFile := goast.GetSyntaxFile(pkg, util.UriToRealPath(fileURI))
 	return pkg, astFile, nil
 }

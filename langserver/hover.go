@@ -46,15 +46,15 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 
 	switch node := pathNodes[0].(type) {
 	case *ast.Ident:
-		return h.hoverIdent(pkg, node, params.Position)
+		return h.hoverIdent(pkg, pathNodes, node, params.Position)
 	case *ast.BasicLit:
 		return h.hoverBasicLit(pkg, pathNodes, node, params.Position)
 	case *ast.TypeSpec:
-		return h.hoverIdent(pkg, node.Name, params.Position)
+		return h.hoverIdent(pkg, pathNodes,  node.Name, params.Position)
 	case *ast.CallExpr:
 		return h.hoverCallExpr(pkg, pathNodes, node, params.Position)
 	case *ast.SelectorExpr:
-		return h.hoverIdent(pkg, node.Sel, params.Position)
+		return h.hoverIdent(pkg, pathNodes, node.Sel, params.Position)
 	}
 
 	return nil, goast.NewInvalidNodeError(pkg, pathNodes[0])
@@ -62,11 +62,11 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 
 func (h *LangHandler) hoverCallExpr(pkg *packages.Package, nodes []ast.Node, call *ast.CallExpr, position lsp.Position) (*lsp.Hover, error) {
 	if ident, ok := call.Fun.(*ast.Ident); ok {
-		return h.hoverIdent(pkg, ident, position)
+		return h.hoverIdent(pkg, nodes, ident, position)
 	}
 
 	if selExpr, ok := call.Fun.(*ast.SelectorExpr); ok {
-		return h.hoverIdent(pkg, selExpr.Sel, position)
+		return h.hoverIdent(pkg, nodes, selExpr.Sel, position)
 	}
 
 	return nil, goast.NewInvalidNodeError(pkg, nodes[0])
@@ -90,23 +90,18 @@ func (h *LangHandler) hoverBasicLit(pkg *packages.Package, nodes []ast.Node, bas
 	return nil, nil
 }
 
-func (h *LangHandler) hoverIdent(pkg *packages.Package, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
+func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
 
 	o := pkg.TypesInfo.ObjectOf(ident)
 	t := pkg.TypesInfo.TypeOf(ident)
 
 	if o == nil && t == nil {
-		comments := packageDoc(pkg.Syntax, ident.Name)
-
-		// Package statement idents don't have an object, so try that separately.
-		r := rangeForNode(pkg.Fset, ident)
-		if pkgName := packageStatementName(pkg.Fset, pkg.Syntax, ident); pkgName != "" {
-			return &lsp.Hover{
-				Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: "package " + pkgName}}),
-				Range:    &r,
-			}, nil
+		if ident.Obj != nil {
+			contents := maybeAddComments("", []lsp.MarkedString{{Language: "go", Value: ident.String()}})
+			r := rangeForNode(pkg.Fset, ident)
+			return &lsp.Hover{Contents: contents, Range: &r}, nil
 		}
-		return nil, fmt.Errorf("type/object not found at %+v", position)
+		return h.packageStatement(pkg, ident, position)
 	}
 
 	if o != nil && !o.Pos().IsValid() {
@@ -154,6 +149,20 @@ func (h *LangHandler) hoverIdent(pkg *packages.Package, ident *ast.Ident, positi
 
 	r := rangeForNode(pkg.Fset, ident)
 	return &lsp.Hover{Contents: contents, Range: &r}, nil
+}
+
+func (h *LangHandler) packageStatement(pkg *packages.Package, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error){
+	comments := packageDoc(pkg.Syntax, ident.Name)
+
+	// Package statement idents don't have an object, so try that separately.
+	r := rangeForNode(pkg.Fset, ident)
+	if pkgName := packageStatementName(pkg.Fset, pkg.Syntax, ident); pkgName != "" {
+		return &lsp.Hover{
+			Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: "package " + pkgName}}),
+			Range:    &r,
+		}, nil
+	}
+	return nil, fmt.Errorf("type/object not found at %+v", position)
 }
 
 func (h *LangHandler) getImportPackage(pkg *packages.Package, importPath string) *packages.Package {
