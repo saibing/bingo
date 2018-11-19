@@ -17,30 +17,16 @@ import (
 )
 
 func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentFormattingParams) ([]lsp.TextEdit, error) {
-	if !util.IsURI(params.TextDocument.URI) {
-		return nil, &jsonrpc2.Error{
-			Code:    jsonrpc2.CodeInvalidParams,
-			Message: fmt.Sprintf("%s not yet supported for out-of-workspace URI (%q)", req.Method, params.TextDocument.URI),
-		}
-	}
-
 	return formatRange(ctx, h.overlay.view, params.TextDocument.URI, nil)
 }
 
 func (h *LangHandler) handleTextDocumentRangeFormatting(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentRangeFormattingParams) ([]lsp.TextEdit, error) {
-	if !util.IsURI(params.TextDocument.URI) {
-		return nil, &jsonrpc2.Error{
-			Code:    jsonrpc2.CodeInvalidParams,
-			Message: fmt.Sprintf("%s not yet supported for out-of-workspace URI (%q)", req.Method, params.TextDocument.URI),
-		}
-	}
-
 	return formatRange(ctx, h.overlay.view, params.TextDocument.URI, &params.Range)
 }
 
 // formatRange formats a document with a given range.
 func formatRange(ctx context.Context, v *source.View, uri lsp.DocumentURI, rng *lsp.Range) ([]lsp.TextEdit, error) {
-	f := v.GetFile(source.URI(uri))
+	f := v.GetFile(source.FromDocumentURI(uri))
 	tok, err := f.GetToken()
 	if err != nil {
 		return nil, err
