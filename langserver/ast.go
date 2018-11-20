@@ -73,6 +73,7 @@ func createLocationFromRange(fSet *token.FileSet, pos token.Pos, end token.Pos) 
 	}
 }
 
+// objToRange please reference https://go-review.googlesource.com/c/tools/+/150044
 func objToRange(fSet *token.FileSet,  p token.Pos, name string) lsp.Range {
 	f := fSet.File(p)
 	pos := f.Position(p)
