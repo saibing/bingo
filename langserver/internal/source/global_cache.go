@@ -38,7 +38,18 @@ type GlobalCache struct {
 }
 
 func NewGlobalCache() *GlobalCache {
-	return &GlobalCache{goroot: runtime.GOROOT()}
+	return &GlobalCache{goroot: getGoRoot()}
+}
+
+func getGoRoot() string {
+	root := runtime.GOROOT()
+	if !util.IsWindows() {
+		return root
+	}
+
+	root = filepath.Join(root, "src")
+	root = strings.ToLower(root[0:1]) + root[1:]
+	return root + "\\"
 }
 
 type moduleInfo struct {
@@ -64,7 +75,7 @@ func (c *GlobalCache) GetFromPackagePath(pkgPath string) *packages.Package {
 }
 
 func (c *GlobalCache) getPackagePath(filename string) (pkgPath string, testPkgPath string) {
-	dir := filepath.ToSlash(filepath.Dir(filename))
+	dir := filepath.Dir(filename)
 	base := filepath.Base(filename)
 
 	if strings.HasPrefix(dir, c.goroot) {
