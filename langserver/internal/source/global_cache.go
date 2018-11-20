@@ -63,8 +63,7 @@ func (c *GlobalCache) GetFromPackagePath(pkgPath string) *packages.Package {
 	return c.pathMap[pkgPath]
 }
 
-func (c *GlobalCache) getPackagePath(filename string) string {
-	var pkgPath string
+func (c *GlobalCache) getPackagePath(filename string) (pkgPath string, testPkgPath string) {
 	dir := filepath.Dir(filename)
 	base := filepath.Base(filename)
 
@@ -79,20 +78,23 @@ func (c *GlobalCache) getPackagePath(filename string) string {
 		}
 	}
 
-	if strings.HasSuffix(base, "_test.go") {
-		pkgPath += ".test"
-	}
-
 	pkgPath = filepath.ToSlash(pkgPath)
 
-	return pkgPath
+	if strings.HasSuffix(base, "_test.go") {
+		testPkgPath = pkgPath + ".test"
+	}
+	return pkgPath, testPkgPath
 }
 
 func (c *GlobalCache) GetFromFilename(filename string) *packages.Package {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	pkgPath := c.getPackagePath(filename)
+	pkgPath, testPkgPath := c.getPackagePath(filename)
+	if testPkgPath != "" {
+		pkg := c.pathMap[testPkgPath]
+		return pkg.Imports[pkgPath]
+	}
 	return c.pathMap[pkgPath]
 }
 
