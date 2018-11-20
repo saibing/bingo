@@ -6,7 +6,6 @@ import (
 	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
-	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
 	"sort"
@@ -166,10 +165,8 @@ func implements(packageCache *source.GlobalCache, pkg *packages.Package, path []
 			seen[obj] = struct{}{}
 		}
 
-		pos := obj.Pos()
-		end := obj.Pos() + token.Pos(len(obj.Name()))
 		return &lspext.ImplementationLocation{
-			Location: goRangeToLSPLocation(pkg.Fset, pos, end),
+			Location: goRangeToLSPLocation(pkg.Fset, obj.Pos(), obj.Name()),
 			Method:   method != nil,
 		}
 	}

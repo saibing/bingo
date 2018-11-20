@@ -51,9 +51,9 @@ func TestReferences(t *testing.T) {
 	})
 
 	t.Run("test", func(t *testing.T) {
-		test(t, "test/a_test.go:1:43", []string{"test/a_test.go:1:43", "test/b/b.go:1:16", "test/b/b.go:1:45", "test/c/c.go:1:43"})
-		test(t, "test/a_test.go:1:41", []string{"test/a_test.go:1:19", "test/a_test.go:1:41"})
-		test(t, "test/a_test.go:1:51", []string{"test/a_test.go:1:51"})
+		test(t, "test/a_test.go:1:102", []string{"test/a_test.go:1:102", "test/b/b.go:1:16", "test/b/b.go:1:45", "test/c/c.go:1:84"})
+		test(t, "test/a_test.go:1:100", []string{"test/a_test.go:1:19", "test/a_test.go:1:41"})
+		test(t, "test/a_test.go:1:110", []string{"test/a_test.go:1:51"})
 	})
 
 	t.Run("go project", func(t *testing.T) {

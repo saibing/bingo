@@ -8,7 +8,6 @@ import (
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
-	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
 	"log"
@@ -121,12 +120,12 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 	for _, found := range nodes {
 		// Determine location information for the ident.
 		l := symbolLocationInformation{
-			Location: goRangeToLSPLocation(pkg.Fset, found.ident.Pos(), found.ident.End()),
+			Location: goRangeToLSPLocation(pkg.Fset, found.ident.Pos(), found.ident.Name),
 		}
 		if found.typ != nil {
 			// We don't get an end position, but we can assume it's comparable to
 			// the length of the name, I hope.
-			l.TypeLocation = goRangeToLSPLocation(pkg.Fset, found.typ.Pos(), token.Pos(int(found.typ.Pos())+len(found.typ.Name())))
+			l.TypeLocation = goRangeToLSPLocation(pkg.Fset, found.typ.Pos(), found.typ.Name())
 		}
 
 		// Determine metadata information for the ident.

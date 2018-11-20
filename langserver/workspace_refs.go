@@ -91,7 +91,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 
 		results.resultsMu.Lock()
 		results.results = append(results.results, referenceInformation{
-			Reference: goRangeToLSPLocation(pkg.Fset, r.Start, r.End),
+			Reference: createLocationFromRange(pkg.Fset, r.Start, r.End),
 			Symbol:    symDesc,
 		})
 		results.resultsMu.Unlock()

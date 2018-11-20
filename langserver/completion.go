@@ -6,9 +6,7 @@ package langserver
 
 import (
 	"context"
-	"fmt"
 	"github.com/saibing/bingo/langserver/internal/source"
-	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"regexp"
@@ -22,13 +20,6 @@ var (
 )
 
 func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.CompletionParams) (*lsp.CompletionList, error) {
-	if !util.IsURI(params.TextDocument.URI) {
-		return nil, &jsonrpc2.Error{
-			Code:    jsonrpc2.CodeInvalidParams,
-			Message: fmt.Sprintf("textDocument/complete not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
-		}
-	}
-
 	f := h.overlay.view.GetFile(source.FromDocumentURI(params.TextDocument.URI))
 	tok, err := f.GetToken()
 	if err != nil {

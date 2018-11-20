@@ -1,6 +1,7 @@
 package langserver
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/source"
@@ -8,6 +9,7 @@ import (
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
+	"io/ioutil"
 	"strings"
 
 	"github.com/saibing/bingo/pkg/lsp"
@@ -69,12 +71,12 @@ func goRangeToLSPLocation(fSet *token.FileSet, pos token.Pos, name string) lsp.L
 func createLocationFromRange(fSet *token.FileSet, pos token.Pos, end token.Pos) lsp.Location {
 	return lsp.Location{
 		URI:   lsp.DocumentURI(source.ToURI(fSet.Position(pos).Filename)),
-		Range: rangeForNode(fSet, fakeNode{p: pos, e:pos + end}),
+		Range: rangeForNode(fSet, fakeNode{p: pos, e: pos + end}),
 	}
 }
 
 // objToRange please reference https://go-review.googlesource.com/c/tools/+/150044
-func objToRange(fSet *token.FileSet,  p token.Pos, name string) lsp.Range {
+func objToRange(fSet *token.FileSet, p token.Pos, name string) lsp.Range {
 	f := fSet.File(p)
 	pos := f.Position(p)
 	if pos.Column == 1 {
@@ -95,7 +97,7 @@ func objToRange(fSet *token.FileSet,  p token.Pos, name string) lsp.Range {
 		}
 	}
 
-	return rangeForNode(fSet, fakeNode{p: p, e:p + token.Pos(len([]byte(name)))})
+	return rangeForNode(fSet, fakeNode{p: p, e: p + token.Pos(len([]byte(name)))})
 }
 
 type action int

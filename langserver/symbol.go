@@ -256,7 +256,7 @@ func toSym(name string, pkg *packages.Package, container string, recv string, ki
 		SymbolInformation: lsp.SymbolInformation{
 			Name:          name,
 			Kind:          kind,
-			Location:      goRangeToLSPLocation(fs, pos, pos+token.Pos(len(name))),
+			Location:      goRangeToLSPLocation(fs, pos, name),
 			ContainerName: container,
 		},
 		// NOTE: fields must be kept in sync with workspace_refs.go:defSymbolDescriptor
@@ -274,13 +274,6 @@ func toSym(name string, pkg *packages.Package, container string, recv string, ki
 // handleTextDocumentSymbol handles `textDocument/documentSymbol` requests for
 // the Go language server.
 func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
-	if !util.IsURI(params.TextDocument.URI) {
-		return nil, &jsonrpc2.Error{
-			Code:    jsonrpc2.CodeInvalidParams,
-			Message: fmt.Sprintf("textDocument/documentSymbol not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
-		}
-	}
-
 	uri := source.FromDocumentURI(params.TextDocument.URI)
 
 	var pkg *packages.Package

@@ -337,8 +337,16 @@ func (c *GlobalCache) Search(visit func(p *packages.Package) error) error {
 
 		seen[pkgPath] = true
 
-		if err := visit(c.pathMap[pkgPath]); err != nil {
+		pkg := c.pathMap[pkgPath]
+		if err := visit(pkg); err != nil {
 			return err
+		}
+
+		if strings.HasSuffix(pkgPath, ".test") || strings.HasSuffix(pkgPath, "_test") {
+			pkg = pkg.Imports[pkgPath[:len(pkgPath) - len(".test")]]
+			if err := visit(pkg); err != nil {
+				return err
+			}
 		}
 	}
 

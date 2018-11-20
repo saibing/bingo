@@ -86,7 +86,7 @@ func refStreamAndCollect(fset *token.FileSet, refs []*ast.Ident, limit int) []ls
 
 	for i := 0; i < l; i++ {
 		n := refs[i]
-		locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
+		locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.Name))
 	}
 
 	return locs
