@@ -64,7 +64,7 @@ func (c *GlobalCache) GetFromPackagePath(pkgPath string) *packages.Package {
 }
 
 func (c *GlobalCache) getPackagePath(filename string) (pkgPath string, testPkgPath string) {
-	dir := filepath.Dir(filename)
+	dir := filepath.ToSlash(filepath.Dir(filename))
 	base := filepath.Base(filename)
 
 	if strings.HasPrefix(dir, c.goroot) {
