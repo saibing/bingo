@@ -57,22 +57,44 @@ type fakeNode struct{ p, e token.Pos }
 func (n fakeNode) Pos() token.Pos { return n.p }
 func (n fakeNode) End() token.Pos { return n.e }
 
-func goRangesToLSPLocations(fset *token.FileSet, nodes []*ast.Ident) []lsp.Location {
-	locs := make([]lsp.Location, len(nodes))
-	for i, node := range nodes {
-		locs[i] = goRangeToLSPLocation(fset, node.Pos(), node.End())
-	}
-	return locs
-}
-
 // goRangeToLSPLocation converts a token.Pos range into a lsp.Location. end is
 // exclusive.
-func goRangeToLSPLocation(fset *token.FileSet, pos token.Pos, end token.Pos) lsp.Location {
+func goRangeToLSPLocation(fSet *token.FileSet, pos token.Pos, name string) lsp.Location {
 	return lsp.Location{
-		URI:   lsp.DocumentURI(source.ToURI(fset.Position(pos).Filename)),
-		Range: rangeForNode(fset, fakeNode{p: pos, e: end}),
+		URI:   lsp.DocumentURI(source.ToURI(fSet.Position(pos).Filename)),
+		Range: objToRange(fSet, pos, name),
+	}
+}
+
+func createLocationFromRange(fSet *token.FileSet, pos token.Pos, end token.Pos) lsp.Location {
+	return lsp.Location{
+		URI:   lsp.DocumentURI(source.ToURI(fSet.Position(pos).Filename)),
+		Range: rangeForNode(fSet, fakeNode{p: pos, e:pos + end}),
+	}
+}
+
+func objToRange(fSet *token.FileSet,  p token.Pos, name string) lsp.Range {
+	f := fSet.File(p)
+	pos := f.Position(p)
+	if pos.Column == 1 {
+		// Column is 1, so we probably do not have full position information
+		// Currently exportdata does not store the column.
+		// For now we attempt to read the original source and  find the identifier
+		// within the line. If we find it we patch the column to match its offset.
+		// TODO: we have probably already added the full data for the file to the
+		// fileset, we ought to track it rather than adding it over and over again
+		// TODO: if we parse from source, we will never need this hack
+		if src, err := ioutil.ReadFile(pos.Filename); err == nil {
+			newF := fSet.AddFile(pos.Filename, -1, len(src))
+			newF.SetLinesForContent(src)
+			lineStart := lineStart(newF, pos.Line)
+			offset := newF.Offset(lineStart)
+			col := bytes.Index(src[offset:], []byte(name))
+			p = newF.Pos(offset + col)
+		}
 	}
 
+	return rangeForNode(fSet, fakeNode{p: p, e:p + token.Pos(len([]byte(name)))})
 }
 
 type action int
