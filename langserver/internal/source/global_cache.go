@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"go/token"
 	"io"
 	"os"
@@ -44,12 +45,15 @@ func NewGlobalCache() *GlobalCache {
 func getGoRoot() string {
 	root := runtime.GOROOT()
 	root = filepath.Join(root, "src")
+	return lowerDriver(root)
+}
+
+func lowerDriver(path string) string {
 	if !util.IsWindows() {
-		return root + "/"
+		return path
 	}
 
-	root = strings.ToLower(root[0:1]) + root[1:]
-	return root + "\\"
+	return strings.ToLower(path[0:1]) + path[1:]
 }
 
 type moduleInfo struct {
@@ -75,15 +79,15 @@ func (c *GlobalCache) GetFromPackagePath(pkgPath string) *packages.Package {
 }
 
 func (c *GlobalCache) getPackagePath(filename string) (pkgPath string, testPkgPath string) {
-	dir := filepath.Dir(filename)
+	dir := lowerDriver(filepath.Dir(filename))
 	base := filepath.Base(filename)
 
 	if strings.HasPrefix(dir, c.goroot) {
-		pkgPath = dir[len(c.goroot):]
+		pkgPath = dir[len(c.goroot)+1:]
 	} else {
 		for k, v := range c.moduleMap {
 			if strings.HasPrefix(dir, k) {
-				pkgPath = filepath.Join(v.Path + dir[len(k):])
+				pkgPath = filepath.Join(v.Path, dir[len(k):])
 				break
 			}
 		}
@@ -205,7 +209,7 @@ func (c *GlobalCache) readModuleFromFile() (map[string]moduleInfo, error) {
 
 	moduleMap := map[string]moduleInfo{}
 	for _, module := range modules {
-		moduleMap[module.Dir] = module
+		moduleMap[lowerDriver(module.Dir)] = module
 	}
 
 	return moduleMap, nil
