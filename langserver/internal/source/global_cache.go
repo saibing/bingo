@@ -43,11 +43,11 @@ func NewGlobalCache() *GlobalCache {
 
 func getGoRoot() string {
 	root := runtime.GOROOT()
+	root = filepath.Join(root, "src")
 	if !util.IsWindows() {
-		return root
+		return root + "/"
 	}
 
-	root = filepath.Join(root, "src")
 	root = strings.ToLower(root[0:1]) + root[1:]
 	return root + "\\"
 }
