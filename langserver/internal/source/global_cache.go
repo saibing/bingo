@@ -78,7 +78,7 @@ func (c *GlobalCache) GetFromPackagePath(pkgPath string) *packages.Package {
 	return c.pathMap[pkgPath]
 }
 
-func (c *GlobalCache) getPackagePath(filename string) (pkgPath string, testPkgPath string) {
+func (c *GlobalCache) getPackagePath(filename string) (pkgPath string, testFile bool) {
 	dir := lowerDriver(filepath.Dir(filename))
 	base := filepath.Base(filename)
 
@@ -96,19 +96,23 @@ func (c *GlobalCache) getPackagePath(filename string) (pkgPath string, testPkgPa
 	pkgPath = filepath.ToSlash(pkgPath)
 
 	if strings.HasSuffix(base, "_test.go") {
-		testPkgPath = pkgPath + ".test"
+		testFile = true
 	}
-	return pkgPath, testPkgPath
+	return pkgPath, testFile
 }
 
 func (c *GlobalCache) GetFromFilename(filename string) *packages.Package {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	pkgPath, testPkgPath := c.getPackagePath(filename)
-	if testPkgPath != "" {
-		pkg := c.pathMap[testPkgPath]
-		return pkg.Imports[pkgPath]
+	pkgPath, testFile := c.getPackagePath(filename)
+	if testFile {
+		pkg := c.pathMap[pkgPath+"_test"]
+		if pkg != nil {
+			return pkg
+		}
+
+		return c.pathMap[pkgPath + ".test"]
 	}
 	return c.pathMap[pkgPath]
 }

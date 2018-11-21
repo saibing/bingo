@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
-	"strings"
 )
 
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
@@ -111,7 +110,7 @@ func (h *LangHandler) findReferences(ctx context.Context, conn jsonrpc2.JSONRPC2
 		return nil, ctx.Err()
 	}
 
-	defPkgPath := strings.TrimSuffix(obj.Pkg().Path(), "_test")
+	defPkgPath := obj.Pkg().Path()
 	objPos := fset.Position(obj.Pos())
 
 	var queryObj types.Object
