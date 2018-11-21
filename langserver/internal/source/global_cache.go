@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"github.com/saibing/bingo/langserver/internal/util"
+	"go/parser"
 	"go/token"
 	"io"
 	"os"
@@ -108,12 +109,23 @@ func (c *GlobalCache) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	filename, _ := FromDocumentURI(uri).Filename()
 	pkgPath, testFile := c.getPackagePath(filename)
 	if testFile {
-		pkg := c.pathMap[pkgPath+"_test"]
-		if pkg != nil {
-			return pkg
+		file := c.view.GetFile(URI(uri))
+		content, err := file.Read()
+		if err != nil {
+			panic(err)
 		}
 
-		return c.pathMap[pkgPath + ".test"]
+		fSet := token.NewFileSet()
+		astFile, err := parser.ParseFile(fSet, filename, content, parser.PackageClauseOnly)
+		if err != nil {
+			panic(err)
+		}
+
+		if strings.HasSuffix(pkgPath, astFile.Name.Name) {
+			return c.pathMap[pkgPath+".test"]
+		}
+
+		return c.pathMap[pkgPath + "_test"]
 	}
 	return c.pathMap[pkgPath]
 }

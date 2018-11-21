@@ -43,9 +43,9 @@ func TestReferences(t *testing.T) {
 	})
 
 	t.Run("xtest", func(t *testing.T) {
-		//test(t, "xtest/a.go:1:16", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})
-		//test(t, "xtest/x_test.go:1:88", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})
-		//test(t, "xtest/x_test.go:1:82", []string{"xtest/x_test.go:1:82", "xtest/y_test.go:1:39"})
+		test(t, "xtest/a.go:1:16", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})
+		test(t, "xtest/x_test.go:1:88", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})
+		test(t, "xtest/x_test.go:1:82", []string{"xtest/x_test.go:1:82", "xtest/y_test.go:1:39"})
 		test(t, "xtest/a_test.go:1:16", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})
 		//test(t, "xtest/a_test.go:1:20", []string{"xtest/a_test.go:1:16", "xtest/b_test.go:1:34"})
 	})
