@@ -194,9 +194,8 @@ func (c *GlobalCache) readModuleFromFile() (map[string]moduleInfo, error) {
 	var modules []moduleInfo
 
 	decoder := json.NewDecoder(buf)
-
-	var module moduleInfo
 	for {
+		module := moduleInfo{}
 		err = decoder.Decode(&module)
 		if err == io.EOF {
 			break
@@ -209,6 +208,10 @@ func (c *GlobalCache) readModuleFromFile() (map[string]moduleInfo, error) {
 
 	moduleMap := map[string]moduleInfo{}
 	for _, module := range modules {
+		if module.Dir == "" {
+			// module define in go.mod but not in ${GOMOD}
+			continue
+		}
 		moduleMap[lowerDriver(module.Dir)] = module
 	}
 
@@ -338,12 +341,21 @@ func (c *GlobalCache) Search(visit func(p *packages.Package) error) error {
 		seen[pkgPath] = true
 
 		pkg := c.pathMap[pkgPath]
+		if pkg == nil {
+			continue
+		}
+
 		if err := visit(pkg); err != nil {
 			return err
 		}
 
 		if strings.HasSuffix(pkgPath, ".test") || strings.HasSuffix(pkgPath, "_test") {
 			pkg = pkg.Imports[pkgPath[:len(pkgPath) - len(".test")]]
+			if pkg == nil {
+				continue
+			}
+
+			seen[pkg.PkgPath] = false
 			if err := visit(pkg); err != nil {
 				return err
 			}
