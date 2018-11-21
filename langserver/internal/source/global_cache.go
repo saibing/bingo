@@ -328,6 +328,8 @@ func (c *GlobalCache) Search(visit func(p *packages.Package) error) error {
 		}
 
 		seen[pkg.PkgPath] = true
+
+		//fmt.Printf("visit view package %s\n", pkg.PkgPath)
 		if err := visit(pkg); err != nil {
 			return err
 		}
@@ -345,6 +347,7 @@ func (c *GlobalCache) Search(visit func(p *packages.Package) error) error {
 			continue
 		}
 
+		//fmt.Printf("visit package %s\n", pkg.PkgPath)
 		if err := visit(pkg); err != nil {
 			return err
 		}
@@ -356,6 +359,7 @@ func (c *GlobalCache) Search(visit func(p *packages.Package) error) error {
 			}
 
 			seen[pkg.PkgPath] = false
+			//fmt.Printf("visit xtest import package %s\n", pkg.PkgPath)
 			if err := visit(pkg); err != nil {
 				return err
 			}
