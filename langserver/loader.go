@@ -46,5 +46,5 @@ func (h *LangHandler) startPos(ctx context.Context, pkg *packages.Package, fileU
 }
 
 func (h *LangHandler) load(uri lsp.DocumentURI) *packages.Package {
-	return h.globalCache.GetFromFilename(util.GetRealPath(h.FilePath(uri)))
+	return h.globalCache.GetFromURI(uri)
 }

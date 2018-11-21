@@ -101,10 +101,11 @@ func (c *GlobalCache) getPackagePath(filename string) (pkgPath string, testFile 
 	return pkgPath, testFile
 }
 
-func (c *GlobalCache) GetFromFilename(filename string) *packages.Package {
+func (c *GlobalCache) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
+	filename, _ := FromDocumentURI(uri).Filename()
 	pkgPath, testFile := c.getPackagePath(filename)
 	if testFile {
 		pkg := c.pathMap[pkgPath+"_test"]
