@@ -121,11 +121,11 @@ func (c *GlobalCache) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 			panic(err)
 		}
 
-		if strings.HasSuffix(pkgPath, astFile.Name.Name) {
-			return c.pathMap[pkgPath+".test"]
+		if strings.HasSuffix(astFile.Name.Name, "_test") {
+			return c.pathMap[pkgPath+"_test"]
 		}
 
-		return c.pathMap[pkgPath + "_test"]
+		return c.pathMap[pkgPath + ".test"]
 	}
 	return c.pathMap[pkgPath]
 }
