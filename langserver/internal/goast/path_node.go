@@ -193,11 +193,49 @@ func PosForFileOffset(fset *token.FileSet, filename string, offset int) token.Po
 	return f.Pos(offset)
 }
 
-
 func GetSyntaxFile(pkg *packages.Package, filename string) *ast.File {
 	for i, file := range pkg.Syntax {
 		if util.PathEqual(pkg.CompiledGoFiles[i], filename) {
 			return file
+		}
+	}
+
+	for _, ipkg := range pkg.Imports {
+		file := GetSyntaxFile(ipkg, filename)
+		if file != nil {
+			return file
+		}
+	}
+
+	return nil
+}
+
+func FindIdentObject(pkg *packages.Package, ident *ast.Ident) types.Object {
+	o := pkg.TypesInfo.ObjectOf(ident)
+	if o != nil {
+		return o
+	}
+
+	for _, ipkg := range pkg.Imports {
+		o = FindIdentObject(ipkg, ident)
+		if o != nil {
+			return o
+		}
+	}
+
+	return nil
+}
+
+func FindIdentType(pkg *packages.Package, ident *ast.Ident) types.Type {
+	t := pkg.TypesInfo.TypeOf(ident)
+	if t != nil {
+		return t
+	}
+
+	for _, ipkg := range pkg.Imports {
+		t = FindIdentType(ipkg, ident)
+		if t != nil {
+			return t
 		}
 	}
 
