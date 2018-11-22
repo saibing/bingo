@@ -93,11 +93,8 @@ func (h *LangHandler) lookupCallExprDefinition(ctx context.Context, conn jsonrpc
 func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg *packages.Package, pathNodes []ast.Node, ident *ast.Ident) ([]symbolLocationInformation, error) {
 
 	var nodes []foundNode
-	obj, ok := pkg.TypesInfo.Uses[ident]
-	if !ok {
-		obj, ok = pkg.TypesInfo.Defs[ident]
-	}
-	if ok && obj != nil {
+	obj := goast.FindIdentObject(pkg, ident)
+	if obj != nil {
 		if p := obj.Pos(); p.IsValid() {
 			nodes = append(nodes, foundNode{
 				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
