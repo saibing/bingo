@@ -92,8 +92,8 @@ func (h *LangHandler) hoverBasicLit(pkg *packages.Package, nodes []ast.Node, bas
 
 func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
 
-	o := pkg.TypesInfo.ObjectOf(ident)
-	t := pkg.TypesInfo.TypeOf(ident)
+	o := goast.FindIdentObject(pkg, ident)
+	t := goast.FindIdentType(pkg, ident)
 
 	if o == nil && t == nil {
 		if ident.Obj != nil {
