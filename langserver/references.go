@@ -37,7 +37,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 
 	// NOTICE: Code adapted from golang.org/x/tools/cmd/guru
 	// referrers.go.
-	obj := pkg.TypesInfo.ObjectOf(ident)
+	obj := goast.FindIdentObject(pkg, ident)
 	if obj == nil {
 		return nil, errors.New("references object not found")
 	}
@@ -103,25 +103,14 @@ func formatLocation(loc lsp.Location) string {
 
 // findReferences will find all references to obj. It will only return
 // references from packages in pkg.Imports.
-func (h *LangHandler) findReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, fset *token.FileSet, packageCache *source.GlobalCache, obj types.Object) ([]*ast.Ident, error) {
+func (h *LangHandler) findReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, fset *token.FileSet, packageCache *source.GlobalCache, queryObj types.Object) ([]*ast.Ident, error) {
 	// Bail out early if the context is canceled
 	var refs []*ast.Ident
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 
-	defPkgPath := obj.Pkg().Path()
-	objPos := fset.Position(obj.Pos())
-
-	var queryObj types.Object
-
-	defPkg := h.globalCache.GetFromPackagePath(defPkgPath)
-	// Find the object by its position (slightly ugly).
-	queryObj = findObject(defPkg.Fset, defPkg.TypesInfo, objPos)
-	if queryObj == nil {
-		return nil, fmt.Errorf("object at %s not found in package %s", objPos, defPkgPath)
-	}
-
+	defPkgPath := queryObj.Pkg().Path()
 	f := func(pkg *packages.Package) error {
 		if _, ok := pkg.Imports[defPkgPath]; !ok && pkg.PkgPath != defPkgPath {
 			return nil
@@ -142,28 +131,6 @@ func (h *LangHandler) findReferences(ctx context.Context, conn jsonrpc2.JSONRPC2
 	}
 
 	return refs, nil
-}
-
-// findObject returns the object defined at the specified position.
-func findObject(fset *token.FileSet, info *types.Info, objposn token.Position) types.Object {
-	good := func(obj types.Object) bool {
-		if obj == nil {
-			return false
-		}
-		pos := fset.Position(obj.Pos())
-		return pos.Filename == objposn.Filename && pos.Offset == objposn.Offset
-	}
-	for _, obj := range info.Defs {
-		if good(obj) {
-			return obj
-		}
-	}
-	for _, obj := range info.Implicits {
-		if good(obj) {
-			return obj
-		}
-	}
-	return nil
 }
 
 // same reports whether x and y are identical, or both are PkgNames
