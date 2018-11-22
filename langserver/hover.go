@@ -166,13 +166,19 @@ func (h *LangHandler) packageStatement(pkg *packages.Package, ident *ast.Ident, 
 }
 
 func (h *LangHandler) getImportPackage(pkg *packages.Package, importPath string) *packages.Package {
-	importPkg := pkg.Imports[importPath]
-	return importPkg
-}
+	ipkg := pkg.Imports[importPath]
+	if ipkg != nil {
+		return ipkg
+	}
 
-func (h *LangHandler) lookupPackage(path string) *packages.Package {
-	pkg, _ := h.getFindPackageFunc()(h.globalCache, path)
-	return pkg
+	for _, p := range pkg.Imports {
+		ipkg = h.getImportPackage(p, importPath)
+		if ipkg != nil {
+			return ipkg
+		}
+	}
+
+	return nil
 }
 
 func (h *LangHandler) findComments(pkg *packages.Package, o types.Object, name string) (string, error) {
