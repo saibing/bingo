@@ -18,23 +18,18 @@ import (
 //
 // The zero value is returned if not found.
 //
-func PathEnclosingInterval(pkg *packages.Package, start, end token.Pos) (path []ast.Node, exact bool) {
-	path, exact = doEnclosingInterval(pkg, start, end)
-	if path != nil && len(path) != 0 {
-		return path, exact
+func PathEnclosingInterval(root *packages.Package, start, end token.Pos) (path []ast.Node, exact bool) {
+	found := func(pkg *packages.Package) bool {
+		path, exact = doEnclosingInterval(pkg, start, end)
+		return path != nil && len(path) != 0
 	}
 
-	for _, importPkg := range pkg.Imports {
-		path, exact = doEnclosingInterval(importPkg, start, end)
-		if path != nil && len(path) != 0 {
-			return path, exact
-		}
-	}
-	return nil, false
+	visitPackage(root, found)
+	return
 }
 
 func doEnclosingInterval(pkg *packages.Package, start, end token.Pos) ([]ast.Node, bool) {
-	if pkg == nil {
+	if pkg == nil || pkg.Syntax == nil {
 		return nil, false
 	}
 
