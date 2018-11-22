@@ -139,36 +139,10 @@ func NewInvalidNodeError(pkg *packages.Package, node ast.Node) *InvalidNodeError
 	}
 }
 
-func searchPackage(root *packages.Package, path string) *packages.Package {
-	seen := map[string]bool{}
-	return search(root, path, seen)
-}
-
-func search(root *packages.Package, path string, seen map[string]bool) *packages.Package {
-	if seen[root.PkgPath] {
-		return nil
-	}
-
-	seen[root.PkgPath] = true
-
-	if pkg, ok := root.Imports[path]; ok {
-		return pkg
-	}
-
-	for _, importPkg := range root.Imports {
-		pkg := search(importPkg, path, seen)
-		if pkg != nil {
-			return pkg
-		}
-	}
-
-	return nil
-}
-
 func GetObjectPathNode(pkg *packages.Package, o types.Object) (nodes []ast.Node, ident *ast.Ident, err error) {
 	nodes, _ = GetPathNodes(pkg, o.Pos(), o.Pos())
 	if len(nodes) == 0 {
-		nodes, err = GetPathNodes(searchPackage(pkg, o.Pkg().Path()), o.Pos(), o.Pos())
+		nodes, err = GetPathNodes(SearchImportPackage(pkg, o.Pkg().Path()), o.Pos(), o.Pos())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -193,53 +167,69 @@ func PosForFileOffset(fset *token.FileSet, filename string, offset int) token.Po
 	return f.Pos(offset)
 }
 
+func visitPackage(root *packages.Package, f func(*packages.Package) bool) bool {
+	seen := map[string]bool{}
+	return visit(root, f, seen)
+}
+
+func visit (root *packages.Package, found func(*packages.Package) bool, seen map[string]bool) bool {
+	if seen[root.PkgPath] {
+		return false
+	}
+
+	if found(root) {
+		return true
+	}
+
+	for _, importPkg := range root.Imports {
+		if visit(importPkg, found, seen) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func GetSyntaxFile(pkg *packages.Package, filename string) *ast.File {
-	for i, file := range pkg.Syntax {
-		if util.PathEqual(pkg.CompiledGoFiles[i], filename) {
-			return file
+	var file *ast.File
+	found := func(pkg *packages.Package) bool {
+		for i, f := range pkg.Syntax {
+			if util.PathEqual(pkg.CompiledGoFiles[i], filename) {
+				file = f
+				return true
+			}
 		}
+
+		return false
 	}
 
-	for _, ipkg := range pkg.Imports {
-		file := GetSyntaxFile(ipkg, filename)
-		if file != nil {
-			return file
-		}
-	}
+	visitPackage(pkg, found)
 
-	return nil
+	return file
 }
 
 func FindIdentObject(pkg *packages.Package, ident *ast.Ident) types.Object {
-	o := pkg.TypesInfo.ObjectOf(ident)
-	if o != nil {
-		return o
+	var o types.Object
+
+	found := func(pkg *packages.Package) bool {
+		o = pkg.TypesInfo.ObjectOf(ident)
+		return o != nil
 	}
 
-	for _, ipkg := range pkg.Imports {
-		o = FindIdentObject(ipkg, ident)
-		if o != nil {
-			return o
-		}
-	}
-
-	return nil
+	visitPackage(pkg, found)
+	return o
 }
 
 func FindIdentType(pkg *packages.Package, ident *ast.Ident) types.Type {
-	t := pkg.TypesInfo.TypeOf(ident)
-	if t != nil {
-		return t
+	var t types.Type
+
+	found := func(pkg *packages.Package) bool {
+		t = pkg.TypesInfo.TypeOf(ident)
+		return t != nil
 	}
 
-	for _, ipkg := range pkg.Imports {
-		t = FindIdentType(ipkg, ident)
-		if t != nil {
-			return t
-		}
-	}
-
-	return nil
+	visitPackage(pkg, found)
+	return t
 }
 
 // CallExpr climbs AST tree up until call expression
@@ -253,13 +243,15 @@ func CallExpr(fset *token.FileSet, nodes []ast.Node) *ast.CallExpr {
 	return nil
 }
 
-func GetIdent(fset *token.FileSet, nodes []ast.Node) *ast.Ident {
-	for _, node := range nodes {
-		ident, ok := node.(*ast.Ident)
-		if ok {
-			return ident
-		}
-	}
-	return nil
-}
+func SearchImportPackage(root *packages.Package, path string) *packages.Package {
+	var p *packages.Package
 
+	found := func(pkg *packages.Package) bool {
+		p = root.Imports[path]
+		return p != nil
+	}
+
+	visitPackage(root, found)
+
+	return p
+}

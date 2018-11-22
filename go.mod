@@ -9,7 +9,7 @@ require (
 	github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3
 	github.com/sourcegraph/ctxvfs v0.0.0-20180418081416-2b65f1b1ea81
 	github.com/sourcegraph/jsonrpc2 v0.0.0-20180831160525-549eb959f029
-	golang.org/x/sys v0.0.0-20181119195503-ec83556a53fe // indirect
-	golang.org/x/tools v0.0.0-20181120234846-b5f2cae84da8
+	golang.org/x/sys v0.0.0-20181121002834-0cf1ed9e522b // indirect
+	golang.org/x/tools v0.0.0-20181121193951-91f80e683c10
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
 )

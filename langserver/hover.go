@@ -166,19 +166,7 @@ func (h *LangHandler) packageStatement(pkg *packages.Package, ident *ast.Ident, 
 }
 
 func (h *LangHandler) getImportPackage(pkg *packages.Package, importPath string) *packages.Package {
-	ipkg := pkg.Imports[importPath]
-	if ipkg != nil {
-		return ipkg
-	}
-
-	for _, p := range pkg.Imports {
-		ipkg = h.getImportPackage(p, importPath)
-		if ipkg != nil {
-			return ipkg
-		}
-	}
-
-	return nil
+	return goast.SearchImportPackage(pkg, importPath)
 }
 
 func (h *LangHandler) findComments(pkg *packages.Package, o types.Object, name string) (string, error) {
