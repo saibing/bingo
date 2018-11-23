@@ -171,6 +171,7 @@ func visit (root *packages.Package, found func(*packages.Package) bool, seen map
 	if seen[root.PkgPath] {
 		return false
 	}
+	seen[root.PkgPath] = true
 
 	if found(root) {
 		return true
