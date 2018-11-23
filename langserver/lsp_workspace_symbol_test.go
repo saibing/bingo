@@ -18,6 +18,7 @@ import (
 )
 
 const exportedOnUnexported = "exported_on_unexported"
+const gorootnoexport = "gorootnoexport"
 
 func TestWorkspaceSymbol(t *testing.T) {
 	exported = packagestest.Export(t, packagestest.Modules, testdata)
@@ -45,15 +46,15 @@ func TestWorkspaceSymbol(t *testing.T) {
 			{Query: "A"}:           {"basic/a.go:function:A:1:17"},
 			{Query: "B"}:           {"basic/b.go:function:B:1:17"},
 			{Query: "is:exported"}: {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
-			{Query: "dir:/"}:       {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
-			{Query: "dir:/ A"}:     {"basic/a.go:function:A:1:17"},
-			{Query: "dir:/ B"}:     {"basic/b.go:function:B:1:17"},
+			{Query: "dir:basic/"}:       {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
+			{Query: "dir:basic/ A"}:     {"basic/a.go:function:A:1:17"},
+			{Query: "dir:basic/ B"}:     {"basic/b.go:function:B:1:17"},
 
 			// non-nil SymbolDescriptor + no keys.
 			{Symbol: make(lspext.SymbolDescriptor)}: {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
 
-			// Individual filter fields.
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg"}}: {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
+			//Individual filter fields.
+			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/basic"}}: {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
 			{Symbol: lspext.SymbolDescriptor{"name": "A"}}:           {"basic/a.go:function:A:1:17"},
 			{Symbol: lspext.SymbolDescriptor{"name": "B"}}:           {"basic/b.go:function:B:1:17"},
 			{Symbol: lspext.SymbolDescriptor{"packageName": "p"}}:    {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
@@ -61,27 +62,27 @@ func TestWorkspaceSymbol(t *testing.T) {
 			{Symbol: lspext.SymbolDescriptor{"vendor": false}}:       {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
 
 			// Combined filter fields.
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg"}}:                                                               {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A"}}:                                                  {"basic/a.go:function:A:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A", "packageName": "p"}}:                              {"basic/a.go:function:A:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A", "packageName": "p", "recv": ""}}:                  {"basic/a.go:function:A:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A", "packageName": "p", "recv": "", "vendor": false}}: {"basic/a.go:function:A:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B"}}:                                                  {"basic/b.go:function:B:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B", "packageName": "p"}}:                              {"basic/b.go:function:B:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B", "packageName": "p", "recv": ""}}:                  {"basic/b.go:function:B:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B", "packageName": "p", "recv": "", "vendor": false}}: {"basic/b.go:function:B:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/basic"}}:                                                               {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/basic", "name": "A"}}:                                                  {"basic/a.go:function:A:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/basic", "name": "A", "packageName": "p"}}:                              {"basic/a.go:function:A:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/basic", "name": "A", "packageName": "p", "recv": ""}}:                  {"basic/a.go:function:A:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/basic", "name": "A", "packageName": "p", "recv": "", "vendor": false}}: {"basic/a.go:function:A:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/basic", "name": "B"}}:                                                  {"basic/b.go:function:B:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/basic", "name": "B", "packageName": "p"}}:                              {"basic/b.go:function:B:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/basic", "name": "B", "packageName": "p", "recv": ""}}:                  {"basic/b.go:function:B:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/basic", "name": "B", "packageName": "p", "recv": "", "vendor": false}}: {"basic/b.go:function:B:1:17"},
 
 			// By ID.
-			{Symbol: lspext.SymbolDescriptor{"id": "test/pkg/-/B"}}: {"basic/b.go:function:B:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"id": "test/pkg/-/A"}}: {"basic/a.go:function:A:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"id": "github.com/saibing/bingo/langserver/test/pkg/basic/-/B"}}: {"basic/b.go:function:B:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"id": "github.com/saibing/bingo/langserver/test/pkg/basic/-/A"}}: {"basic/a.go:function:A:1:17"},
 		})
 	})
 
 	t.Run("detailed workspace symbol", func(t *testing.T) {
 		test(t, map[*lspext.WorkspaceSymbolParams][]string{
-			//{Query: ""}:            {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
-			//{Query: "T"}:           {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
-			//{Query: "F"}:           {"detailed/a.go:field:T.F:1:28"},
+			{Query: ""}:            {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
+			{Query: "T"}:           {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
+			{Query: "F"}:           {"detailed/a.go:field:T.F:1:28"},
 			{Query: "is:exported"}: {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
 		})
 	})
@@ -96,13 +97,11 @@ func TestWorkspaceSymbol(t *testing.T) {
 		test(t, map[*lspext.WorkspaceSymbolParams][]string{
 			{Query: ""}:            {"subdirectory/a.go:function:A:1:17", "subdirectory/d2/b.go:function:B:1:86"},
 			{Query: "is:exported"}: {"subdirectory/a.go:function:A:1:17", "subdirectory/d2/b.go:function:B:1:86"},
-			{Query: "dir:"}:        {"subdirectory/a.go:function:A:1:17"},
-			{Query: "dir:/"}:       {"subdirectory/a.go:function:A:1:17"},
-			{Query: "dir:."}:       {"subdirectory/a.go:function:A:1:17"},
-			{Query: "dir:./"}:      {"subdirectory/a.go:function:A:1:17"},
-			{Query: "dir:/d2"}:     {"subdirectory/d2/b.go:function:B:1:86"},
-			{Query: "dir:./d2"}:    {"subdirectory/d2/b.go:function:B:1:86"},
-			{Query: "dir:d2/"}:     {"subdirectory/d2/b.go:function:B:1:86"},
+			{Query: "dir:subdirectory"}:        {"subdirectory/a.go:function:A:1:17"},
+			{Query: "dir:subdirectory/"}:       {"subdirectory/a.go:function:A:1:17"},
+			{Query: "dir:./subdirectory"}:       {"subdirectory/a.go:function:A:1:17"},
+			{Query: "dir:subdirectory/d2"}:     {"subdirectory/d2/b.go:function:B:1:86"},
+			{Query: "dir:./subdirectory/d2"}:    {"subdirectory/d2/b.go:function:B:1:86"},
 		})
 	})
 
@@ -110,7 +109,7 @@ func TestWorkspaceSymbol(t *testing.T) {
 		test(t, map[*lspext.WorkspaceSymbolParams][]string{
 			{Query: ""}:            {"multiple/a.go:function:A:1:17"},
 			{Query: "is:exported"}: {"multiple/a.go:function:A:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A", "packageName": "p", "recv": "", "vendor": false}}: {"multiple/a.go:function:A:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/multiple", "name": "A", "packageName": "p", "recv": "", "vendor": false}}: {"multiple/a.go:function:A:1:17"},
 		})
 	})
 
@@ -119,8 +118,8 @@ func TestWorkspaceSymbol(t *testing.T) {
 			{Query: ""}: {
 				"goroot/a.go:variable:x:1:51",
 			},
-			{Query: "is:exported"}: {},
-			{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "x", "packageName": "p", "recv": "", "vendor": false}}: {"goroot/a.go:variable:x:1:51"},
+			{Query: "is:exported"}: {gorootnoexport},
+			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/goroot", "name": "x", "packageName": "p", "recv": "", "vendor": false}}: {"goroot/a.go:variable:x:1:51"},
 		})
 	})
 
@@ -173,6 +172,9 @@ func doWorkspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn,
 			want = nil
 			pkgDir = exportedOnUnexported
 			break
+		} else if want[i] == gorootnoexport {
+			want = nil
+			pkgDir = goroot
 		} else {
 			if i == 0 {
 				splits := strings.Split(want[i], "/")
@@ -198,6 +200,7 @@ func doWorkspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn,
 
 func callWorkspaceSymbols(ctx context.Context, c *jsonrpc2.Conn, params lspext.WorkspaceSymbolParams) ([]string, error) {
 	var symbols []lsp.SymbolInformation
+	params.Limit = 1000
 	err := c.Call(ctx, "workspace/symbol", params, &symbols)
 	if err != nil {
 		return nil, err

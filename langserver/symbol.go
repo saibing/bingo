@@ -195,10 +195,10 @@ func score(q Query, s symbolPair) (scor int) {
 		return 0
 	}
 	filename := util.UriToPath(s.Location.URI)
-	if q.Filter == FilterExported {
-		// is:exported excludes vendor symbols always.
-		return 0
-	}
+	//if q.Filter == FilterExported {
+	//	// is:exported excludes vendor symbols always.
+	//	return 0
+	//}
 	if q.File != "" && filename != q.File {
 		// We're restricting results to a single file, and this isn't it.
 		return 0
@@ -341,7 +341,7 @@ func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn jsonrpc2.J
 		// If no limit is specified, default to a reasonable number
 		// for a user to look at. If they want more, they should
 		// refine the query.
-		params.Limit = 100
+		params.Limit = 50
 	}
 	return h.handleSymbol(ctx, conn, req, q, params.Limit)
 }
@@ -355,6 +355,24 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 		// avoiding starting new computations.
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+
+		if results.Query.File != "" {
+			found := false
+			for _, file := range pkg.CompiledGoFiles {
+				if util.PathEqual(file, results.Query.File) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				return nil
+			}
+		}
+
+		if results.Query.Filter == FilterDir && !util.PathEqual(pkg.PkgPath, results.Query.Dir) {
+			return nil
 		}
 
 		if len(results.results) >= limit {
