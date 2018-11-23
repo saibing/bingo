@@ -41,8 +41,8 @@ func TestWorkspaceReferences(t *testing.T) {
 	t.Run("xtest workspace references", func(t *testing.T) {
 		test(t, map[*lspext.WorkspaceReferencesParams][]string{
 			{Query: lspext.SymbolDescriptor{}}: {
-				"/src/test/pkg/x_test.go:1:24-1:34 -> id:test/pkg name: package:test/pkg packageName:p recv: vendor:false",
-				"/src/test/pkg/x_test.go:1:46-1:47 -> id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
+				"xtest/x_test.go:1:24-1:34 -> id:github.com/saibing/bingo/langserver/test/pkg/xtest name: package:github.com/saibing/bingo/langserver/test/pkg/xtest packageName:p recv: vendor:false",
+				"xtest/x_test.go:1:46-1:47 -> id:github.com/saibing/bingo/langserver/test/pkg/xtest/-/A name:A package:github.com/saibing/bingo/langserver/test/pkg/xtest packageName:p recv: vendor:false",
 			},
 		})
 	})
@@ -60,26 +60,26 @@ func TestWorkspaceReferences(t *testing.T) {
 
 			// Matching against a dirs hint with multiple dirs.
 			{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dirs": []string{"file:///src/test/pkg/d/d2", "file:///src/test/pkg/d/invalid"}}}: {
-				"/src/test/pkg/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
-				"/src/test/pkg/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
+				"subdirectory/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
+				"subdirectory/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
 			},
 
 			// Matching against a dirs hint.
 			{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dirs": []string{"file:///src/test/pkg/d/d2"}}}: {
-				"/src/test/pkg/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
-				"/src/test/pkg/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
+				"subdirectory/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
+				"subdirectory/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
 			},
 
 			// Matching against single field.
 			{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}}: {
-				"/src/test/pkg/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
-				"/src/test/pkg/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
+				"subdirectory/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
+				"subdirectory/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
 			},
 
 			// Matching against no fields.
 			{Query: lspext.SymbolDescriptor{}}: {
-				"/src/test/pkg/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
-				"/src/test/pkg/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
+				"subdirectory/d/d2/b.go:1:20-1:32 -> id:github.com/saibing/bingo/langserver/test/pkg/subdirectory/d name: package:test/pkg/d packageName:d recv: vendor:false",
+				"subdirectory/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
 			},
 			{
 				Query: lspext.SymbolDescriptor{
@@ -89,7 +89,7 @@ func TestWorkspaceReferences(t *testing.T) {
 					"recv":        "",
 					"vendor":      false,
 				},
-			}: {"/src/test/pkg/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false"},
+			}: {"subdirectory/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false"},
 			{
 				Query: lspext.SymbolDescriptor{
 					"name":        "A",
@@ -98,7 +98,7 @@ func TestWorkspaceReferences(t *testing.T) {
 					"recv":        "",
 					"vendor":      false,
 				},
-			}: {"/src/test/pkg/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false"},
+			}: {"subdirectory/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false"},
 		})
 	})
 
@@ -114,8 +114,8 @@ func TestWorkspaceReferences(t *testing.T) {
 	t.Run("go project", func(t *testing.T) {
 		test(t, map[*lspext.WorkspaceReferencesParams][]string{
 			{Query: lspext.SymbolDescriptor{}}: {
-				"/src/test/pkg/b/b.go:1:19-1:31 -> id:test/pkg/a name: package:test/pkg/a packageName:a recv: vendor:false",
-				"/src/test/pkg/b/b.go:1:43-1:44 -> id:test/pkg/a/-/A name:A package:test/pkg/a packageName:a recv: vendor:false",
+				"goproject/b/b.go:1:19-1:31 -> id:test/pkg/a name: package:test/pkg/a packageName:a recv: vendor:false",
+				"goproject/b/b.go:1:43-1:44 -> id:test/pkg/a/-/A name:A package:test/pkg/a packageName:a recv: vendor:false",
 			},
 		})
 	})
@@ -123,18 +123,18 @@ func TestWorkspaceReferences(t *testing.T) {
 	t.Run("go module", func(t *testing.T) {
 		test(t, map[*lspext.WorkspaceReferencesParams][]string{
 			{Query: lspext.SymbolDescriptor{}}: {
-				"/src/test/pkg/a.go:1:19-1:37 -> id:github.com/d/dep name: package:github.com/d/dep packageName:dep recv: vendor:false",
-				"/src/test/pkg/a.go:1:51-1:52 -> id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
-				"/src/test/pkg/a.go:1:66-1:67 -> id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
+				"gomodule/a.go:1:19-1:37 -> id:github.com/d/dep name: package:github.com/d/dep packageName:dep recv: vendor:false",
+				"gomodule/a.go:1:51-1:52 -> id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
+				"gomodule/a.go:1:66-1:67 -> id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
 			},
 			{Query: lspext.SymbolDescriptor{}}: {
-				"/src/test/pkg/a.go:1:19-1:42 -> id:github.com/d/dep/subp name: package:github.com/d/dep/subp packageName:subp recv: vendor:false",
-				"/src/test/pkg/a.go:1:57-1:58 -> id:github.com/d/dep/subp/-/D name:D package:github.com/d/dep/subp packageName:subp recv: vendor:false",
+				"gomodule/a.go:1:19-1:42 -> id:github.com/d/dep/subp name: package:github.com/d/dep/subp packageName:subp recv: vendor:false",
+				"gomodule/a.go:1:57-1:58 -> id:github.com/d/dep/subp/-/D name:D package:github.com/d/dep/subp packageName:subp recv: vendor:false",
 			},
 			{Query: lspext.SymbolDescriptor{}}: {
-				"/src/test/pkg/a.go:1:19-1:38 -> id:github.com/d/dep1 name: package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
-				"/src/test/pkg/a.go:1:58-1:60 -> id:github.com/d/dep2/-/D2/D2 name:D2 package:github.com/d/dep2 packageName:dep2 recv:D2 vendor:false",
-				"/src/test/pkg/a.go:1:53-1:55 -> id:github.com/d/dep1/-/D1 name:D1 package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
+				"gomodule/a.go:1:19-1:38 -> id:github.com/d/dep1 name: package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
+				"gomodule/a.go:1:58-1:60 -> id:github.com/d/dep2/-/D2/D2 name:D2 package:github.com/d/dep2 packageName:dep2 recv:D2 vendor:false",
+				"gomodule/a.go:1:53-1:55 -> id:github.com/d/dep1/-/D1 name:D1 package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
 			},
 		})
 	})
@@ -142,12 +142,12 @@ func TestWorkspaceReferences(t *testing.T) {
 	t.Run("workspace references multiple files", func(t *testing.T){
 		test(t, map[*lspext.WorkspaceReferencesParams][]string{
 			{Query: lspext.SymbolDescriptor{}}: {
-				"/src/test/pkg/a.go:1:19-1:24 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
-				"/src/test/pkg/a.go:1:38-1:45 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
-				"/src/test/pkg/b.go:1:19-1:24 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
-				"/src/test/pkg/b.go:1:38-1:45 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
-				"/src/test/pkg/c.go:1:19-1:24 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
-				"/src/test/pkg/c.go:1:38-1:45 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
+				"multiple/a.go:1:19-1:24 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
+				"multiple/a.go:1:38-1:45 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
+				"multiple/b.go:1:19-1:24 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
+				"multiple/b.go:1:38-1:45 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
+				"multiple/c.go:1:19-1:24 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
+				"multiple/c.go:1:38-1:45 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
 			},
 		})
 	})
@@ -174,13 +174,20 @@ func doWorkspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Co
 		t.Fatal(err)
 	}
 
-	rootDir := util.UriToPath(rootURI)
-
 	var results []string
 	for i := range references {
-		symbol := util.UriToPath(lsp.DocumentURI(references[i]))
-		if strings.HasPrefix(symbol, rootDir) {
-			results = append(results, symbol)
+		if strings.Contains(references[i], "go-build") {
+			continue
+		}
+
+		results = append(results, filepath.ToSlash(util.UriToRealPath(lsp.DocumentURI(references[i]))))
+	}
+
+	for i := range want {
+		if strings.HasPrefix(want[i], githubModule) {
+			want[i] = filepath.ToSlash(filepath.Join(gopathDir, want[i]))
+		} else {
+			want[i] = filepath.ToSlash(filepath.Join(exported.Config.Dir, want[i]))
 		}
 	}
 

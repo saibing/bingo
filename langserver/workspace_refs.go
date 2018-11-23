@@ -105,7 +105,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 	return nil
 }
 
-func defSymbolDescriptor(pkg *packages.Package,	packageCache *source.GlobalCache,	def refs.Def, findPackage source.FindPackageFunc) (*symbolDescriptor, error) {
+func defSymbolDescriptor(pkg *packages.Package, packageCache *source.GlobalCache, def refs.Def, findPackage source.FindPackageFunc) (*symbolDescriptor, error) {
 	var err error
 	defPkg, _ := pkg.Imports[def.ImportPath]
 	if defPkg == nil {
