@@ -46,14 +46,14 @@ func TestReferences(t *testing.T) {
 		test(t, "xtest/a.go:1:16", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})
 		test(t, "xtest/x_test.go:1:88", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})
 		test(t, "xtest/x_test.go:1:82", []string{"xtest/x_test.go:1:82", "xtest/y_test.go:1:39"})
-		test(t, "xtest/a_test.go:1:16", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})
-		//test(t, "xtest/a_test.go:1:20", []string{"xtest/a_test.go:1:16", "xtest/b_test.go:1:34"})
+		test(t, "xtest/a_test.go:1:20", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})
+		test(t, "xtest/a_test.go:1:16", []string{"xtest/a_test.go:1:16", "xtest/b_test.go:1:34"})
 	})
 
 	t.Run("test", func(t *testing.T) {
 		test(t, "test/a_test.go:1:102", []string{"test/a_test.go:1:102", "test/b/b.go:1:16", "test/b/b.go:1:45", "test/c/c.go:1:84"})
-		test(t, "test/a_test.go:1:100", []string{"test/a_test.go:1:19", "test/a_test.go:1:41"})
-		test(t, "test/a_test.go:1:110", []string{"test/a_test.go:1:51"})
+		test(t, "test/a_test.go:1:100", []string{"test/a_test.go:1:100", "test/a_test.go:1:37"})
+		test(t, "test/a_test.go:1:110", []string{"test/a_test.go:1:110"})
 	})
 
 	t.Run("go project", func(t *testing.T) {
@@ -67,7 +67,7 @@ func TestReferences(t *testing.T) {
 	})
 
 	t.Run("unexpected paths", func(t *testing.T) {
-		test(t, "unexpected_paths/a.go", []string{"/src/t:est/@hello/pkg/a.go:1:17", "/src/t:est/@hello/pkg/a.go:1:23"})
+		test(t, "unexpected_paths/a.go:1:17", []string{"unexpected_paths/a.go:1:17", "unexpected_paths/a.go:1:23"})
 	})
 }
 
@@ -95,8 +95,14 @@ func doReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var results []string
 	for i := range references {
-		references[i] = filepath.ToSlash(util.UriToRealPath(lsp.DocumentURI(references[i])))
+		if strings.Contains(references[i], "go-build") {
+			continue
+		}
+
+		results = append(results, filepath.ToSlash(util.UriToRealPath(lsp.DocumentURI(references[i]))))
 	}
 
 	for i := range want {
@@ -106,10 +112,10 @@ func doReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 			want[i] = filepath.ToSlash(filepath.Join(exported.Config.Dir, want[i]))
 		}
 	}
-	sort.Strings(references)
+	sort.Strings(results)
 	sort.Strings(want)
-	if !reflect.DeepEqual(references, want) {
-		t.Errorf("\ngot\n\t%q\nwant\n\t%q", references, want)
+	if !reflect.DeepEqual(results, want) {
+		t.Errorf("\ngot\n\t%q\nwant\n\t%q", results, want)
 	}
 }
 

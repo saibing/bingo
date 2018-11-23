@@ -134,6 +134,7 @@ func (c *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root str
 	c.conn = conn
 	c.rootDir = root
 	c.view = view
+	c.view.Config.Dir = c.rootDir
 
 	moduleMap, err := c.readModuleFromFile()
 	if err != nil {

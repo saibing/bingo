@@ -164,11 +164,11 @@ func PosForFileOffset(fset *token.FileSet, filename string, offset int) token.Po
 
 func visitPackage(root *packages.Package, f func(*packages.Package) bool) bool {
 	seen := map[string]bool{}
-	return visit(root, f, seen)
+	return visit(root, f, seen, 0)
 }
 
-func visit (root *packages.Package, found func(*packages.Package) bool, seen map[string]bool) bool {
-	if seen[root.PkgPath] {
+func visit (root *packages.Package, found func(*packages.Package) bool, seen map[string]bool, level int) bool {
+	if level >= 3 || seen[root.PkgPath] {
 		return false
 	}
 	seen[root.PkgPath] = true
@@ -177,8 +177,10 @@ func visit (root *packages.Package, found func(*packages.Package) bool, seen map
 		return true
 	}
 
+	level++
+
 	for _, importPkg := range root.Imports {
-		if visit(importPkg, found, seen) {
+		if visit(importPkg, found, seen, level) {
 			return true
 		}
 	}

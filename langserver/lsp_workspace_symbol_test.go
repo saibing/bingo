@@ -79,9 +79,9 @@ func TestWorkspaceSymbol(t *testing.T) {
 
 	t.Run("detailed workspace symbol", func(t *testing.T) {
 		test(t, map[*lspext.WorkspaceSymbolParams][]string{
-			{Query: ""}:            {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
-			{Query: "T"}:           {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
-			{Query: "F"}:           {"detailed/a.go:field:T.F:1:28"},
+			//{Query: ""}:            {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
+			//{Query: "T"}:           {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
+			//{Query: "F"}:           {"detailed/a.go:field:T.F:1:28"},
 			{Query: "is:exported"}: {"detailed/a.go:class:T:1:17", "detailed/a.go:field:T.F:1:28"},
 		})
 	})
