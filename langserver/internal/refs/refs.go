@@ -46,24 +46,25 @@ type Config struct {
 
 func (c *Config) Refs(emit func(*Ref)) error {
 	ref := func(rootFile *ast.File, pos token.Pos, end token.Pos) error {
+
 		nodes, _ := astutil.PathEnclosingInterval(rootFile, pos, pos)
+
 		d, err := DefInfo(c.Pkg, c.Info, nodes, pos)
 		if err == errReceiverNotTopLevelNamedType {
 			return nil
 		}
+
 		if err != nil {
 			return err
 		}
+
 		for _, f := range strings.Fields(d.Path) {
 			if !ast.IsExported(f) {
 				return nil
 			}
 		}
-		emit(&Ref{
-			Def:   *d,
-			Start: pos,
-			End:   end,
-		})
+
+		emit(&Ref{Def: *d, Start: pos, End: end})
 		return nil
 	}
 
@@ -275,8 +276,6 @@ func DefInfo(pkg *types.Package, info *types.Info, nodes []ast.Node, pos token.P
 	}
 	return nil, errors.New("no selector type")
 }
-
-
 
 // deepRecvType gets the embedded struct's name that the method or
 // field is actually defined on, not just the original/outer recv

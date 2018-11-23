@@ -7,7 +7,6 @@ import (
 	"log"
 	"math"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/tools/go/packages"
@@ -50,9 +49,8 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 		limit = math.MaxInt32
 	}
 
-	results.resultsMu.Lock()
+
 	r := results.results
-	results.resultsMu.Unlock()
 	if len(r) > limit {
 		r = r[:limit]
 	}
@@ -85,16 +83,16 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 			log.Println(err)
 			return
 		}
+
 		if !symDesc.Contains(params.Query) {
 			return
 		}
 
-		results.resultsMu.Lock()
+		location := createLocationFromRange(pkg.Fset, r.Start, r.End)
 		results.results = append(results.results, referenceInformation{
-			Reference: createLocationFromRange(pkg.Fset, r.Start, r.End),
+			Reference: location,
 			Symbol:    symDesc,
 		})
-		results.resultsMu.Unlock()
 	})
 	if refsErr != nil {
 		// Trace the error, but do not consider it a true error. In many cases
@@ -146,5 +144,4 @@ func defSymbolDescriptor(pkg *packages.Package, packageCache *source.GlobalCache
 // refResult is a utility struct for collecting workspace reference results.
 type refResult struct {
 	results   []referenceInformation
-	resultsMu sync.Mutex
 }

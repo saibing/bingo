@@ -174,22 +174,29 @@ func doWorkspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Co
 		t.Fatal(err)
 	}
 
+	var pkgDir string
+	for i := range want {
+		if i == 0 {
+			splits := strings.Split(want[i], "/")
+			pkgDir = splits[0]
+		}
+		want[i] = filepath.ToSlash(filepath.Join(exported.Config.Dir, want[i]))
+	}
+
+	rootDir := util.UriToRealPath(rootURI)
 	var results []string
 	for i := range references {
 		if strings.Contains(references[i], "go-build") {
 			continue
 		}
 
-		results = append(results, filepath.ToSlash(util.UriToRealPath(lsp.DocumentURI(references[i]))))
-	}
-
-	for i := range want {
-		if strings.HasPrefix(want[i], githubModule) {
-			want[i] = filepath.ToSlash(filepath.Join(gopathDir, want[i]))
-		} else {
-			want[i] = filepath.ToSlash(filepath.Join(exported.Config.Dir, want[i]))
+		reference := util.UriToRealPath(lsp.DocumentURI(references[i]))
+		prefix := filepath.Join(rootDir, pkgDir)
+		if strings.HasPrefix(reference, prefix) {
+			results = append(results, filepath.ToSlash(reference))
 		}
 	}
+
 
 	if !reflect.DeepEqual(results, want) {
 		t.Errorf("\ngot  %q\nwant %q", results, want)
