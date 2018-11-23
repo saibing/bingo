@@ -243,7 +243,7 @@ func SearchImportPackage(root *packages.Package, path string) *packages.Package 
 	var p *packages.Package
 
 	found := func(pkg *packages.Package) bool {
-		p = root.Imports[path]
+		p = pkg.Imports[path]
 		return p != nil
 	}
 
