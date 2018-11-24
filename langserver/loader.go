@@ -19,30 +19,12 @@ func (h *LangHandler) loadFromGlobalCache(ctx context.Context, fileURI lsp.Docum
 		return nil, pos, fmt.Errorf("%s does not exist", fileURI)
 	}
 
-	pos, err := h.startPos(ctx, pkg, fileURI, position)
-	return pkg, pos, err
-}
+	fAST := goast.GetSyntaxFile(pkg, util.UriToRealPath(fileURI))
 
-func (h *LangHandler) startPos(ctx context.Context, pkg *packages.Package, fileURI lsp.DocumentURI, position lsp.Position) (token.Pos, error) {
-	pos := token.NoPos
+	fToken := pkg.Fset.File(fAST.Pos())
 
-	contents, err := h.readFile(ctx, fileURI)
-	if err != nil {
-		return pos, err
-	}
-
-	filename := util.UriToRealPath(fileURI)
-	offset, valid, why := offsetForPosition(contents, position)
-	if !valid {
-		return pos, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, position.Line, position.Character, why)
-	}
-
-	pos = goast.PosForFileOffset(pkg.Fset, filename, offset)
-	if pos == token.NoPos {
-		return pos, fmt.Errorf("invalid location: %s:#%d", filename, offset)
-	}
-
-	return pos, nil
+	pos = fromProtocolPosition(fToken, position)
+	return pkg, pos, nil
 }
 
 func (h *LangHandler) load(uri lsp.DocumentURI) *packages.Package {
