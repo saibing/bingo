@@ -2,12 +2,8 @@ package langserver
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"sync"
-
-	"github.com/saibing/bingo/langserver/internal/util"
-	"github.com/saibing/bingo/pkg/lsp"
 )
 
 // HandlerCommon contains functionality that both the build and lang
@@ -16,21 +12,7 @@ import (
 // HandlerShared is shared in-memory.)
 type HandlerCommon struct {
 	mu         sync.Mutex // guards all fields
-	RootFSPath string     // root path of the project's files in the (possibly virtual) file system, without the "file://" prefix (typically /src/github.com/foo/bar)
 	shutdown   bool
-}
-
-func (h *HandlerCommon) Reset(rootURI lsp.DocumentURI) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.shutdown {
-		return errors.New("unable to reset a server that is shutting down")
-	}
-	if !util.IsURI(rootURI) {
-		return fmt.Errorf("invalid root path %q: must be file:// URI", rootURI)
-	}
-	h.RootFSPath = util.UriToPath(rootURI) // retain leading slash
-	return nil
 }
 
 // ShutDown marks this server as being shut down and causes all future calls to checkReady to return an error.

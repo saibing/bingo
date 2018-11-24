@@ -68,8 +68,8 @@ type LangHandler struct {
 	config *Config // pointer so we panic if someone reads before we set it.
 }
 
-// reset clears all internal state in h.
-func (h *LangHandler) reset(conn *jsonrpc2.Conn, init *InitializeParams) error {
+// doInit clears all internal state in h.
+func (h *LangHandler) doInit(ctx context.Context, conn *jsonrpc2.Conn, init *InitializeParams) error {
 	for _, k := range init.Capabilities.TextDocument.Completion.CompletionItemKind.ValueSet {
 		if k == lsp.CIKConstant {
 			CIKConstantSupported = lsp.CIKConstant
@@ -83,36 +83,18 @@ func (h *LangHandler) reset(conn *jsonrpc2.Conn, init *InitializeParams) error {
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if err := h.HandlerCommon.Reset(init.Root()); err != nil {
-		return err
-	}
-	if !h.HandlerShared.Shared {
-		// Only reset the shared data if this lang server is running
-		// by itself.
-		if err := h.HandlerShared.Reset(conn, h.DefaultConfig.DiagnosticsEnabled); err != nil {
-			return err
-		}
-	}
+
 	config := h.DefaultConfig.Apply(init.InitializationOptions)
 	h.config = &config
 	h.init = init
 	h.cancel = &cancel{}
-	h.resetCaches(false)
+
+	h.overlay = newOverlay(conn, h.DefaultConfig.DiagnosticsEnabled)
+	h.globalCache = source.NewGlobalCache()
+	if err := h.globalCache.Init(ctx, conn, h.FilePath(init.Root()), h.overlay.view); err != nil {
+		return err
+	}
 	return nil
-}
-
-func (h *LangHandler) resetCaches(lock bool) {
-	if lock {
-		h.mu.Lock()
-	}
-
-	if h.globalCache == nil {
-		h.globalCache = source.NewGlobalCache()
-	}
-
-	if lock {
-		h.mu.Unlock()
-	}
 }
 
 // handle implements jsonrpc2.Handler.
@@ -173,11 +155,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			params.RootPath = string(util.PathToURI(params.RootPath))
 		}
 
-		if err := h.reset(conn.(*jsonrpc2.Conn), &params); err != nil {
-			return nil, err
-		}
-
-		if err := h.globalCache.Init(ctx, conn, h.FilePath(params.Root()), h.overlay.view); err != nil {
+		if err := h.doInit(ctx, conn.(*jsonrpc2.Conn), &params); err != nil {
 			return nil, err
 		}
 
@@ -370,19 +348,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 	default:
 		if isFileSystemRequest(req.Method) {
-			uri, fileChanged, err := h.handleFileSystemRequest(ctx, req)
-			if fileChanged {
-				// a file changed, so we must re-typeCheck and re-enumerate symbols
-				h.resetCaches(true)
-			}
-			if uri != "" {
-				// a user is viewing this path, hint to add it to the cache
-				// (unless we're primarily using binary package cache .a
-				// files).
-				//if !h.config.UseBinaryPkgCache || (h.config.DiagnosticsEnabled && req.Method == "textDocument/didSave") {
-				//	go h.typeCheck(ctx, conn, uri, lsp.Position{})
-				//}
-			}
+			err := h.handleFileSystemRequest(ctx, req)
 			return nil, err
 		}
 
