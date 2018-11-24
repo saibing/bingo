@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/util"
+	"github.com/saibing/bingo/pkg/lsp"
 	"log"
 	"math"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -31,6 +34,24 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 
 	var results = refResult{results: make([]referenceInformation, 0)}
 	f := func(pkg *packages.Package) error {
+		// If a dirs hint is present, only look for references created in those
+		// directories.
+		pkgDir := filepath.ToSlash(filepath.Dir(pkg.CompiledGoFiles[0]))
+		dirs, ok := params.Hints["dirs"]
+		if ok {
+			found := false
+			for _, dir := range dirs.([]interface{}) {
+				hintDir := h.FilePath(lsp.DocumentURI(dir.(string)))
+				if util.PathEqual(pkgDir, hintDir) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil
+			}
+		}
+		
 		err := h.workspaceRefsFromPkg(ctx, conn, params, pkg, rootPath, &results)
 		if err != nil {
 			log.Printf("workspaceRefsFromPkg: %v: %v", pkg, err)
