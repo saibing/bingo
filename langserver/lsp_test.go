@@ -63,6 +63,10 @@ var testdata = []packagestest.Module{
 
 			"multiple/a.go": `package p; func A() { A() }`,
 			"multiple/main.go": `// +build ignore
+			
+			"workspace_multiple/a.go":`package p; import "fmt"; var _ = fmt.Println; var x int`,
+			"workspace_multiple/b.go":`package p; import "fmt"; var _ = fmt.Println; var y int`,
+			"workspace_multiple/c.go":`package p; import "fmt"; var _ = fmt.Println; var z int`,
 
 package main;  func B() { p.A(); B() }`,
 
