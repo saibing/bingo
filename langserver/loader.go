@@ -6,19 +6,15 @@ import (
 	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
+	"github.com/saibing/bingo/pkg/lsp"
 	"go/ast"
 	"go/token"
 	"golang.org/x/tools/go/packages"
-	"strings"
-
-	"github.com/saibing/bingo/pkg/lsp"
 )
 
 func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
-	uri := source.FromDocumentURI(fileURI)
-	root := source.FromDocumentURI(h.init.RootURI)
-
-	if strings.HasPrefix(string(uri), string(root)) {
+	if util.URIHasPrefix(fileURI, h.init.RootURI) {
+		uri := source.FromDocumentURI(fileURI)
 		if !h.DefaultConfig.UseGlobalCache || h.overlay.view.HasParsed(uri) {
 			return h.loadFromSourceView(uri, position)
 		}
@@ -42,7 +38,9 @@ func (h *LangHandler) loadFromSourceView(uri source.URI, position lsp.Position) 
 	return pkg, pos, nil
 }
 
-func (h *LangHandler) loadAstFromSourceView(uri source.URI) (*packages.Package, *ast.File, error) {
+func (h *LangHandler) loadAstFromSourceView(fileURI lsp.DocumentURI) (*packages.Package, *ast.File, error) {
+	uri := source.FromDocumentURI(fileURI)
+
 	f := h.overlay.view.GetFile(uri)
 	pkg, err := f.GetPackage()
 	if err != nil {

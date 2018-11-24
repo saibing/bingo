@@ -29,8 +29,16 @@ func (n fakeNode) End() token.Pos { return n.e }
 // goRangeToLSPLocation converts a token.Pos range into a lsp.Location. end is
 // exclusive.
 func goRangeToLSPLocation(fSet *token.FileSet, pos token.Pos, name string) lsp.Location {
+	filename := fSet.Position(pos).Filename
+	if filename == "" {
+		return lsp.Location{
+			URI:   "",
+			Range: rangeForNode(fSet, fakeNode{p: pos, e: pos + token.Pos(len([]byte(name)))}),
+		}
+	}
+
 	return lsp.Location{
-		URI:   lsp.DocumentURI(source.ToURI(fSet.Position(pos).Filename)),
+		URI:   lsp.DocumentURI(source.ToURI(filename)),
 		Range: objToRange(fSet, pos, name),
 	}
 }

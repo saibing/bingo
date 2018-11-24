@@ -2,6 +2,8 @@ package util
 
 import (
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/sys"
 	"log"
 	"net/url"
 	"path/filepath"
@@ -27,18 +29,15 @@ func normalizePath(s string) string {
 	return s
 }
 
+
 // PathHasPrefix returns true if s is starts with the given prefix
-func PathHasPrefix(s, prefix string) bool {
-	s = normalizePath(s)
-	prefix = normalizePath(prefix)
-	if s == prefix {
-		return true
-	}
-	if !strings.HasSuffix(prefix, "/") {
-		prefix += "/"
-	}
-	return s == prefix || strings.HasPrefix(s, prefix)
+func URIHasPrefix(s, prefix lsp.DocumentURI) bool {
+	s1, _ := source.FromDocumentURI(s).Filename()
+	s2, _ := source.FromDocumentURI(prefix).Filename()
+
+	return strings.HasPrefix(s1, s2)
 }
+
 
 // PathTrimPrefix removes the prefix from s
 func PathTrimPrefix(s, prefix string) string {
@@ -133,14 +132,8 @@ func Panicf(r interface{}, format string, v ...interface{}) error {
 	return nil
 }
 
-const windowsOS = "windows"
-
-func IsWindows() bool {
-	return runtime.GOOS == windowsOS
-}
-
 func GetRealPath(filename string) string {
-	if !IsWindows() {
+	if !sys.IsWindows() {
 		return filename
 	}
 

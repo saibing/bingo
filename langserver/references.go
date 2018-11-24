@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/goast"
-	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
@@ -51,7 +50,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		return nil, fmt.Errorf("no package found for object %s", obj)
 	}
 
-	refs, err := h.findReferences(ctx, conn, pkg.Fset, h.globalCache, obj)
+	refs, err := h.findReferences(ctx, obj)
 	if err != nil {
 		// If we are canceled, cancel loop early
 		return nil, err
@@ -84,6 +83,9 @@ func refStreamAndCollect(fset *token.FileSet, refs []*ast.Ident, limit int) []ls
 	for i := 0; i < l; i++ {
 		n := refs[i]
 		loc := goRangeToLSPLocation(fset, n.Pos(), n.Name)
+		if loc.URI == "" {
+			continue
+		}
 
 		// remove duplicate results because they contain uses of the xtest package
 		locStr := formatLocation(loc)
@@ -103,7 +105,7 @@ func formatLocation(loc lsp.Location) string {
 
 // findReferences will find all references to obj. It will only return
 // references from packages in pkg.Imports.
-func (h *LangHandler) findReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, fset *token.FileSet, packageCache *source.GlobalCache, queryObj types.Object) ([]*ast.Ident, error) {
+func (h *LangHandler) findReferences(ctx context.Context, queryObj types.Object) ([]*ast.Ident, error) {
 	// Bail out early if the context is canceled
 	var refs []*ast.Ident
 	if ctx.Err() != nil {
@@ -125,7 +127,7 @@ func (h *LangHandler) findReferences(ctx context.Context, conn jsonrpc2.JSONRPC2
 		return nil
 	}
 
-	err := packageCache.Search(f)
+	err := h.globalCache.Search(f)
 	if err != nil {
 		return nil, err
 	}

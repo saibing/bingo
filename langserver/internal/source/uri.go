@@ -8,12 +8,12 @@ package source
 
 import (
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/util"
+	"github.com/saibing/bingo/langserver/internal/sys"
 	"github.com/saibing/bingo/pkg/lsp"
 	"net/url"
 	"path/filepath"
-	"strings"
 	"runtime"
+	"strings"
 )
 
 const fileSchemePrefix = "file://"
@@ -34,7 +34,7 @@ func toFilename(uri string) (string, error) {
 	}
 
 	uri = uri[len(fileSchemePrefix):]
-	if util.IsWindows() && uri[0] == '/' {
+	if sys.IsWindows() && uri[0] == '/' {
 		uri = uri[1:]
 	}
 

@@ -3,7 +3,6 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/token"
 	"golang.org/x/tools/go/packages"
@@ -273,14 +272,12 @@ func toSym(name string, pkg *packages.Package, container string, recv string, ki
 // handleTextDocumentSymbol handles `textDocument/documentSymbol` requests for
 // the Go language server.
 func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
-	uri := source.FromDocumentURI(params.TextDocument.URI)
-
 	var pkg *packages.Package
 	var astFile *ast.File
 	var err error
 
-	if strings.HasPrefix(string(uri), string(h.init.RootURI)) {
-		pkg, astFile, err = h.loadAstFromSourceView(uri)
+	if util.URIHasPrefix(params.TextDocument.URI, h.init.RootURI) {
+		pkg, astFile, err = h.loadAstFromSourceView(params.TextDocument.URI)
 	} else {
 		pkg, astFile, err = h.loadAstFromGlobalCache(params.TextDocument.URI)
 	}

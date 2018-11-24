@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
-	"github.com/saibing/bingo/langserver/internal/util"
+	"github.com/saibing/bingo/langserver/internal/sys"
 	"go/parser"
 	"go/token"
 	"io"
@@ -50,7 +50,7 @@ func getGoRoot() string {
 }
 
 func lowerDriver(path string) string {
-	if !util.IsWindows() {
+	if !sys.IsWindows() {
 		return path
 	}
 
@@ -330,27 +330,29 @@ func (c *GlobalCache) Search(visit func(p *packages.Package) error) error {
 
 	seen := map[string]bool{}
 
-	for _, f := range c.view.files {
-		filename, _ := f.URI.Filename()
-		if !strings.HasPrefix(filename, c.rootDir) {
-			continue
+	visitView := func() error {
+		c.view.mu.Lock()
+		defer c.view.mu.Unlock()
+		for _, f := range c.view.files {
+			pkg := f.pkg
+			if pkg == nil || seen[pkg.PkgPath] {
+				continue
+			}
+
+			seen[pkg.PkgPath] = true
+
+			//fmt.Printf("visit view package %s\n", pkg.PkgPath)
+			if err := visit(pkg); err != nil {
+				return err
+			}
 		}
 
-		if !c.view.HasParsed(f.URI) {
-			continue
-		}
+		return nil
+	}
 
-		pkg, _ := f.GetPackage()
-		if pkg == nil || seen[pkg.PkgPath] {
-			continue
-		}
-
-		seen[pkg.PkgPath] = true
-
-		//fmt.Printf("visit view package %s\n", pkg.PkgPath)
-		if err := visit(pkg); err != nil {
-			return err
-		}
+	err := visitView()
+	if err != nil {
+		return err
 	}
 
 	for _, pkgPath := range c.searchOrder {
