@@ -20,8 +20,14 @@ func (h *LangHandler) loadFromGlobalCache(ctx context.Context, fileURI lsp.Docum
 	}
 
 	fAST := goast.GetSyntaxFile(pkg, util.UriToRealPath(fileURI))
+	if fAST == nil {
+		return nil, pos, fmt.Errorf("%s ast file does not exist", fileURI)
+	}
 
 	fToken := pkg.Fset.File(fAST.Pos())
+	if fToken == nil {
+		return nil, pos, fmt.Errorf("%s token file does not exist", fileURI)
+	}
 
 	pos = fromProtocolPosition(fToken, position)
 	return pkg, pos, nil
