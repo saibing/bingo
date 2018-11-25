@@ -97,3 +97,9 @@ If your disk io performance is very poor, you can get a good experience on hover
 But this will lead to miss some result for them, because currently bingo only rebuild the global cache when go.mod changes.
 
 So the -use-global-cache flag is great for reading a large go language project's code, you will have very fast hover, find references, workspace symbol search etc.
+
+## FAQ
+
+- Please keep 'go build' or 'go list' command work ok
+
+> If they have some errors when they execute, these errors may affect the accuracy of the bingo's results.
