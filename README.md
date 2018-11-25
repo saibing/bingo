@@ -56,7 +56,7 @@ go build
 
 ### [vscode-go](https://github.com/Microsoft/vscode-go)
 
-Since vscode-go only supports go-langserver, you need to rename bingo to go-langserver and use bingo like go-langserver. 
+Since vscode-go only support go-langserver by far, you need to rename bingo to go-langserver and use bingo like go-langserver. 
 
 > please note the difference between the two parameters.
 
@@ -90,7 +90,7 @@ let g:LanguageClient_serverCommands = {
 
 ## Note
 
-Bingo will create a global cache on startup, this will take some time.
+bingo will create a global cache on startup, this will take some time.
 
 If your disk io performance is very poor, you can get a good experience on hover, go to definition, find references by enable the -use-global-cache flag. 
 
