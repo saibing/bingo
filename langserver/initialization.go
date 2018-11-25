@@ -19,6 +19,11 @@ type InitializationOptions struct {
 	// Defaults to false if not specified.
 	DiagnosticsEnabled *bool `json:"diagnosticsEnabled"`
 
+	// UseGlobalCache enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.
+	//
+	// Defaults to false if not specified
+	UseGlobalCache *bool `json:"useGlobalCache"`
+
 	// MaxParallelism is an optional version of Config.MaxParallelism
 	MaxParallelism *int `json:"maxParallelism"`
 }
@@ -61,3 +66,4 @@ type InitializeBuildContextParams struct {
 
 	// Irrelevant fields: ReleaseTags, InstallSuffix.
 }
+

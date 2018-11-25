@@ -298,31 +298,6 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 	return res, nil
 }
 
-func (h *LangHandler) loadAstFromSourceView(uri source.URI) (*packages.Package, *ast.File, error) {
-	f := h.overlay.view.GetFile(uri)
-	pkg, err := f.GetPackage()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if pkg == nil {
-		return nil, nil, fmt.Errorf("package is null for file %s", uri)
-	}
-
-	astFile, err := f.GetAST()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return pkg, astFile, nil
-}
-
-func (h *LangHandler) loadAstFromGlobalCache(fileURI lsp.DocumentURI) (*packages.Package, *ast.File, error) {
-	pkg := h.load(fileURI)
-	astFile := goast.GetSyntaxFile(pkg, util.UriToRealPath(fileURI))
-	return pkg, astFile, nil
-}
-
 // handleSymbol handles `workspace/symbol` requests for the Go
 // language server.
 func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lspext.WorkspaceSymbolParams) ([]lsp.SymbolInformation, error) {
@@ -553,3 +528,4 @@ func isExported(sym *symbolPair) bool {
 	}
 	return ast.IsExported(sym.ContainerName) && ast.IsExported(sym.Name)
 }
+

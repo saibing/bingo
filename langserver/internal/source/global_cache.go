@@ -64,7 +64,7 @@ type moduleInfo struct {
 	GoMod    string    `json:"GoMod"`
 	Version  string    `json:"Version"`
 	Time     time.Time `json:"Time"`
-	Indirect bool      `json:Indirect`
+	Indirect bool      `json:"Indirect"`
 }
 
 func (c *GlobalCache) MainModulePath() string {
@@ -125,7 +125,7 @@ func (c *GlobalCache) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 			return c.pathMap[pkgPath+"_test"]
 		}
 
-		return c.pathMap[pkgPath + ".test"]
+		return c.pathMap[pkgPath+".test"]
 	}
 	return c.pathMap[pkgPath]
 }
@@ -371,7 +371,7 @@ func (c *GlobalCache) Search(visit func(p *packages.Package) error) error {
 		}
 
 		if strings.HasSuffix(pkgPath, ".test") || strings.HasSuffix(pkgPath, "_test") {
-			pkg = pkg.Imports[pkgPath[:len(pkgPath) - len(".test")]]
+			pkg = pkg.Imports[pkgPath[:len(pkgPath)-len(".test")]]
 			if pkg == nil {
 				continue
 			}
@@ -400,3 +400,4 @@ func (c *GlobalCache) cache(ctx context.Context, pkg *packages.Package) {
 		c.cache(ctx, importPkg)
 	}
 }
+

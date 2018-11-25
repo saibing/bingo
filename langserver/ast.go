@@ -2,14 +2,12 @@ package langserver
 
 import (
 	"bytes"
-	"context"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
 	"io/ioutil"
-	"strings"
 
 	"github.com/saibing/bingo/pkg/lsp"
 )
@@ -284,32 +282,4 @@ func findInterestingNode(pkg *packages.Package, path []ast.Node) ([]ast.Node, ac
 	}
 
 	return nil, actionUnknown // unreachable
-}
-
-func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
-	uri := source.FromDocumentURI(fileURI)
-	root := source.FromDocumentURI(h.init.RootURI)
-
-	if strings.HasPrefix(string(uri), string(root)) {
-		if h.overlay.view.HasParsed(uri) {
-			return h.loadFromSourceView(uri, position)
-		}
-	}
-
-	return h.loadFromGlobalCache(ctx, fileURI, position)
-}
-
-func (h *LangHandler) loadFromSourceView(uri source.URI, position lsp.Position) (*packages.Package, token.Pos, error) {
-	f := h.overlay.view.GetFile(uri)
-	pkg, err := f.GetPackage()
-	if err != nil {
-		return nil, token.NoPos, err
-	}
-	tok, err := f.GetToken()
-	if err != nil {
-		return nil, token.NoPos, err
-	}
-
-	pos := fromProtocolPosition(tok, position)
-	return pkg, pos, nil
 }

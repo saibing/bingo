@@ -4,24 +4,68 @@ import (
 	"context"
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/goast"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
+	"go/ast"
 	"go/token"
 	"golang.org/x/tools/go/packages"
+	"strings"
 
 	"github.com/saibing/bingo/pkg/lsp"
 )
 
-func (h *LangHandler) loadFromGlobalCache(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
-	pos := token.NoPos
+func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
+	uri := source.FromDocumentURI(fileURI)
+	root := source.FromDocumentURI(h.init.RootURI)
 
-	pkg := h.load(fileURI)
-	if pkg == nil {
-		return nil, pos, fmt.Errorf("%s does not exist", fileURI)
+	if strings.HasPrefix(string(uri), string(root)) {
+		if !h.DefaultConfig.UseGlobalCache || h.overlay.view.HasParsed(uri) {
+			return h.loadFromSourceView(uri, position)
+		}
 	}
 
-	fAST := goast.GetSyntaxFile(pkg, util.UriToRealPath(fileURI))
-	if fAST == nil {
-		return nil, pos, fmt.Errorf("%s ast file does not exist", fileURI)
+	return h.loadFromGlobalCache(ctx, fileURI, position)
+}
+
+func (h *LangHandler) loadFromSourceView(uri source.URI, position lsp.Position) (*packages.Package, token.Pos, error) {
+	f := h.overlay.view.GetFile(uri)
+	pkg, err := f.GetPackage()
+	if err != nil {
+		return nil, token.NoPos, err
+	}
+	tok, err := f.GetToken()
+	if err != nil {
+		return nil, token.NoPos, err
+	}
+
+	pos := fromProtocolPosition(tok, position)
+	return pkg, pos, nil
+}
+
+func (h *LangHandler) loadAstFromSourceView(uri source.URI) (*packages.Package, *ast.File, error) {
+	f := h.overlay.view.GetFile(uri)
+	pkg, err := f.GetPackage()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if pkg == nil {
+		return nil, nil, fmt.Errorf("package is null for file %s", uri)
+	}
+
+	astFile, err := f.GetAST()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return pkg, astFile, nil
+}
+
+func (h *LangHandler) loadFromGlobalCache(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
+	pos := token.NoPos
+	pkg, fAST, err := h.loadAstFromGlobalCache(fileURI)
+	if err != nil {
+		return nil, pos, err
 	}
 
 	fToken := pkg.Fset.File(fAST.Pos())
@@ -33,6 +77,21 @@ func (h *LangHandler) loadFromGlobalCache(ctx context.Context, fileURI lsp.Docum
 	return pkg, pos, nil
 }
 
+func (h *LangHandler) loadAstFromGlobalCache(fileURI lsp.DocumentURI) (*packages.Package, *ast.File, error) {
+	pkg := h.load(fileURI)
+	if pkg == nil {
+		return nil, nil, fmt.Errorf("%s does not exist", fileURI)
+	}
+
+	fAST := goast.GetSyntaxFile(pkg, util.UriToRealPath(fileURI))
+	if fAST == nil {
+		return nil, nil, fmt.Errorf("%s ast file does not exist", fileURI)
+	}
+
+	return pkg, fAST, nil
+}
+
 func (h *LangHandler) load(uri lsp.DocumentURI) *packages.Package {
 	return h.globalCache.GetFromURI(uri)
 }
+
