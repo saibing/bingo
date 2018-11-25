@@ -3,7 +3,6 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/token"

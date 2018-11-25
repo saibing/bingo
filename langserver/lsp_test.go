@@ -65,10 +65,10 @@ var testdata = []packagestest.Module{
 			"multiple/main.go": `// +build ignore
 			
 package main;  func B() { p.A(); B() }`,
-			
-			"workspace_multiple/a.go":`package p; import "fmt"; var _ = fmt.Println; var x int`,
-			"workspace_multiple/b.go":`package p; import "fmt"; var _ = fmt.Println; var y int`,
-			"workspace_multiple/c.go":`package p; import "fmt"; var _ = fmt.Println; var z int`,
+
+			"workspace_multiple/a.go": `package p; import "fmt"; var _ = fmt.Println; var x int`,
+			"workspace_multiple/b.go": `package p; import "fmt"; var _ = fmt.Println; var y int`,
+			"workspace_multiple/c.go": `package p; import "fmt"; var _ = fmt.Println; var z int`,
 
 			"subdirectory/a.go":    `package d; func A() { A() }`,
 			"subdirectory/d2/b.go": `package d2; import "github.com/saibing/bingo/langserver/test/pkg/subdirectory"; func B() { d.A(); B() }`,
@@ -82,10 +82,10 @@ package main;  func B() { p.A(); B() }`,
 			"xreferences/b.go": `package p; import "fmt"; var _ = fmt.Println; var y int`,
 			"xreferences/c.go": `package p; import "fmt"; var _ = fmt.Println; var z int`,
 
-			"test/a.go": `package p; var A int`,
+			"test/a.go":      `package p; var A int`,
 			"test/a_test.go": `package p; import "testing"; import "github.com/saibing/bingo/langserver/test/pkg/test/b"; var X = b.B; func TestB(t *testing.T) {}`,
-			"test/b/b.go": `package b; var B int; func C() int { return B };`,
-			"test/c/c.go": `package c; import "github.com/saibing/bingo/langserver/test/pkg/test/b"; var X = b.B;`,
+			"test/b/b.go":    `package b; var B int; func C() int { return B };`,
+			"test/c/c.go":    `package c; import "github.com/saibing/bingo/langserver/test/pkg/test/b"; var X = b.B;`,
 
 			"xtest/a.go":      `package p; var A int`,
 			"xtest/a_test.go": `package p; var X = A`,
@@ -262,9 +262,9 @@ func getGOPATH() string {
 }
 
 var (
-	gopathDir = getGOPATH()
+	gopathDir    = getGOPATH()
 	githubModule = "pkg/mod/github.com/saibing/dep@v1.0.2"
-	gomoduleDir = filepath.Join(gopathDir, githubModule)
+	gomoduleDir  = filepath.Join(gopathDir, githubModule)
 )
 
 func initServer(rootDir string) {
@@ -272,6 +272,7 @@ func initServer(rootDir string) {
 	fmt.Printf("root uri is %s\n", root)
 	cfg := NewDefaultConfig()
 	cfg.FuncSnippetEnabled = true
+	cfg.UseGlobalCache = true
 
 	h = &LangHandler{
 		DefaultConfig: cfg,
@@ -450,3 +451,4 @@ func (v *locations) UnmarshalJSON(data []byte) error {
 	*v = []lsp.Location{{}}
 	return json.Unmarshal(data, &(*v)[0])
 }
+
