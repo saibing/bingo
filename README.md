@@ -6,7 +6,7 @@ bingo is a [Go](https://golang.org) language server that speaks
 This project was largely inspired by [go-langserver](https://github.com/sourcegraph/go-langserver),
 but bingo more simpler, more faster, more smarter!
 
-bingo supports editor features as follow:
+bingo will support editor features as follow:
 
 - [x] textDocument/hover
 - [x] textDocument/definition
