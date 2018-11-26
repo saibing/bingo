@@ -93,6 +93,18 @@ package main;  func B() { p.A(); B() }`,
 			"xtest/x_test.go": `package p_test; import "github.com/saibing/bingo/langserver/test/pkg/xtest"; var X = p.A`,
 			"xtest/y_test.go": `package p_test; func Y() int { return X }`,
 
+			"renaming/a.go": `package p
+			import "fmt"
+			
+			func main() {
+				str := A()
+				fmt.Println(str)
+			}
+			
+			func A() string {
+				return "test"
+			}`,
+
 			"symbols/abc.go": `package a
 
 type XYZ struct {}

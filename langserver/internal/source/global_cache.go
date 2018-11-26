@@ -32,7 +32,9 @@ type GlobalCache struct {
 	conn           jsonrpc2.JSONRPC2
 	view           *View
 	pathMap        path2Package
-	searchOrder    []string
+	workspacePkg   []string
+	modulePkg      []string
+	stdLibPkg      []string
 	rootDir        string
 	mainModulePath string
 	moduleMap      map[string]moduleInfo
@@ -302,27 +304,41 @@ func (c *GlobalCache) setCache(ctx context.Context, pkgList []*packages.Package)
 	defer c.mu.Unlock()
 
 	c.pathMap = path2Package{}
-
-	var thirdParty []string
-	var stdLib []string
+	c.workspacePkg = []string{}
+	c.modulePkg = []string{}
+	c.stdLibPkg = []string{}
 
 	for _, pkg := range pkgList {
 		c.cache(ctx, pkg)
-		if strings.HasPrefix(pkg.PkgPath, c.mainModulePath) {
-			c.searchOrder = append(c.searchOrder, pkg.PkgPath)
-		} else if strings.Contains(pkg.PkgPath, ".") {
-			thirdParty = append(thirdParty, pkg.PkgPath)
-		} else {
-			stdLib = append(stdLib, pkg.PkgPath)
-		}
 	}
-
-	c.searchOrder = append(c.searchOrder, thirdParty...)
-	c.searchOrder = append(c.searchOrder, stdLib...)
 
 	msg := fmt.Sprintf("cache package for %s successfully!", c.rootDir)
 	c.conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: msg})
 }
+
+
+func (c *GlobalCache) cache(ctx context.Context, pkg *packages.Package) {
+	if _, ok := c.pathMap[pkg.PkgPath]; ok {
+		return
+	}
+
+	if strings.HasPrefix(pkg.PkgPath, c.mainModulePath) {
+		c.workspacePkg = append(c.workspacePkg, pkg.PkgPath)
+	} else if strings.Contains(pkg.PkgPath, ".") {
+		c.modulePkg = append(c.modulePkg, pkg.PkgPath)
+	} else {
+		c.stdLibPkg = append(c.stdLibPkg, pkg.PkgPath)
+	}
+
+	c.pathMap[pkg.PkgPath] = pkg
+
+	msg := fmt.Sprintf("cached package %s", pkg.PkgPath)
+	c.conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
+	for _, importPkg := range pkg.Imports {
+		c.cache(ctx, importPkg)
+	}
+}
+
 
 func (c *GlobalCache) Search(visit func(p *packages.Package) error) error {
 	c.mu.RLock()
@@ -355,51 +371,55 @@ func (c *GlobalCache) Search(visit func(p *packages.Package) error) error {
 		return err
 	}
 
-	for _, pkgPath := range c.searchOrder {
-		if seen[pkgPath] {
-			continue
-		}
+	visitPkgList := func(pkgList []string) error {
+		for _, pkgPath := range pkgList {
+			if seen[pkgPath] {
+				continue
+			}
 
-		seen[pkgPath] = true
+			seen[pkgPath] = true
 
-		pkg := c.pathMap[pkgPath]
-		if pkg == nil {
-			continue
-		}
-
-		//fmt.Printf("visit package %s\n", pkg.PkgPath)
-		if err := visit(pkg); err != nil {
-			return err
-		}
-
-		if strings.HasSuffix(pkgPath, ".test") || strings.HasSuffix(pkgPath, "_test") {
-			pkg = pkg.Imports[pkgPath[:len(pkgPath)-len(".test")]]
+			pkg := c.pathMap[pkgPath]
 			if pkg == nil {
 				continue
 			}
 
-			seen[pkg.PkgPath] = false
-			//fmt.Printf("visit xtest import package %s\n", pkg.PkgPath)
+			//fmt.Printf("visit package %s\n", pkg.PkgPath)
 			if err := visit(pkg); err != nil {
 				return err
 			}
+
+			if strings.HasSuffix(pkgPath, ".test") || strings.HasSuffix(pkgPath, "_test") {
+				pkg = pkg.Imports[pkgPath[:len(pkgPath)-len(".test")]]
+				if pkg == nil {
+					continue
+				}
+
+				seen[pkg.PkgPath] = false
+				//fmt.Printf("visit xtest import package %s\n", pkg.PkgPath)
+				if err := visit(pkg); err != nil {
+					return err
+				}
+			}
 		}
+
+		return nil
+	}
+
+	err = visitPkgList(c.workspacePkg)
+	if err != nil {
+		return err
+	}
+
+	err = visitPkgList(c.modulePkg)
+	if err != nil {
+		return err
+	}
+
+	err = visitPkgList(c.stdLibPkg)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
-
-func (c *GlobalCache) cache(ctx context.Context, pkg *packages.Package) {
-	if _, ok := c.pathMap[pkg.PkgPath]; ok {
-		return
-	}
-
-	c.pathMap[pkg.PkgPath] = pkg
-
-	msg := fmt.Sprintf("cached package %s", pkg.PkgPath)
-	c.conn.Notify(ctx, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: msg})
-	for _, importPkg := range pkg.Imports {
-		c.cache(ctx, importPkg)
-	}
-}
-
