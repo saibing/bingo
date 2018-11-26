@@ -1,10 +1,10 @@
 package langserver
 
 import (
-	"fmt"
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
@@ -65,13 +65,13 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 // overlay owns the overlay filesystem, as well as handling LSP filesystem
 // requests.
 type overlay struct {
-	conn               *jsonrpc2.Conn
-	view               *source.View
-	diagnosticsEnabled bool
+	conn                *jsonrpc2.Conn
+	view                *source.View
+	diagnosticsDisabled bool
 }
 
-func newOverlay(conn *jsonrpc2.Conn, diagnosticsEnabled bool) *overlay {
-	return &overlay{conn: conn, view: source.NewView(), diagnosticsEnabled:diagnosticsEnabled}
+func newOverlay(conn *jsonrpc2.Conn, diagnosticsDisabled bool) *overlay {
+	return &overlay{conn: conn, view: source.NewView(), diagnosticsDisabled: diagnosticsDisabled}
 }
 
 func (h *overlay) didOpen(ctx context.Context, params *lsp.DidOpenTextDocumentParams) {
@@ -113,7 +113,7 @@ func (h *overlay) get(uri lsp.DocumentURI) ([]byte, bool) {
 func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI, text []byte) {
 	h.view.GetFile(source.FromDocumentURI(uri)).SetContent(text)
 
-	if !h.diagnosticsEnabled {
+	if h.diagnosticsDisabled {
 		return
 	}
 
@@ -199,3 +199,4 @@ func offsetForPosition(contents []byte, p lsp.Position) (offset int, valid bool,
 	}
 	return 0, false, fmt.Sprintf("file only has %d lines", line+1)
 }
+

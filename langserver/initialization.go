@@ -17,7 +17,7 @@ type InitializationOptions struct {
 	// DiagnosticsEnabled enables handling of diagnostics
 	//
 	// Defaults to false if not specified.
-	DiagnosticsEnabled *bool `json:"diagnosticsEnabled"`
+	DiagnosticsDisabled *bool `json:"diagnosticsDisabled"`
 
 	// UseGlobalCache enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.
 	//

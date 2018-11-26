@@ -22,7 +22,7 @@ type Config struct {
 	// DiagnosticsEnabled enables handling of diagnostics
 	//
 	// Defaults to false if not specified.
-	DiagnosticsEnabled bool
+	DiagnosticsDisabled bool
 
 	// MaxParallelism controls the maximum number of goroutines that should be used
 	// to fulfill requests. This is useful in editor environments where users do
@@ -42,8 +42,8 @@ func (c Config) Apply(o *InitializationOptions) Config {
 		c.FuncSnippetEnabled = *o.FuncSnippetEnabled
 	}
 
-	if o.DiagnosticsEnabled != nil {
-		c.DiagnosticsEnabled = *o.DiagnosticsEnabled
+	if o.DiagnosticsDisabled != nil {
+		c.DiagnosticsDisabled = *o.DiagnosticsDisabled
 	}
 
 	if o.UseGlobalCache != nil {

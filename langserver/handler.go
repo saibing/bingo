@@ -89,7 +89,7 @@ func (h *LangHandler) doInit(ctx context.Context, conn *jsonrpc2.Conn, init *Ini
 	h.init = init
 	h.cancel = &cancel{}
 
-	h.overlay = newOverlay(conn, h.DefaultConfig.DiagnosticsEnabled)
+	h.overlay = newOverlay(conn, h.DefaultConfig.DiagnosticsDisabled)
 	h.globalCache = source.NewGlobalCache()
 	if err := h.globalCache.Init(ctx, conn, h.FilePath(init.Root()), h.overlay.view); err != nil {
 		return err
@@ -355,3 +355,4 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeMethodNotFound, Message: fmt.Sprintf("method not supported: %s", req.Method)}
 	}
 }
+
