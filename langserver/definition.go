@@ -95,6 +95,12 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 	var nodes []foundNode
 	obj := goast.FindIdentObject(pkg, ident)
 	if obj != nil {
+		if typeVar, ok := obj.(*types.Var); ok && typeVar.Embedded() {
+			if t, ok := typeVar.Type().(*types.Named); ok {
+				obj = t.Obj()
+			}
+		}
+		
 		if p := obj.Pos(); p.IsValid() {
 			nodes = append(nodes, foundNode{
 				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
