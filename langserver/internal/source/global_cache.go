@@ -287,7 +287,7 @@ func (c *GlobalCache) buildCache(ctx context.Context) ([]*packages.Package, erro
 	cfg := *c.view.Config
 	cfg.Dir = c.rootDir
 	cfg.Mode = packages.LoadAllSyntax
-	cfg.Fset = token.NewFileSet()
+	cfg.Fset = c.view.Config.Fset
 
 	pkgList, err := packages.Load(&cfg, c.rootDir+"/...")
 	if err != nil {
