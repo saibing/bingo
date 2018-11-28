@@ -128,7 +128,7 @@ func defSymbolDescriptor(pkg *packages.Package, packageCache *source.GlobalCache
 	var err error
 	defPkg, _ := pkg.Imports[def.ImportPath]
 	if defPkg == nil {
-		defPkg, err = findPackage(packageCache, def.ImportPath)
+		defPkg, err = findPackage(packageCache, filepath.Dir(pkg.GoFiles[0]), def.ImportPath)
 		if err != nil {
 			return nil, err
 		}
