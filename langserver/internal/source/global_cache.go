@@ -57,8 +57,7 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 		cache := newModuleCache(gc, filepath.Dir(v))
 		err = cache.init()
 		if err != nil {
-			gc.conn.Notify(context.Background(), "window/showMessage",
-				&lsp.ShowMessageParams{Type: lsp.MTError, Message: err.Error()})
+			gc.notifyError(err.Error())
 			return err
 		}
 
@@ -103,13 +102,15 @@ func (gc *GlobalCache) fsNotify() error {
 	for _, v := range gc.caches {
 		err = watcher.Add(filepath.Join(v.gomodDir, gomod))
 		if err != nil {
-			watcher.Close()
+			_ = watcher.Close()
 			return err
 		}
 	}
 
 	go func() {
-		defer watcher.Close()
+		defer func () {
+			_ = watcher.Close()
+		}()
 
 		for {
 			select {
@@ -126,8 +127,7 @@ func (gc *GlobalCache) fsNotify() error {
 				if !ok {
 					return
 				}
-				gc.conn.Notify(context.Background(), "window/showMessage",
-					&lsp.ShowMessageParams{Type: lsp.MTError, Message: fmt.Sprintf("receive an fsNotify error: %s", err)})
+				gc.notifyError(fmt.Sprintf("receive an fsNotify error: %s", err))
 			}
 		}
 	}()
@@ -162,23 +162,61 @@ func (gc *GlobalCache) rebuildCache(eventName string) {
 		if v.gomodDir == filepath.Dir(eventName) {
 			rebuild, err := v.rebuildCache()
 			if err != nil {
-				gc.conn.Notify(context.Background(), "window/showMessage",
-					&lsp.ShowMessageParams{Type: lsp.MTError, Message: err.Error()})
+				gc.notifyError(err.Error())
+				return
 			}
 
 			if rebuild {
-				gc.conn.Notify(context.Background(), "window/showMessage",
-					&lsp.ShowMessageParams{Type: lsp.Info, Message: fmt.Sprintf("rebuile module cache for %s changed", eventName)})
+				gc.notifyInfo(fmt.Sprintf("rebuile module cache for %s changed", eventName))
 			}
 
-			break
+			return
 		}
 	}
 }
 
+func (gc *GlobalCache) notifyError(message string) {
+	_ = gc.conn.Notify(context.Background(), "window/showMessage",	&lsp.ShowMessageParams{Type: lsp.MTError, Message: message})
+}
+
+func (gc *GlobalCache) notifyInfo(message string) {
+	_ = gc.conn.Notify(context.Background(), "window/showMessage",	&lsp.ShowMessageParams{Type: lsp.Info, Message: message})
+}
+
+func (gc *GlobalCache) notifyLog(message string) {
+	_ = gc.conn.Notify(context.Background(), "window/logMessage",	&lsp.LogMessageParams{Type: lsp.Info, Message: message})
+}
+
 func (gc *GlobalCache) Search(visit func(p *packages.Package) error) error {
+	seen := map[string]bool{}
+
+	visitView := func() error {
+		gc.view.mu.Lock()
+		defer gc.view.mu.Unlock()
+		for _, f := range gc.view.files {
+			pkg := f.pkg
+			if pkg == nil || seen[pkg.PkgPath] {
+				continue
+			}
+
+			seen[pkg.PkgPath] = true
+
+			//fmt.Printf("visit view package %s\n", pkg.PkgPath)
+			if err := visit(pkg); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	err := visitView()
+	if err != nil {
+		return err
+	}
+
 	for _, v := range gc.caches {
-		err := v.search(visit)
+		err := v.search(seen, visit)
 		if err != nil {
 			return err
 		}

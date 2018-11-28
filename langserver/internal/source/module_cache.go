@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"go/parser"
 	"go/token"
 	"io"
@@ -240,41 +241,15 @@ func (m *moduleCache) cache(pkg *packages.Package) {
 	}
 
 	m.pathMap[pkg.PkgPath] = pkg
+	m.gc.notifyLog(fmt.Sprintf("cached module %s's package %s", m.mainModulePath, pkg.PkgPath))
 	for _, importPkg := range pkg.Imports {
 		m.cache(importPkg)
 	}
 }
 
-func (m *moduleCache) search(visit func(p *packages.Package) error) error {
+func (m *moduleCache) search(seen map[string]bool, visit func(p *packages.Package) error) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-
-	seen := map[string]bool{}
-
-	visitView := func() error {
-		m.gc.view.mu.Lock()
-		defer m.gc.view.mu.Unlock()
-		for _, f := range m.gc.view.files {
-			pkg := f.pkg
-			if pkg == nil || seen[pkg.PkgPath] {
-				continue
-			}
-
-			seen[pkg.PkgPath] = true
-
-			//fmt.Printf("visit view package %s\n", pkg.PkgPath)
-			if err := visit(pkg); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
-
-	err := visitView()
-	if err != nil {
-		return err
-	}
 
 	visitPkgList := func(pkgList []string) error {
 		for _, pkgPath := range pkgList {
@@ -289,7 +264,6 @@ func (m *moduleCache) search(visit func(p *packages.Package) error) error {
 				continue
 			}
 
-			//fmt.Printf("visit package %s\n", pkg.PkgPath)
 			if err := visit(pkg); err != nil {
 				return err
 			}
@@ -301,7 +275,6 @@ func (m *moduleCache) search(visit func(p *packages.Package) error) error {
 				}
 
 				seen[pkg.PkgPath] = false
-				//fmt.Printf("visit xtest import package %s\n", pkg.PkgPath)
 				if err := visit(pkg); err != nil {
 					return err
 				}
@@ -311,7 +284,7 @@ func (m *moduleCache) search(visit func(p *packages.Package) error) error {
 		return nil
 	}
 
-	err = visitPkgList(m.workspacePkg)
+	err := visitPkgList(m.workspacePkg)
 	if err != nil {
 		return err
 	}

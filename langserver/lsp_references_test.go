@@ -63,7 +63,7 @@ func TestReferences(t *testing.T) {
 	})
 
 	t.Run("go module", func(t *testing.T) {
-		test(t, "gomodule/a.go:1:57", []string{"gomodule/a.go:1:57", "gomodule/a.go:1:72", githubModule + "/d.go:1:19"})
+		test(t, "gomodule/a.go:1:57", []string{"gomodule/a.go:1:57", "gomodule/a.go:1:72", githubModule + "/d.go:1:19",  githubModule + "/d.go:1:35"})
 	})
 
 	t.Run("unexpected paths", func(t *testing.T) {
