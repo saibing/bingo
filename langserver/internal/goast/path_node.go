@@ -167,7 +167,7 @@ func visitPackage(root *packages.Package, f func(*packages.Package) bool) bool {
 	return visit(root, f, seen, 0)
 }
 
-func visit (root *packages.Package, found func(*packages.Package) bool, seen map[string]bool, level int) bool {
+func visit(root *packages.Package, found func(*packages.Package) bool, seen map[string]bool, level int) bool {
 	if level >= 3 || seen[root.PkgPath] {
 		return false
 	}
@@ -253,3 +253,4 @@ func SearchImportPackage(root *packages.Package, path string) *packages.Package 
 
 	return p
 }
+
