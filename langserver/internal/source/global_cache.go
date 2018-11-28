@@ -138,21 +138,38 @@ func (gc *GlobalCache) fsNotify() error {
 }
 
 func (gc *GlobalCache) GetFromURI(uri lsp.DocumentURI) *packages.Package {
-	filename, _ := FromDocumentURI(uri).Filename()
-
-	for _, v := range gc.caches {
-		if strings.HasPrefix(filename, v.gomodDir) {
-			return v.getFromURI(uri)
-		}
+	visit := func(cache *moduleCache) *packages.Package {
+		return cache.getFromURI(uri)
 	}
 
-	return nil
+	filename, _ := FromDocumentURI(uri).Filename()
+	return gc.visitCache(filepath.Dir(filename), visit)
 }
 
 func (gc *GlobalCache) GetFromPackagePath(pkgDir string, pkgPath string) *packages.Package {
+	visit := func(cache *moduleCache) *packages.Package {
+		return cache.getFromPackagePath(pkgPath)
+	}
+
+	return gc.visitCache(pkgDir, visit)
+}
+
+func (gc *GlobalCache) visitCache(pkgDir string, visit func(cache *moduleCache) *packages.Package) *packages.Package {
+	// the most situation
+	if len(gc.caches) == 1 {
+		return visit(gc.caches[0])
+	}
+
 	for _, v := range gc.caches {
 		if strings.HasPrefix(pkgDir, v.gomodDir) {
-			return v.getFromPackagePath(pkgPath)
+			return visit(v)
+		}
+	}
+
+	for _, v := range gc.caches {
+		pkg := visit(v)
+		if pkg != nil {
+			return pkg
 		}
 	}
 
