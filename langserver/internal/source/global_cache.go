@@ -46,11 +46,14 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 
 	gomodList, err := gc.findGoModFiles()
 	if err != nil {
+		gc.notifyError(err.Error())
 		return err
 	}
 
 	if len(gomodList) == 0 {
-		return fmt.Errorf("there is no any go.mod file under %s", gc.rootDir)
+		err = fmt.Errorf("there is no any go.mod file under %s", gc.rootDir)
+		gc.notifyError(err.Error())
+		return err
 	}
 
 	for _, v := range gomodList {
@@ -68,8 +71,7 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 		return gc.caches[i].gomodDir >= gc.caches[j].gomodDir
 	})
 
-	msg := fmt.Sprintf("cache package for %s successfully!", gc.rootDir)
-	gc.conn.Notify(ctx, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: msg})
+	gc.notifyInfo(fmt.Sprintf("cache package for %s successfully!", gc.rootDir))
 
 	return gc.fsNotify()
 }
