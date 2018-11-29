@@ -42,7 +42,7 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 	gc.conn = conn
 	gc.rootDir = root
 	gc.view = view
-	gc.view.Config.Dir = gc.rootDir
+	gc.view.getLoadDir = gc.getLoadDir
 
 	gomodList, err := gc.findGoModFiles()
 	if err != nil {
@@ -174,6 +174,28 @@ func (gc *GlobalCache) visitCache(pkgDir string, visit func(cache *moduleCache) 
 	}
 
 	return nil
+}
+
+func (gc *GlobalCache) getLoadDir(filename string) string {
+	if len(gc.caches) == 1 {
+		return gc.caches[0].gomodDir
+	}
+
+	for _, v := range gc.caches {
+		if strings.HasPrefix(filename, v.gomodDir) {
+			return v.gomodDir
+		}
+	}
+
+	for _, v := range gc.caches {
+		for k := range v.moduleMap {
+			if strings.HasPrefix(filename, k) {
+				return k
+			}
+		}
+	}
+
+	return gc.rootDir
 }
 
 func (gc *GlobalCache) rebuildCache(eventName string) {
