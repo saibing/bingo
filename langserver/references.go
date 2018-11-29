@@ -29,9 +29,15 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		return nil, err
 	}
 
-	ident, err := goast.FetchIdentFromPathNodes(pkg, pathNodes)
-	if err != nil {
-		return nil, err
+	var ident *ast.Ident
+	firstNode := pathNodes[0]
+	switch node := firstNode.(type) {
+	case *ast.Ident:
+		ident = node
+	case *ast.FuncDecl:
+		ident = node.Name
+	default:
+		return nil, goast.NewInvalidNodeError(pkg, firstNode)
 	}
 
 	// NOTICE: Code adapted from golang.org/x/tools/cmd/guru
