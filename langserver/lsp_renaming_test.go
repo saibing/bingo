@@ -37,11 +37,11 @@ func TestRenaming(t *testing.T) {
 	t.Run("renaming help", func(t *testing.T) {
 		test(t, "renaming/a.go:5:5", map[string]string{
 			"4:4-4:7":   "renaming/a.go",
-			"5:16-5:19": "renaming/a.go",
+			"5:13-5:16": "renaming/a.go",
 		})
 
 		test(t, "renaming/a.go:9:6", map[string]string{
-			"4:11-4:12": "renaming/a.go",
+			"4:8-4:9": "renaming/a.go",
 			"8:5-8:6":   "renaming/a.go",
 		})
 	})
@@ -76,7 +76,7 @@ func doRenamingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 	got := map[string]string{}
 	for file, edits := range workspaceEdit.Changes {
 		for _, edit := range edits {
-			got[edit.Range.String()] = util.UriToPath(lsp.DocumentURI(file))
+			got[edit.Range.String()] = filepath.ToSlash(util.UriToRealPath(lsp.DocumentURI(file)))
 		}
 	}
 
