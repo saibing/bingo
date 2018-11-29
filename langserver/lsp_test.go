@@ -94,16 +94,17 @@ package main;  func B() { p.A(); B() }`,
 			"xtest/y_test.go": `package p_test; func Y() int { return X }`,
 
 			"renaming/a.go": `package p
-			import "fmt"
-			
-			func main() {
-				str := A()
-				fmt.Println(str)
-			}
-			
-			func A() string {
-				return "test"
-			}`,
+import "fmt"
+
+func main() {
+	str := A()
+	fmt.Println(str)
+}
+
+func A() string {
+	return "test"
+}
+`,
 
 			"symbols/abc.go": `package a
 
