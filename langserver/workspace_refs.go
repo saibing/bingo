@@ -36,7 +36,10 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 	f := func(pkg *packages.Package) error {
 		// If a dirs hint is present, only look for references created in those
 		// directories.
-		pkgDir := filepath.ToSlash(filepath.Dir(pkg.CompiledGoFiles[0]))
+		pkgDir := ""
+		if len(pkg.CompiledGoFiles) > 0 {
+			pkgDir = filepath.ToSlash(filepath.Dir(pkg.CompiledGoFiles[0]))
+		}
 		dirs, ok := params.Hints["dirs"]
 		if ok {
 			found := false
