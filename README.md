@@ -21,7 +21,7 @@ bingo will support editor features as follow:
 - [x] textDocument/completion
 - [x] textDocument/signatureHelp
 - [x] textDocument/publishDiagnostics
-- [ ] textDocument/rename
+- [x] textDocument/rename
 - [ ] textDocument/codeAction
 - [ ] textDocument/codeLens
 - [x] workspace/symbol
