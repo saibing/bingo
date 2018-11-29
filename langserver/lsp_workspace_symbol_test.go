@@ -200,7 +200,7 @@ func doWorkspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn,
 
 func callWorkspaceSymbols(ctx context.Context, c *jsonrpc2.Conn, params lspext.WorkspaceSymbolParams) ([]string, error) {
 	var symbols []lsp.SymbolInformation
-	params.Limit = 1000
+	params.Limit = 10000
 	err := c.Call(ctx, "workspace/symbol", params, &symbols)
 	if err != nil {
 		return nil, err
