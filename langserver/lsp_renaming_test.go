@@ -36,7 +36,7 @@ func TestRenaming(t *testing.T) {
 
 	t.Run("renaming help", func(t *testing.T) {
 		test(t, "renaming/a.go:5:5", map[string]string{
-			"4:4-4:7":   "renaming/a.go",
+			"4:1-4:4":   "renaming/a.go",
 			"5:13-5:16": "renaming/a.go",
 		})
 
