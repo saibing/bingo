@@ -32,9 +32,9 @@ func invokeGo(ctx context.Context, dir string,  args ...string) (*bytes.Buffer, 
 		}
 	}
 
-	if len(stderr.Bytes()) != 0 {
-		return nil, fmt.Errorf("'go %v' failed: %s", args, string(stderr.Bytes()))
-	}
+	//if len(stderr.Bytes()) != 0 {
+	//	return nil, fmt.Errorf("'go %v' failed: %s", args, string(stderr.Bytes()))
+	//}
 
 	return stdout, nil
 }
