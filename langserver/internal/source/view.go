@@ -14,11 +14,14 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+type getLoadDirFunc func(filename string) string
+
 type View struct {
 	mu sync.Mutex // protects all mutable state of the view
 
 	Config *packages.Config
-
+	getLoadDir getLoadDirFunc
+	
 	files map[URI]*File
 }
 
@@ -73,7 +76,8 @@ func (v *View) parse(uri URI) error {
 	if err != nil {
 		return err
 	}
-
+	
+	v.Config.Dir = v.getLoadDir(path)
 	pkgs, err := packages.Load(v.Config, fmt.Sprintf("file=%s", path))
 	if len(pkgs) == 0 {
 		if err == nil {
