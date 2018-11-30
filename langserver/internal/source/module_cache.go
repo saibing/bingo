@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -30,18 +31,18 @@ type moduleInfo struct {
 type moduleCache struct {
 	mu             sync.RWMutex
 	gc             *GlobalCache
-	gomodDir       string
+	rootDir        string
 	pathMap        path2Package
 	workspacePkg   []string
 	modulePkg      []string
 	stdLibPkg      []string
 	mainModulePath string
 
-	moduleMap      map[string]moduleInfo
+	moduleMap map[string]moduleInfo
 }
 
-func newModuleCache(gc *GlobalCache, gomodDir string) *moduleCache {
-	return &moduleCache{gc: gc, gomodDir: gomodDir}
+func newModuleCache(gc *GlobalCache, rootDir string) *moduleCache {
+	return &moduleCache{gc: gc, rootDir: rootDir}
 }
 
 func lowerDriver(path string) string {
@@ -52,25 +53,58 @@ func lowerDriver(path string) string {
 	return strings.ToLower(path[0:1]) + path[1:]
 }
 
-func (m *moduleCache) init() error {
-	moduleMap, err := m.readModuleFromFile()
+func (m *moduleCache) init() (err error) {
+	if m.gc.gomoduleMode {
+		err = m.initModuleProject()
+	} else {
+		err = m.initGoPathProject()
+	}
 	if err != nil {
 		return err
 	}
-
-	m.initModule(moduleMap)
 
 	pkgList, err := m.buildCache()
 	if err != nil {
 		return err
 	}
 
+	m.gc.notifyInfo(fmt.Sprintf("build package %d", len(pkgList)))
+
 	m.setCache(pkgList)
 	return nil
 }
 
+func (m *moduleCache) initModuleProject() error {
+	moduleMap, err := m.readModuleFromFile()
+	if err != nil {
+		return err
+	}
+
+	m.initModule(moduleMap)
+	return nil
+}
+
+func (m *moduleCache) initGoPathProject() error {
+	gopath := os.Getenv(gopathEnv)
+	if gopath == "" {
+		gopath = filepath.Join(os.Getenv("HOME"), "go")
+	}
+
+	paths := strings.Split(gopath, string(os.PathListSeparator))
+
+	for _, p := range paths {
+		if strings.HasPrefix(m.rootDir, p) {
+			srcDir := filepath.Join(p, "src")
+			m.mainModulePath = filepath.ToSlash(m.rootDir[len(srcDir)+1:])
+			return nil
+		}
+	}
+
+	return fmt.Errorf("%s is out of GOPATH workspace, but not a go module project", m.rootDir)
+}
+
 func (m *moduleCache) readModuleFromFile() (map[string]moduleInfo, error) {
-	buf, err := invokeGo(context.Background(), m.gomodDir, "list", "-m", "-json", "all")
+	buf, err := invokeGo(context.Background(), m.rootDir, "list", "-m", "-json", "all")
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +135,6 @@ func (m *moduleCache) readModuleFromFile() (map[string]moduleInfo, error) {
 
 	return moduleMap, nil
 }
-
 
 func (m *moduleCache) getFromPackagePath(pkgPath string) *packages.Package {
 	m.mu.RLock()
@@ -172,7 +205,7 @@ func (m *moduleCache) initModule(moduleMap map[string]moduleInfo) {
 	m.moduleMap = moduleMap
 }
 
-func (m *moduleCache) rebuildCache() (bool, error) {
+func (m *moduleCache) checkModuleCache() (bool, error) {
 	moduleMap, err := m.readModuleFromFile()
 	if err != nil {
 		return false, err
@@ -183,6 +216,20 @@ func (m *moduleCache) rebuildCache() (bool, error) {
 	}
 
 	m.initModule(moduleMap)
+	return true, nil
+}
+
+func (m *moduleCache) rebuildCache() (bool, error) {
+	if m.gc.gomoduleMode {
+		rebuild, err := m.checkModuleCache()
+		if err != nil {
+			return false, err
+		}
+
+		if !rebuild {
+			return false, nil
+		}
+	}
 
 	pkgList, err := m.buildCache()
 	if err != nil {
@@ -206,11 +253,16 @@ func (m *moduleCache) hasChanged(moduleMap map[string]moduleInfo) bool {
 
 func (m *moduleCache) buildCache() ([]*packages.Package, error) {
 	cfg := *m.gc.view.Config
-	cfg.Dir = m.gomodDir
+	cfg.Dir = m.rootDir
 	cfg.Mode = packages.LoadAllSyntax
 	cfg.Fset = m.gc.view.Config.Fset
 
-	return packages.Load(&cfg, m.gomodDir+"/...")
+	pattern := m.mainModulePath + "/..."
+	if m.gc.gomoduleMode {
+		pattern = cfg.Dir + "/..."
+	}
+	m.gc.notifyInfo(fmt.Sprintf("%s", pattern))
+	return packages.Load(&cfg, pattern)
 }
 
 func (m *moduleCache) setCache(pkgList []*packages.Package) {
@@ -296,3 +348,4 @@ func (m *moduleCache) search(seen map[string]bool, visit func(p *packages.Packag
 
 	return visitPkgList(m.stdLibPkg)
 }
+

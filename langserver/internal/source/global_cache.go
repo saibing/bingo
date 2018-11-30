@@ -3,15 +3,23 @@ package source
 import (
 	"context"
 	"fmt"
-	"github.com/fsnotify/fsnotify"
-	"github.com/saibing/bingo/pkg/lsp"
-	"github.com/sourcegraph/jsonrpc2"
-	"golang.org/x/tools/go/packages"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/jsonrpc2"
+	"golang.org/x/tools/go/packages"
+)
+
+const (
+	gomod     = "go.mod"
+	vendor    = "vendor"
+	gopathEnv = "GOPATH"
 )
 
 type path2Package map[string]*packages.Package
@@ -21,11 +29,13 @@ type path2Package map[string]*packages.Package
 type FindPackageFunc func(globalCache *GlobalCache, pkgDir, importPath string) (*packages.Package, error)
 
 type GlobalCache struct {
-	conn    jsonrpc2.JSONRPC2
-	rootDir string
-	goroot  string
-	view    *View
-	caches  []*moduleCache
+	conn         jsonrpc2.JSONRPC2
+	rootDir      string
+	vendorDir    string
+	goroot       string
+	view         *View
+	gomoduleMode bool
+	caches       []*moduleCache
 }
 
 func NewGlobalCache() *GlobalCache {
@@ -41,6 +51,7 @@ func getGoRoot() string {
 func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
 	gc.conn = conn
 	gc.rootDir = root
+	gc.vendorDir = filepath.Join(gc.rootDir, vendor)
 	gc.view = view
 	gc.view.getLoadDir = gc.getLoadDir
 
@@ -50,17 +61,27 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 		return err
 	}
 
-	if len(gomodList) == 0 {
-		err = fmt.Errorf("there is no any go.mod file under %s", gc.rootDir)
+	gc.gomoduleMode = len(gomodList) > 0
+	if gc.gomoduleMode {
+		err = gc.createGoModuleProject(gomodList)
+	} else {
+		err = gc.createGoPathProject()
+	}
+
+	if err != nil {
 		gc.notifyError(err.Error())
 		return err
 	}
 
+	gc.notifyInfo(fmt.Sprintf("cache package for %s successfully!", gc.rootDir))
+	return gc.fsNotify()
+}
+
+func (gc *GlobalCache) createGoModuleProject(gomodList []string) error {
 	for _, v := range gomodList {
 		cache := newModuleCache(gc, filepath.Dir(v))
-		err = cache.init()
+		err := cache.init()
 		if err != nil {
-			gc.notifyError(err.Error())
 			return err
 		}
 
@@ -68,41 +89,98 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 	}
 
 	sort.Slice(gc.caches, func(i, j int) bool {
-		return gc.caches[i].gomodDir >= gc.caches[j].gomodDir
+		return gc.caches[i].rootDir >= gc.caches[j].rootDir
 	})
 
-	gc.notifyInfo(fmt.Sprintf("cache package for %s successfully!", gc.rootDir))
-
-	return gc.fsNotify()
+	return nil
 }
 
-const gomod = "go.mod"
+func (gc *GlobalCache) createGoPathProject() error {
+	cache := newModuleCache(gc, gc.rootDir)
+	err := cache.init()
+	if err != nil {
+		return err
+	}
+
+	gc.caches = append(gc.caches, cache)
+	return nil
+}
 
 func (gc *GlobalCache) findGoModFiles() ([]string, error) {
 	var gomodList []string
-	find := func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+	walkFunc := func(path string, name string) {
+		if name == gomod {
+			gomodList = append(gomodList, filepath.Join(path, name))
 		}
-		if info.Name() == gomod {
-			gomodList = append(gomodList, path)
-		}
-
-		return nil
 	}
 
-	err := filepath.Walk(gc.rootDir, find)
+	err := gc.walkDir(gc.rootDir, 0, walkFunc)
 	return gomodList, err
 }
 
+func (gc *GlobalCache) walkDir(rootDir string, level int, walkFunc func(string, string)) error {
+	if level > 3 {
+		return nil
+	}
+
+	if strings.HasPrefix(rootDir, gc.vendorDir) {
+		return nil
+	}
+
+	files, err := ioutil.ReadDir(rootDir)
+	if err != nil {
+		return err
+	}
+
+	for _, fi := range files {
+		if fi.IsDir() {
+			level++
+			err = gc.walkDir(filepath.Join(rootDir, fi.Name()), level, walkFunc)
+			if err != nil {
+				return err
+			}
+			level--
+		} else {
+			walkFunc(rootDir, fi.Name())
+		}
+	}
+
+	return nil
+}
+
 func (gc *GlobalCache) fsNotify() error {
+	if gc.gomoduleMode {
+		return gc.fsNotifyModule()
+	}
+	return gc.fsNotifyVendor()
+}
+
+func (gc *GlobalCache) fsNotifyModule() error {
+	var paths []string
+	for _, v := range gc.caches {
+		paths = append(paths, filepath.Join(v.rootDir, gomod))
+	}
+
+	return gc.fsNotifyPaths(paths)
+}
+
+func (gc *GlobalCache) fsNotifyVendor() error {
+	_, err := os.Stat(gc.vendorDir)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	return gc.fsNotifyPaths([]string{gc.vendorDir})
+}
+
+func (gc *GlobalCache) fsNotifyPaths(paths []string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
 	}
 
-	for _, v := range gc.caches {
-		err = watcher.Add(filepath.Join(v.gomodDir, gomod))
+	for _, p := range paths {
+		err = watcher.Add(p)
 		if err != nil {
 			_ = watcher.Close()
 			return err
@@ -110,7 +188,7 @@ func (gc *GlobalCache) fsNotify() error {
 	}
 
 	go func() {
-		defer func () {
+		defer func() {
 			_ = watcher.Close()
 		}()
 
@@ -161,7 +239,7 @@ func (gc *GlobalCache) visitCache(pkgDir string, visit func(cache *moduleCache) 
 	}
 
 	for _, v := range gc.caches {
-		if strings.HasPrefix(pkgDir, v.gomodDir) {
+		if strings.HasPrefix(pkgDir, v.rootDir) {
 			return visit(v)
 		}
 	}
@@ -178,12 +256,12 @@ func (gc *GlobalCache) visitCache(pkgDir string, visit func(cache *moduleCache) 
 
 func (gc *GlobalCache) getLoadDir(filename string) string {
 	if len(gc.caches) == 1 {
-		return gc.caches[0].gomodDir
+		return gc.caches[0].rootDir
 	}
 
 	for _, v := range gc.caches {
-		if strings.HasPrefix(filename, v.gomodDir) {
-			return v.gomodDir
+		if strings.HasPrefix(filename, v.rootDir) {
+			return v.rootDir
 		}
 	}
 
@@ -200,7 +278,7 @@ func (gc *GlobalCache) getLoadDir(filename string) string {
 
 func (gc *GlobalCache) rebuildCache(eventName string) {
 	for _, v := range gc.caches {
-		if v.gomodDir == filepath.Dir(eventName) {
+		if v.rootDir == filepath.Dir(eventName) {
 			rebuild, err := v.rebuildCache()
 			if err != nil {
 				gc.notifyError(err.Error())
@@ -217,15 +295,15 @@ func (gc *GlobalCache) rebuildCache(eventName string) {
 }
 
 func (gc *GlobalCache) notifyError(message string) {
-	_ = gc.conn.Notify(context.Background(), "window/showMessage",	&lsp.ShowMessageParams{Type: lsp.MTError, Message: message})
+	_ = gc.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: message})
 }
 
 func (gc *GlobalCache) notifyInfo(message string) {
-	_ = gc.conn.Notify(context.Background(), "window/showMessage",	&lsp.ShowMessageParams{Type: lsp.Info, Message: message})
+	_ = gc.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: message})
 }
 
 func (gc *GlobalCache) notifyLog(message string) {
-	_ = gc.conn.Notify(context.Background(), "window/logMessage",	&lsp.LogMessageParams{Type: lsp.Info, Message: message})
+	_ = gc.conn.Notify(context.Background(), "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
 }
 
 func (gc *GlobalCache) Search(visit func(p *packages.Package) error) error {
@@ -265,3 +343,4 @@ func (gc *GlobalCache) Search(visit func(p *packages.Package) error) error {
 
 	return nil
 }
+

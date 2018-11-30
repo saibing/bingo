@@ -9,7 +9,7 @@ import (
 )
 
 // invokeGo returns the stdout of a go command invocation.
-func invokeGo(ctx context.Context, dir string,  args ...string) (*bytes.Buffer, error) {
+func invokeGo(ctx context.Context, dir string, args ...string) (*bytes.Buffer, error) {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
@@ -38,3 +38,4 @@ func invokeGo(ctx context.Context, dir string,  args ...string) (*bytes.Buffer, 
 
 	return stdout, nil
 }
+
