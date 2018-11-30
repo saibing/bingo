@@ -43,8 +43,8 @@ Differences between go-langserver, bingo, golsp.
 
 ## Install
 
-bingo only support go module project, so you need install [Go 1.11 or above](https://golang.google.cn/dl/),
-to build and install the `bingo` run
+bingo is a go module project, so you need install [Go 1.11 or above](https://golang.google.cn/dl/),
+to build and install the `bingo`, please run
 
 ```bash
 git clone https://github.com/saibing/bingo.git
