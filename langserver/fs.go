@@ -121,9 +121,6 @@ func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI,
 		reports, err := diagnostics(h.view, uri)
 		if err == nil {
 			for filename, diagnostics := range reports {
-				if len(diagnostics) == 0 {
-					continue
-				}
 				params := &lsp.PublishDiagnosticsParams{
 					URI:         lsp.DocumentURI(source.ToURI(filename)),
 					Diagnostics: diagnostics,
