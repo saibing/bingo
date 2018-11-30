@@ -67,9 +67,6 @@ func (m *moduleCache) init() (err error) {
 	if err != nil {
 		return err
 	}
-
-	m.gc.notifyInfo(fmt.Sprintf("build package %d", len(pkgList)))
-
 	m.setCache(pkgList)
 	return nil
 }
@@ -261,7 +258,6 @@ func (m *moduleCache) buildCache() ([]*packages.Package, error) {
 	if m.gc.gomoduleMode {
 		pattern = cfg.Dir + "/..."
 	}
-	m.gc.notifyInfo(fmt.Sprintf("%s", pattern))
 	return packages.Load(&cfg, pattern)
 }
 
