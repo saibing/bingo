@@ -166,7 +166,10 @@ func (gc *GlobalCache) fsNotifyModule() error {
 
 func (gc *GlobalCache) fsNotifyVendor() error {
 	_, err := os.Stat(gc.vendorDir)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
 
