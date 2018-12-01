@@ -284,7 +284,13 @@ type CompletionItem struct {
 	InsertText       string             `json:"insertText,omitempty"`
 	InsertTextFormat InsertTextFormat   `json:"insertTextFormat,omitempty"`
 	TextEdit         *TextEdit          `json:"textEdit,omitempty"`
-	Data             interface{}        `json:"data,omitempty"`
+	/**
+	 * An optional command that is executed *after* inserting this completion. *Note* that
+	 * additional modifications to the current document should be described with the
+	 * additionalTextEdits-property.
+	 */
+	Command *Command    `json:"command,omitempty"`
+	Data    interface{} `json:"data,omitempty"`
 }
 
 type CompletionList struct {

@@ -70,13 +70,6 @@ type LangHandler struct {
 
 // doInit clears all internal state in h.
 func (h *LangHandler) doInit(ctx context.Context, conn *jsonrpc2.Conn, init *InitializeParams) error {
-	for _, k := range init.Capabilities.TextDocument.Completion.CompletionItemKind.ValueSet {
-		if k == lsp.CIKConstant {
-			CIKConstantSupported = lsp.CIKConstant
-			break
-		}
-	}
-
 	if util.IsURI(lsp.DocumentURI(init.InitializeParams.RootPath)) {
 		log.Printf("Passing an initialize rootPath URI (%q) is deprecated. Use rootUri instead.", init.InitializeParams.RootPath)
 	}

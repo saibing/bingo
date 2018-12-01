@@ -49,7 +49,7 @@ func TestCompletion(t *testing.T) {
 
 	t.Run("go root", func(t *testing.T) {
 		test(t, "goroot/a.go:1:21", "1:21-1:21 fmt module \"fmt\", x variable int")
-		test(t, "goroot/a.go:1:44", "1:44-1:44 Println function func(a ...interface{}) (n int, err error)")
+		test(t, "goroot/a.go:1:44", "1:38-1:44 Println function func(a ...interface{}) (n int, err error)")
 	})
 
 	t.Run("go project workspace", func(t *testing.T) {
@@ -69,9 +69,9 @@ func TestCompletion(t *testing.T) {
 
 	t.Run("completion", func(t *testing.T) {
 		test(t, "completion/a.go:6:7", "6:6-6:7 strings module \"strings\", s1 = 42 constant int, s2 function func(), s3 variable int, s4 variable func()")
-		test(t, "completion/a.go:7:7", "")
-		test(t, "completion/a.go:12:11", "")
-		test(t, "completion/b.go:1:44", "1:44-1:44 Println function func(a ...interface{}) (n int, err error)")
+		test(t, "completion/a.go:7:7", "7:6-7:7 new(T) function *T, nil variable")
+		test(t, "completion/a.go:12:11", "12:8-12:11 int typeParameter , int16 typeParameter , int32 typeParameter , int64 typeParameter , int8 typeParameter ")
+		test(t, "completion/b.go:1:44", "1:38-1:44 Println function func(a ...interface{}) (n int, err error)")
 	})
 }
 
