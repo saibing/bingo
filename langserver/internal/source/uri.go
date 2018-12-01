@@ -44,7 +44,7 @@ func toFilename(uri string) (string, error) {
 	}
 
 	uri = filepath.FromSlash(uri)
-	return uri, nil
+	return lowerDriver(uri), nil
 	//uri = util.UriToRealPath(lsp.DocumentURI(uri))
 	//return uri, nil
 }
@@ -58,7 +58,8 @@ func ToURI(path string) URI {
 		//TODO: we need a better way to get the GOROOT that uses the packages api
 		path = runtime.GOROOT() + suffix
 	}
-	uri := filepath.ToSlash(path)
+
+	uri := filepath.ToSlash(lowerDriver(path))
 
 	if uri[0] != '/' {
 		uri = "/" + uri

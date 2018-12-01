@@ -89,7 +89,8 @@ func (m *moduleCache) initGoPathProject() error {
 
 	paths := strings.Split(gopath, string(os.PathListSeparator))
 
-	for _, p := range paths {
+	for _, path := range paths {
+		p := lowerDriver(filepath.ToSlash(path))
 		if strings.HasPrefix(m.rootDir, p) {
 			srcDir := filepath.Join(p, "src")
 			m.mainModulePath = filepath.ToSlash(m.rootDir[len(srcDir)+1:])
@@ -97,7 +98,7 @@ func (m *moduleCache) initGoPathProject() error {
 		}
 	}
 
-	return fmt.Errorf("%s is out of GOPATH workspace, but not a go module project", m.rootDir)
+	return fmt.Errorf("%s is out of GOPATH workspace %v, but not a go module project", m.rootDir, paths)
 }
 
 func (m *moduleCache) readModuleFromFile() (map[string]moduleInfo, error) {
@@ -166,10 +167,11 @@ func (m *moduleCache) getFromURI(uri lsp.DocumentURI) *packages.Package {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	filename, _ := FromDocumentURI(uri).Filename()
+	sourceURI := FromDocumentURI(uri)
+	filename, _ := sourceURI.Filename()
 	pkgPath, testFile := m.getPackagePath(filename)
 	if testFile {
-		file := m.gc.view.GetFile(URI(uri))
+		file := m.gc.view.GetFile(sourceURI)
 		content, err := file.Read()
 		if err != nil {
 			panic(err)

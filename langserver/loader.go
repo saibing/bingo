@@ -29,9 +29,16 @@ func (h *LangHandler) loadFromSourceView(uri source.URI, position lsp.Position) 
 	if err != nil {
 		return nil, token.NoPos, err
 	}
+	if pkg == nil {
+		return nil, token.NoPos, fmt.Errorf("package is null for file %s", uri)
+	}
 	tok, err := f.GetToken()
 	if err != nil {
 		return nil, token.NoPos, err
+	}
+
+	if tok == nil {
+		return nil, token.NoPos, fmt.Errorf("token file is null for file %s", uri)
 	}
 
 	pos := fromProtocolPosition(tok, position)
@@ -54,6 +61,10 @@ func (h *LangHandler) loadAstFromSourceView(fileURI lsp.DocumentURI) (*packages.
 	astFile, err := f.GetAST()
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if astFile == nil {
+		return nil, nil, fmt.Errorf("ast file is null for file %s", uri)
 	}
 
 	return pkg, astFile, nil
