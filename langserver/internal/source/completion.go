@@ -407,7 +407,7 @@ func formatCompletion(obj types.Object, qualifier types.Qualifier, score float64
 				retSignature = " " + retSignature
 			}
 
-			detail += retSignature
+			detail += retSignature + " "
 
 			kind = FunctionCompletionItem
 			if sig.Recv() != nil {
