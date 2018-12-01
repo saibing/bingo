@@ -56,7 +56,7 @@ func toProtocolCompletionItems(items []source.CompletionItem, prefix string, pos
 		}
 		insertText, triggerSignatureHelp := labelToProtocolSnippets(item.Label, item.Kind, insertTextFormat, signatureHelpEnabled)
 		if prefix != "" {
-			insertText = insertText[len(prefix):]
+			insertText = insertText[len(prefix)-1:]
 		}
 		i := lsp.CompletionItem{
 			Label:            item.Label,
