@@ -85,7 +85,7 @@ func refStreamAndCollect(fset *token.FileSet, refs []*ast.Ident, limit int) []ls
 
 	var locs []lsp.Location
 
-	//seen := map[string]bool{}
+	seen := map[string]bool{}
 	for i := 0; i < l; i++ {
 		n := refs[i]
 		loc := goRangeToLSPLocation(fset, n.Pos(), n.Name)
@@ -93,12 +93,12 @@ func refStreamAndCollect(fset *token.FileSet, refs []*ast.Ident, limit int) []ls
 			continue
 		}
 
-		// // remove duplicate results because they contain uses of the xtest package
-		// locStr := formatLocation(loc)
-		// if seen[locStr] {
-		// 	continue
-		// }
-		// seen[locStr] = true
+		// remove duplicate results because they contain uses of the xtest package
+		locStr := formatLocation(loc)
+		if seen[locStr] {
+			continue
+		}
+		seen[locStr] = true
 		locs = append(locs, loc)
 	}
 
@@ -148,10 +148,15 @@ func sameObj(x, y types.Object) bool {
 		return true
 	}
 
-	// if x.Pkg() != nil && y.Pkg() != nil && x.Pkg().Path() == y.Pkg().Path() {
-	// 	// enable find the xtest pakcage's uses, but this will product some duplicate results
-	// 	return x.Name() == y.Name()
-	// }
+	if x.Pkg() != nil &&
+		y.Pkg() != nil &&
+		x.Pkg().Path() == y.Pkg().Path() &&
+		x.Name() == y.Name() &&
+		x.Exported() &&
+		y.Exported() {
+		// enable find the xtest pakcage's uses, but this will product some duplicate results
+		return true
+	}
 
 	if x, ok := x.(*types.PkgName); ok {
 		if y, ok := y.(*types.PkgName); ok {
