@@ -17,15 +17,14 @@ import (
 
 // NOTICE: Code adapted from https://github.com/golang/tools/blob/master/internal/lsp/diagnostics.go.
 
-func diagnostics(v *source.View, uri lsp.DocumentURI) (map[string][]lsp.Diagnostic, error) {
-	f := v.GetFile(source.FromDocumentURI(uri))
+func diagnostics(f *source.File) (map[string][]lsp.Diagnostic, error) {
 	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, err
 	}
 
 	if pkg == nil {
-		return nil, fmt.Errorf("package is null for file %s", uri)
+		return nil, fmt.Errorf("package is null for file %s", f.URI)
 	}
 	
 	reports := make(map[string][]lsp.Diagnostic)

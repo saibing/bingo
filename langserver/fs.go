@@ -111,18 +111,24 @@ func (h *overlay) get(uri lsp.DocumentURI) ([]byte, bool) {
 }
 
 func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI, text []byte) {
-	h.view.GetFile(source.FromDocumentURI(uri)).SetContent(text)
+	sourceURI := source.FromDocumentURI(uri)
+	f := h.view.GetFile(sourceURI)
+	f.SetContent(text)
 
 	if h.diagnosticsDisabled {
 		return
 	}
 
 	go func() {
-		reports, err := diagnostics(h.view, uri)
+		reports, err := diagnostics(f)
 		if err == nil {
 			for filename, diagnostics := range reports {
+				fileURI := source.ToURI(filename)
+				if fileURI != sourceURI {
+					continue
+				}
 				params := &lsp.PublishDiagnosticsParams{
-					URI:         lsp.DocumentURI(source.ToURI(filename)),
+					URI:         lsp.DocumentURI(fileURI),
 					Diagnostics: diagnostics,
 				}
 
@@ -196,4 +202,3 @@ func offsetForPosition(contents []byte, p lsp.Position) (offset int, valid bool,
 	}
 	return 0, false, fmt.Sprintf("file only has %d lines", line+1)
 }
-
