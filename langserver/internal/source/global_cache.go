@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/saibing/bingo/pkg/lsp"
@@ -49,6 +50,7 @@ func getGoRoot() string {
 }
 
 func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
+	start := time.Now()
 	gc.conn = conn
 	gc.rootDir = root
 	gc.vendorDir = filepath.Join(gc.rootDir, vendor)
@@ -73,7 +75,9 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 		return err
 	}
 
-	gc.notifyInfo(fmt.Sprintf("cache package for %s successfully!", gc.rootDir))
+	elapsedTime := time.Since(start) / time.Second
+
+	gc.notifyInfo(fmt.Sprintf("cache package for %s successfully! elapsed time: %d seconds", gc.rootDir, elapsedTime))
 	return gc.fsNotify()
 }
 

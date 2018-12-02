@@ -360,3 +360,15 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 	}
 }
 
+func (h *LangHandler) notifyError(conn jsonrpc2.JSONRPC2, message string) {
+	_ = conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: message})
+}
+
+func (h *LangHandler) notifyInfo(conn jsonrpc2.JSONRPC2, message string) {
+	_ = conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: message})
+}
+
+func (h *LangHandler) notifyLog(conn jsonrpc2.JSONRPC2, message string) {
+	_ = conn.Notify(context.Background(), "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
+}
+

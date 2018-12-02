@@ -12,9 +12,12 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 	"sort"
 	"strings"
+	"time"
 )
 
 func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.CompletionParams) (*lsp.CompletionList, error) {
+	start := time.Now()
+
 	f := h.overlay.view.GetFile(source.FromDocumentURI(params.TextDocument.URI))
 	tok, err := f.GetToken()
 	if err != nil {
@@ -26,10 +29,16 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		return nil, err
 	}
 
-	return &lsp.CompletionList{
+	result := &lsp.CompletionList{
 		IsIncomplete: false,
 		Items:        toProtocolCompletionItems(items, prefix, params.Position, false, true),
-	}, nil
+	}
+
+	elapsedTime := time.Since(start) / time.Second
+
+	h.notifyLog(conn, fmt.Sprintf("completion elapsed time: %d seconds", elapsedTime))
+
+	return result, nil
 }
 
 func getLspRange(pos lsp.Position, rangeLen int) lsp.Range {
