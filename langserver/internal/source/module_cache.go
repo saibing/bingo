@@ -82,8 +82,8 @@ func (m *moduleCache) initModuleProject() error {
 }
 
 func (m *moduleCache) initGoPathProject() error {
-	if strings.HasPrefix(m.rootDir, m.gc.goroot) {
-		m.mainModulePath = ""
+	if strings.HasPrefix(m.rootDir, lowerDriver(filepath.ToSlash(m.gc.goroot))) {
+		m.mainModulePath = "."
 		return nil
 	}
 
