@@ -18,6 +18,11 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	if err != nil {
 		return nil, err
 	}
+
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
 	return toProtocolSignatureHelp(info), nil
 }
 

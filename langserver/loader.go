@@ -16,7 +16,11 @@ func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, po
 	if util.URIHasPrefix(fileURI, h.init.RootURI) {
 		uri := source.FromDocumentURI(fileURI)
 		if !h.DefaultConfig.UseGlobalCache || h.overlay.view.HasParsed(uri) {
-			return h.loadFromSourceView(uri, position)
+			pkg, pos, err := h.loadFromSourceView(uri, position)
+			if ctx.Err() != nil {
+				return nil, token.NoPos, ctx.Err()
+			}
+			return pkg, pos, err
 		}
 	}
 

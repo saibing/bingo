@@ -12,12 +12,9 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 	"sort"
 	"strings"
-	"time"
 )
 
 func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.CompletionParams) (*lsp.CompletionList, error) {
-	start := time.Now()
-
 	f := h.overlay.view.GetFile(source.FromDocumentURI(params.TextDocument.URI))
 	tok, err := f.GetToken()
 	if err != nil {
@@ -29,14 +26,14 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		return nil, err
 	}
 
-	result := &lsp.CompletionList{
-		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items, prefix, params.Position, false, true),
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
-	elapsedTime := time.Since(start) / time.Second
-
-	h.notifyLog(conn, fmt.Sprintf("completion elapsed time: %d seconds", elapsedTime))
+	result := &lsp.CompletionList{
+		IsIncomplete: false,
+		Items:        toProtocolCompletionItems(items, prefix, params.Position, false, false),
+	}
 
 	return result, nil
 }
@@ -64,9 +61,9 @@ func toProtocolCompletionItems(items []source.CompletionItem, prefix string, pos
 			continue
 		}
 		insertText, triggerSignatureHelp := labelToProtocolSnippets(item.Label, item.Kind, insertTextFormat, signatureHelpEnabled)
-		if prefix != "" {
-			insertText = insertText[len(prefix)-1:]
-		}
+		//if prefix != "" {
+		//	insertText = insertText[len(prefix):]
+		//}
 		i := lsp.CompletionItem{
 			Label:            item.Label,
 			Detail:           item.Detail,
