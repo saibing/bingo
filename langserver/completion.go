@@ -45,7 +45,6 @@ func getLspRange(pos lsp.Position, rangeLen int) lsp.Range {
 	}
 }
 
-
 func toProtocolCompletionItems(items []source.CompletionItem, prefix string, pos lsp.Position, snippetsSupported, signatureHelpEnabled bool) []lsp.CompletionItem {
 	var results []lsp.CompletionItem
 	sort.Slice(items, func(i, j int) bool {
@@ -117,47 +116,50 @@ func toProtocolCompletionItemKind(kind source.CompletionItemKind) lsp.Completion
 }
 
 func labelToProtocolSnippets(label string, kind source.CompletionItemKind, insertTextFormat lsp.InsertTextFormat, signatureHelpEnabled bool) (string, bool) {
+	switch kind {
+	case source.ConstantCompletionItem:
+		// The label for constants is of the format "<identifier> = <value>".
+		// We should now insert the " = <value>" part of the label.
+		if i := strings.Index(label, " ="); i >= 0 {
+			return label[:i], false
+		}
+	case source.FunctionCompletionItem, source.MethodCompletionItem:
+		pos := strings.Index(label, "(")
+		if pos == -1 {
+			return label, false
+		}
+		trimmed := label[:pos]
+		params := strings.Trim(label[strings.Index(label, "("):], "()")
+		if params == "" {
+			return label, true
+		}
+		// Don't add parameters or parens for the plaintext insert format.
+		if insertTextFormat == lsp.ITFPlainText {
+			return trimmed, true
+		}
+		// If we do have signature help enabled, the user can see parameters as
+		// they type in the function, so we just return empty parentheses.
+		if signatureHelpEnabled {
+			return trimmed + "($1)", true
+		}
+		// If signature help is not enabled, we should give the user parameters
+		// that they can tab through. The insert text format follows the
+		// specification defined by Microsoft for LSP. The "$", "}, and "\"
+		// characters should be escaped.
+		r := strings.NewReplacer(
+			`\`, `\\`,
+			`}`, `\}`,
+			`$`, `\$`,
+		)
+		trimmed += "("
+		for i, p := range strings.Split(params, ",") {
+			if i != 0 {
+				trimmed += ", "
+			}
+			trimmed += fmt.Sprintf("${%v:%v}", i+1, r.Replace(strings.Trim(p, " ")))
+		}
+		return trimmed + ")", false
+
+	}
 	return label, false
-	//switch kind {
-	//case source.ConstantCompletionItem:
-	//	// The label for constants is of the format "<identifier> = <value>".
-	//	// We should now insert the " = <value>" part of the label.
-	//	if i := strings.Index(label, " ="); i >= 0 {
-	//		return label[:i], false
-	//	}
-	//case source.FunctionCompletionItem, source.MethodCompletionItem:
-	//	trimmed := label[:strings.Index(label, "(")]
-	//	params := strings.Trim(label[strings.Index(label, "("):], "()")
-	//	if params == "" {
-	//		return label, true
-	//	}
-	//	// Don't add parameters or parens for the plaintext insert format.
-	//	if insertTextFormat == lsp.ITFPlainText {
-	//		return trimmed, true
-	//	}
-	//	// If we do have signature help enabled, the user can see parameters as
-	//	// they type in the function, so we just return empty parentheses.
-	//	if signatureHelpEnabled {
-	//		return trimmed + "($1)", true
-	//	}
-	//	// If signature help is not enabled, we should give the user parameters
-	//	// that they can tab through. The insert text format follows the
-	//	// specification defined by Microsoft for LSP. The "$", "}, and "\"
-	//	// characters should be escaped.
-	//	r := strings.NewReplacer(
-	//		`\`, `\\`,
-	//		`}`, `\}`,
-	//		`$`, `\$`,
-	//	)
-	//	trimmed += "("
-	//	for i, p := range strings.Split(params, ",") {
-	//		if i != 0 {
-	//			trimmed += ", "
-	//		}
-	//		trimmed += fmt.Sprintf("${%v:%v}", i+1, r.Replace(strings.Trim(p, " ")))
-	//	}
-	//	return trimmed + ")", false
-	//
-	//}
-	//return label, false
 }
