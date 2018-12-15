@@ -56,16 +56,18 @@ go build
 
 ### [vscode-go](https://github.com/Microsoft/vscode-go)
 
-Since vscode-go only support go-langserver by far, you need to rename bingo to go-langserver and use bingo like go-langserver. 
-
-> Please note some parameters difference between bingo and go-langserver.
-
-My vscode config settings as follow:
+vscode's settings:
 
 ```json
 {
     "go.useLanguageServer": true,
+
+    "go.alternateTools": {
+        "go-langserver": "bingo"
+    }
+
     "go.languageServerFlags": [ "--pprof", ":6060"],
+
     "go.languageServerExperimentalFeatures": {
         "format": true,
         "autoComplete": true
@@ -75,7 +77,7 @@ My vscode config settings as follow:
 
 ### [LanguageClient-neovim](https://github.com/autozimu/LanguageClient-neovim)
 
-My init.vim as follow:
+neovim's settings:
 
 ```vim
 let g:LanguageClient_rootMarkers = {
