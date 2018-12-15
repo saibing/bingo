@@ -34,6 +34,10 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 
 	var results = refResult{results: make([]referenceInformation, 0)}
 	f := func(pkg *packages.Package) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
 		// If a dirs hint is present, only look for references created in those
 		// directories.
 		pkgDir := ""

@@ -114,12 +114,13 @@ func formatLocation(loc lsp.Location) string {
 func (h *LangHandler) findReferences(ctx context.Context, queryObj types.Object) ([]*ast.Ident, error) {
 	// Bail out early if the context is canceled
 	var refs []*ast.Ident
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
 
 	defPkgPath := queryObj.Pkg().Path()
 	f := func(pkg *packages.Package) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
 		if _, ok := pkg.Imports[defPkgPath]; !ok && pkg.PkgPath != defPkgPath {
 			return nil
 		}

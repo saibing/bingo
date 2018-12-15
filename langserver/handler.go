@@ -160,20 +160,21 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 				TextDocumentSync: &lsp.TextDocumentSyncOptionsOrKind{
 					Kind: &kind,
 				},
-				CompletionProvider:           completionOp,
-				DefinitionProvider:           true,
-				TypeDefinitionProvider:       true,
-				DocumentFormattingProvider:   true,
-				DocumentSymbolProvider:       true,
-				HoverProvider:                true,
-				ReferencesProvider:           true,
-				RenameProvider:               true,				
-				WorkspaceSymbolProvider:      true,
-				ImplementationProvider:       true,
-				XWorkspaceReferencesProvider: true,
-				XDefinitionProvider:          true,
-				XWorkspaceSymbolByProperties: true,
-				SignatureHelpProvider:        &lsp.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}},
+				CompletionProvider:              completionOp,
+				DefinitionProvider:              true,
+				TypeDefinitionProvider:          true,
+				DocumentFormattingProvider:      true,
+				DocumentRangeFormattingProvider: true,
+				DocumentSymbolProvider:          true,
+				HoverProvider:                   true,
+				ReferencesProvider:              true,
+				RenameProvider:                  true,
+				WorkspaceSymbolProvider:         true,
+				ImplementationProvider:          true,
+				XWorkspaceReferencesProvider:    true,
+				XDefinitionProvider:             true,
+				XWorkspaceSymbolByProperties:    true,
+				SignatureHelpProvider:           &lsp.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}},
 			},
 		}, nil
 
@@ -371,4 +372,3 @@ func (h *LangHandler) notifyInfo(conn jsonrpc2.JSONRPC2, message string) {
 func (h *LangHandler) notifyLog(conn jsonrpc2.JSONRPC2, message string) {
 	_ = conn.Notify(context.Background(), "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
 }
-

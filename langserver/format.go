@@ -40,6 +40,12 @@ func formatRange(ctx context.Context, v *source.View, uri lsp.DocumentURI, rng *
 	if err != nil {
 		return nil, err
 	}
+
+	content, _ := f.Read()
+	if len(edits) == 1 && edits[0].NewText == string(content) {
+		return []lsp.TextEdit{}, nil
+	}
+
 	return toProtocolEdits(tok, edits), nil
 }
 

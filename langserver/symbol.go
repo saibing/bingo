@@ -358,7 +358,10 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 		return nil
 	}
 
-	h.globalCache.Search(f)
+	err := h.globalCache.Search(f)
+	if err != nil {
+		return nil, err
+	}
 
 	sort.Sort(&results)
 	if len(results.results) > limit && limit > 0 {

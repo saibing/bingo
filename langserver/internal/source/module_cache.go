@@ -82,6 +82,11 @@ func (m *moduleCache) initModuleProject() error {
 }
 
 func (m *moduleCache) initGoPathProject() error {
+	if strings.HasPrefix(m.rootDir, lowerDriver(filepath.ToSlash(m.gc.goroot))) {
+		m.mainModulePath = "."
+		return nil
+	}
+
 	gopath := os.Getenv(gopathEnv)
 	if gopath == "" {
 		gopath = filepath.Join(os.Getenv("HOME"), "go")
@@ -91,8 +96,12 @@ func (m *moduleCache) initGoPathProject() error {
 
 	for _, path := range paths {
 		p := lowerDriver(filepath.ToSlash(path))
-		if strings.HasPrefix(m.rootDir, p) {
+		if strings.HasPrefix(m.rootDir, p) && m.rootDir != p {
 			srcDir := filepath.Join(p, "src")
+			if m.rootDir == srcDir {
+				continue
+			}
+
 			m.mainModulePath = filepath.ToSlash(m.rootDir[len(srcDir)+1:])
 			return nil
 		}
