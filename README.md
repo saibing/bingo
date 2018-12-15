@@ -64,9 +64,9 @@ vscode's settings:
 
     "go.alternateTools": {
         "go-langserver": "bingo"
-    }
+    },
 
-    "go.languageServerFlags": [ "--pprof", ":6060"],
+    "go.languageServerFlags": ["--pprof", ":6060"],
 
     "go.languageServerExperimentalFeatures": {
         "format": true,
