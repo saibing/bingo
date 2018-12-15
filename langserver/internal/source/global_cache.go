@@ -52,7 +52,7 @@ func getGoRoot() string {
 func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
 	start := time.Now()
 	gc.conn = conn
-	gc.rootDir = root
+	gc.rootDir = lowerDriver(root)
 	gc.vendorDir = filepath.Join(gc.rootDir, vendor)
 	gc.view = view
 	gc.view.getLoadDir = gc.getLoadDir
@@ -83,7 +83,7 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 
 func (gc *GlobalCache) createGoModuleProject(gomodList []string) error {
 	for _, v := range gomodList {
-		cache := newModuleCache(gc, filepath.Dir(v))
+		cache := newModuleCache(gc, lowerDriver(filepath.Dir(v)))
 		err := cache.init()
 		if err != nil {
 			return err

@@ -3,6 +3,7 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/token"
 	"golang.org/x/tools/go/packages"
@@ -276,7 +277,9 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 	var astFile *ast.File
 	var err error
 
-	if util.URIHasPrefix(params.TextDocument.URI, h.init.RootURI) {
+	uri := source.FromDocumentURI(params.TextDocument.URI)
+	if util.URIHasPrefix(params.TextDocument.URI, h.init.RootURI) &&
+		(!h.DefaultConfig.UseGlobalCache || h.overlay.view.HasParsed(uri)) {
 		pkg, astFile, err = h.loadAstFromSourceView(params.TextDocument.URI)
 	} else {
 		pkg, astFile, err = h.loadAstFromGlobalCache(params.TextDocument.URI)
