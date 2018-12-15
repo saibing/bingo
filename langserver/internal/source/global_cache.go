@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -46,13 +47,13 @@ func NewGlobalCache() *GlobalCache {
 func getGoRoot() string {
 	root := runtime.GOROOT()
 	root = filepath.Join(root, "src")
-	return lowerDriver(root)
+	return util.LowerDriver(root)
 }
 
 func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
 	start := time.Now()
 	gc.conn = conn
-	gc.rootDir = lowerDriver(root)
+	gc.rootDir = util.LowerDriver(root)
 	gc.vendorDir = filepath.Join(gc.rootDir, vendor)
 	gc.view = view
 	gc.view.getLoadDir = gc.getLoadDir
@@ -83,7 +84,7 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 
 func (gc *GlobalCache) createGoModuleProject(gomodList []string) error {
 	for _, v := range gomodList {
-		cache := newModuleCache(gc, lowerDriver(filepath.Dir(v)))
+		cache := newModuleCache(gc, util.LowerDriver(filepath.Dir(v)))
 		err := cache.init()
 		if err != nil {
 			return err

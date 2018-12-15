@@ -2,7 +2,6 @@ package util
 
 import (
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/sys"
 	"log"
 	"net/url"
@@ -27,15 +26,6 @@ func normalizePath(s string) string {
 		s = "/" + s
 	}
 	return s
-}
-
-
-// PathHasPrefix returns true if s is starts with the given prefix
-func URIHasPrefix(s, prefix lsp.DocumentURI) bool {
-	s1, _ := source.FromDocumentURI(s).Filename()
-	s2, _ := source.FromDocumentURI(prefix).Filename()
-
-	return strings.HasPrefix(s1, s2)
 }
 
 
@@ -143,3 +133,12 @@ func GetRealPath(filename string) string {
 
 	return filename
 }
+
+func LowerDriver(path string) string {
+	if !sys.IsWindows() {
+		return path
+	}
+
+	return strings.ToLower(path[0:1]) + path[1:]
+}
+

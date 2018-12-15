@@ -278,7 +278,7 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 	var err error
 
 	uri := source.FromDocumentURI(params.TextDocument.URI)
-	if util.URIHasPrefix(params.TextDocument.URI, h.init.RootURI) &&
+	if uriHasPrefix(params.TextDocument.URI, h.init.RootURI) &&
 		(!h.DefaultConfig.UseGlobalCache || h.overlay.view.HasParsed(uri)) {
 		pkg, astFile, err = h.loadAstFromSourceView(params.TextDocument.URI)
 	} else {

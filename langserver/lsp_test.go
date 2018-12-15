@@ -465,3 +465,7 @@ func (v *locations) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &(*v)[0])
 }
 
+func makePath(elem ...string) string {
+	path := filepath.Join(elem...)
+	return util.LowerDriver(filepath.ToSlash(path))
+}

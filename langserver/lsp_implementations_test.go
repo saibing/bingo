@@ -96,7 +96,7 @@ func doImplementationTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 	sort.Strings(impls)
 
 	for i := range want {
-		want[i] = filepath.ToSlash(filepath.Join(exported.Config.Dir, want[i]))
+		want[i] = makePath(exported.Config.Dir, want[i])
 	}
 	sort.Strings(want)
 	if !reflect.DeepEqual(impls, want) {

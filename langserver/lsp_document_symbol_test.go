@@ -149,7 +149,7 @@ func doTestDocumentSymbol(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 	}
 
 	for i, s := range want {
-		want[i] = filepath.ToSlash(filepath.Join(exported.Config.Dir, s))
+		want[i] = makePath(exported.Config.Dir, s)
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %q, want %q", symbols, want)

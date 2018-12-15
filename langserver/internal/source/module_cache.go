@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"go/parser"
 	"go/token"
 	"io"
@@ -13,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/saibing/bingo/langserver/internal/sys"
 	"github.com/saibing/bingo/pkg/lsp"
 	"golang.org/x/tools/go/packages"
 )
@@ -45,14 +45,6 @@ func newModuleCache(gc *GlobalCache, rootDir string) *moduleCache {
 	return &moduleCache{gc: gc, rootDir: rootDir}
 }
 
-func lowerDriver(path string) string {
-	if !sys.IsWindows() {
-		return path
-	}
-
-	return strings.ToLower(path[0:1]) + path[1:]
-}
-
 func (m *moduleCache) init() (err error) {
 	if m.gc.gomoduleMode {
 		err = m.initModuleProject()
@@ -82,7 +74,7 @@ func (m *moduleCache) initModuleProject() error {
 }
 
 func (m *moduleCache) initGoPathProject() error {
-	if strings.HasPrefix(m.rootDir, lowerDriver(filepath.ToSlash(m.gc.goroot))) {
+	if strings.HasPrefix(m.rootDir, util.LowerDriver(filepath.ToSlash(m.gc.goroot))) {
 		m.mainModulePath = "."
 		return nil
 	}
@@ -95,7 +87,7 @@ func (m *moduleCache) initGoPathProject() error {
 	paths := strings.Split(gopath, string(os.PathListSeparator))
 
 	for _, path := range paths {
-		p := lowerDriver(filepath.ToSlash(path))
+		p := util.LowerDriver(filepath.ToSlash(path))
 		if strings.HasPrefix(m.rootDir, p) && m.rootDir != p {
 			srcDir := filepath.Join(p, "src")
 			if m.rootDir == srcDir {
@@ -137,7 +129,7 @@ func (m *moduleCache) readModuleFromFile() (map[string]moduleInfo, error) {
 			// module define in go.mod but not in ${GOMOD}
 			continue
 		}
-		moduleMap[lowerDriver(module.Dir)] = module
+		moduleMap[util.LowerDriver(module.Dir)] = module
 	}
 
 	return moduleMap, nil
@@ -150,7 +142,7 @@ func (m *moduleCache) getFromPackagePath(pkgPath string) *packages.Package {
 }
 
 func (m *moduleCache) getPackagePath(filename string) (pkgPath string, testFile bool) {
-	dir := lowerDriver(filepath.Dir(filename))
+	dir := util.LowerDriver(filepath.Dir(filename))
 	base := filepath.Base(filename)
 
 	if strings.HasPrefix(dir, m.gc.goroot) {

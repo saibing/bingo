@@ -20,7 +20,7 @@ import (
 )
 
 func matchDir(path string) string {
-	dir := filepath.ToSlash(filepath.Join(exported.Config.Dir, path))
+	dir := makePath(exported.Config.Dir, path)
 	return string(util.PathToURI(dir))
 }
 
@@ -182,7 +182,7 @@ func doWorkspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Co
 			splits := strings.Split(want[i], "/")
 			pkgDir = splits[0]
 		}
-		want[i] = filepath.ToSlash(filepath.Join(exported.Config.Dir, want[i]))
+		want[i] = makePath(exported.Config.Dir, want[i])
 	}
 
 	rootDir := util.UriToRealPath(rootURI)
@@ -193,7 +193,7 @@ func doWorkspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Co
 		}
 
 		reference := util.UriToRealPath(lsp.DocumentURI(references[i]))
-		prefix := filepath.Join(rootDir, pkgDir)
+		prefix := filepath.Join(util.LowerDriver(rootDir), pkgDir)
 		if strings.HasPrefix(reference, prefix) {
 			results = append(results, filepath.ToSlash(reference))
 		}

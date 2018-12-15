@@ -81,7 +81,7 @@ func doRenamingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 	}
 
 	for k := range want {
-		want[k] = filepath.ToSlash(filepath.Join(exported.Config.Dir, want[k]))
+		want[k] = makePath(exported.Config.Dir, want[k])
 	}
 
 	if !reflect.DeepEqual(got, want) {

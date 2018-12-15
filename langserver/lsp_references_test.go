@@ -107,9 +107,9 @@ func doReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 
 	for i := range want {
 		if strings.HasPrefix(want[i], githubModule) {
-			want[i] = filepath.ToSlash(filepath.Join(gopathDir, want[i]))
+			want[i] = makePath(gopathDir, want[i])
 		} else {
-			want[i] = filepath.ToSlash(filepath.Join(exported.Config.Dir, want[i]))
+			want[i] = makePath(exported.Config.Dir, want[i])
 		}
 	}
 	sort.Strings(results)

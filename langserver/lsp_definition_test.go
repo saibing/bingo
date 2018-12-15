@@ -125,11 +125,11 @@ func doDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 	}
 
 	if strings.HasPrefix(want, goroot) {
-		want = filepath.ToSlash(filepath.Join(runtime.GOROOT(), want[len(goroot):]))
+		want = makePath(runtime.GOROOT(), want[len(goroot):])
 	} else if strings.HasPrefix(want, gomodule) {
-		want = filepath.ToSlash(filepath.Join(gomoduleDir, want[len(gomodule):]))
+		want = makePath(gomoduleDir, want[len(gomodule):])
 	} else if want != "" {
-		want = filepath.ToSlash(filepath.Join(exported.Config.Dir, want))
+		want = makePath(exported.Config.Dir, want)
 	}
 
 	if definition != want  {

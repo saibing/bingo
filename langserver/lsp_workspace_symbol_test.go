@@ -180,14 +180,14 @@ func doWorkspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn,
 				splits := strings.Split(want[i], "/")
 				pkgDir = splits[0]
 			}
-			want[i] = filepath.ToSlash(filepath.Join(rootDir, want[i]))
+			want[i] = makePath(rootDir, want[i])
 		}
 	}
 
 	var results []string
 	for i := range symbols {
 		symbol := util.UriToRealPath(lsp.DocumentURI(symbols[i]))
-		prefix := filepath.Join(rootDir, pkgDir)
+		prefix := filepath.Join(util.LowerDriver(rootDir), pkgDir)
 		if strings.HasPrefix(symbol, prefix) {
 			results = append(results, filepath.ToSlash(symbol))
 		}

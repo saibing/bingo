@@ -10,10 +10,21 @@ import (
 	"go/ast"
 	"go/token"
 	"golang.org/x/tools/go/packages"
+	"strings"
 )
 
+
+// uriHasPrefix returns true if s is starts with the given prefix
+func uriHasPrefix(s, prefix lsp.DocumentURI) bool {
+	s1, _ := source.FromDocumentURI(s).Filename()
+	s2, _ := source.FromDocumentURI(prefix).Filename()
+
+	return strings.HasPrefix(s1, s2)
+}
+
+
 func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
-	if util.URIHasPrefix(fileURI, h.init.RootURI) {
+	if uriHasPrefix(fileURI, h.init.RootURI) {
 		uri := source.FromDocumentURI(fileURI)
 		if !h.DefaultConfig.UseGlobalCache || h.overlay.view.HasParsed(uri) {
 			pkg, pos, err := h.loadFromSourceView(uri, position)

@@ -75,7 +75,7 @@ func doTypeDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 	}
 
 	if want != "" {
-		want = filepath.ToSlash(filepath.Join(exported.Config.Dir, want))
+		want = makePath(exported.Config.Dir, want)
 	}
 	if definition != want {
 		t.Errorf("got %q, want %q", definition, want)

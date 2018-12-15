@@ -9,6 +9,7 @@ package source
 import (
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/sys"
+	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"net/url"
 	"path/filepath"
@@ -44,7 +45,7 @@ func toFilename(uri string) (string, error) {
 	}
 
 	uri = filepath.FromSlash(uri)
-	return lowerDriver(uri), nil
+	return util.LowerDriver(uri), nil
 	//uri = util.UriToRealPath(lsp.DocumentURI(uri))
 	//return uri, nil
 }
@@ -59,7 +60,7 @@ func ToURI(path string) URI {
 		path = runtime.GOROOT() + suffix
 	}
 
-	uri := filepath.ToSlash(lowerDriver(path))
+	uri := filepath.ToSlash(util.LowerDriver(path))
 
 	if uri[0] != '/' {
 		uri = "/" + uri
