@@ -81,7 +81,7 @@ neovim's settings:
 
 ```vim
 let g:LanguageClient_rootMarkers = {
-        \ 'go': ['go.mod'],
+        \ 'go': ['.git', 'go.mod'],
         \ }
 
 let g:LanguageClient_serverCommands = {
