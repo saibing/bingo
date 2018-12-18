@@ -292,7 +292,7 @@ func (m *moduleCache) cache(pkg *packages.Package) {
 	}
 
 	m.pathMap[pkg.PkgPath] = pkg
-	m.gc.notifyLog(fmt.Sprintf("cached module %s's package %s", m.mainModulePath, pkg.PkgPath))
+	//m.gc.notifyLog(fmt.Sprintf("cached module %s's package %s", m.mainModulePath, pkg.PkgPath))
 	for _, importPkg := range pkg.Imports {
 		m.cache(importPkg)
 	}
