@@ -34,6 +34,8 @@ var testdata = []packagestest.Module{
 			"basic/a.go": `package p; func A() { A() }`,
 			"basic/b.go": `package p; func B() { A() }`,
 
+			"builtin/a.go":`package p; func A() { println("hello") }`,
+
 			"detailed/a.go": `package p; type T struct { F string }`,
 
 			"exported_on_unexported/a.go": `package p; type t struct { F string }`,

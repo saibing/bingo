@@ -42,6 +42,11 @@ func TestReferences(t *testing.T) {
 		test(t, "basic/b.go:1:23", []string{"basic/a.go:1:17", "basic/a.go:1:23", "basic/b.go:1:23"})
 	})
 
+	t.Run("builtin", func(t *testing.T) {
+		test(t, "builtin/a.go:1:26", []string{"goroot/src/builtin/builtin.go:246:8-246:15"})
+	})
+
+
 	t.Run("xtest", func(t *testing.T) {
 		test(t, "xtest/a.go:1:16", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})
 		test(t, "xtest/x_test.go:1:88", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})

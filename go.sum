@@ -14,7 +14,11 @@ github.com/sourcegraph/jsonrpc2 v0.0.0-20180831160525-549eb959f029 h1:86fjxPjv7R
 github.com/sourcegraph/jsonrpc2 v0.0.0-20180831160525-549eb959f029/go.mod h1:eESpbCslcLDs8j2D7IEdGVgul7xuk9odqDTaor30IUU=
 golang.org/x/sys v0.0.0-20181128092732-4ed8d59d0b35 h1:YAFjXN64LMvktoUZH9zgY4lGc/msGN7HQfoSuKCgaDU=
 golang.org/x/sys v0.0.0-20181128092732-4ed8d59d0b35/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+golang.org/x/sys v0.0.0-20181212120007-b05ddf57801d h1:G59MrP9Qg6bymPjN3yGmqnmuCEH1h0eFP8zpRpl1RiU=
+golang.org/x/sys v0.0.0-20181212120007-b05ddf57801d/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/tools v0.0.0-20181130223453-e51e3523bf42 h1:aJtMf8KK/EJtX1sBrGteasLHyXksdIlV4aE4jEV/iZY=
 golang.org/x/tools v0.0.0-20181130223453-e51e3523bf42/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+golang.org/x/tools v0.0.0-20181211221832-59cd96f77e7e h1:2YuxeA0qR15eck38vR9xdGoKYj1+Yk8VGPU0YnjAZuU=
+golang.org/x/tools v0.0.0-20181211221832-59cd96f77e7e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
 gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec h1:RlWgLqCMMIYYEVcAR5MDsuHlVkaIPDAF+5Dehzg8L5A=
 gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec/go.mod h1:aPpfJ7XW+gOuirDoZ8gHhLh3kZ1B08FtV2bbmy7Jv3s=

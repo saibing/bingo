@@ -112,7 +112,18 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 			//
 			// TODO(sqs): find a way to actually emit builtin locations
 			// (pointing to builtin/builtin.go).
-			return []symbolLocationInformation{}, nil
+			pkg = h.globalCache.GetBuiltinPackage()
+			obj = h.findObject(pkg, obj)
+			if obj == nil {
+				return []symbolLocationInformation{}, nil
+			}
+
+			nodes = append(nodes, foundNode{
+				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
+				typ:   goast.TypeLookup(obj.Type()),
+			})
+
+			pathNodes, _, _ = goast.GetObjectPathNode(pkg, obj)
 		}
 	}
 	if len(nodes) == 0 {

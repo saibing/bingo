@@ -257,10 +257,15 @@ func (m *moduleCache) buildCache() ([]*packages.Package, error) {
 	cfg.Mode = packages.LoadAllSyntax
 	cfg.Fset = m.gc.view.Config.Fset
 
-	pattern := m.mainModulePath + "/..."
-	if m.gc.gomoduleMode {
+	var pattern string
+	if filepath.Join(m.gc.goroot, BuiltinPkg) == m.rootDir {
+		pattern = cfg.Dir
+	} else if m.gc.gomoduleMode {
 		pattern = cfg.Dir + "/..."
+	} else {
+		pattern = m.mainModulePath + "/..."
 	}
+
 	return packages.Load(&cfg, pattern)
 }
 
@@ -292,7 +297,7 @@ func (m *moduleCache) cache(pkg *packages.Package) {
 	}
 
 	m.pathMap[pkg.PkgPath] = pkg
-	//m.gc.notifyLog(fmt.Sprintf("cached module %s's package %s", m.mainModulePath, pkg.PkgPath))
+	m.gc.notifyLog(fmt.Sprintf("cached module %s's package %s", m.mainModulePath, pkg.PkgPath))
 	for _, importPkg := range pkg.Imports {
 		m.cache(importPkg)
 	}

@@ -8,7 +8,7 @@ require (
 	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3
 	github.com/sourcegraph/jsonrpc2 v0.0.0-20180831160525-549eb959f029
-	golang.org/x/sys v0.0.0-20181128092732-4ed8d59d0b35 // indirect
-	golang.org/x/tools v0.0.0-20181130223453-e51e3523bf42
+	golang.org/x/sys v0.0.0-20181212120007-b05ddf57801d // indirect
+	golang.org/x/tools v0.0.0-20181211221832-59cd96f77e7e
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
 )

@@ -38,6 +38,7 @@ type GlobalCache struct {
 	view         *View
 	gomoduleMode bool
 	caches       []*moduleCache
+	builtinPkg   *packages.Package
 }
 
 func NewGlobalCache() *GlobalCache {
@@ -51,6 +52,7 @@ func getGoRoot() string {
 }
 
 func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
+	_ = os.Setenv("GO111MODULE", "auto")
 	start := time.Now()
 	gc.conn = conn
 	gc.rootDir = util.LowerDriver(root)
@@ -82,10 +84,22 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 	return gc.fsNotify()
 }
 
+// BuiltinPkg builtin package
+const BuiltinPkg = "builtin"
+
+func (gc *GlobalCache) GetBuiltinPackage() *packages.Package {
+	return gc.builtinPkg
+}
+
 func (gc *GlobalCache) createGoModuleProject(gomodList []string) error {
+	err := gc.createBuiltinCache()
+	if err != nil {
+		return err
+	}
+
 	for _, v := range gomodList {
 		cache := newModuleCache(gc, util.LowerDriver(filepath.Dir(v)))
-		err := cache.init()
+		err = cache.init()
 		if err != nil {
 			return err
 		}
@@ -101,12 +115,29 @@ func (gc *GlobalCache) createGoModuleProject(gomodList []string) error {
 }
 
 func (gc *GlobalCache) createGoPathProject() error {
+	err := gc.createBuiltinCache()
+	if err != nil {
+		return err
+	}
+
 	cache := newModuleCache(gc, gc.rootDir)
+	err = cache.init()
+	if err != nil {
+		return err
+	}
+
+	gc.caches = append(gc.caches, cache)
+	return nil
+}
+
+func (gc *GlobalCache) createBuiltinCache() error {
+	cache := newModuleCache(gc, filepath.Join(gc.goroot, BuiltinPkg))
 	err := cache.init()
 	if err != nil {
 		return err
 	}
 
+	gc.builtinPkg = cache.getFromPackagePath(BuiltinPkg)
 	gc.caches = append(gc.caches, cache)
 	return nil
 }
@@ -163,6 +194,9 @@ func (gc *GlobalCache) fsNotify() error {
 func (gc *GlobalCache) fsNotifyModule() error {
 	var paths []string
 	for _, v := range gc.caches {
+		if v.rootDir == filepath.Join(gc.goroot, BuiltinPkg) {
+			continue
+		}
 		paths = append(paths, filepath.Join(v.rootDir, gomod))
 	}
 
@@ -351,4 +385,3 @@ func (gc *GlobalCache) Search(visit func(p *packages.Package) error) error {
 
 	return nil
 }
-

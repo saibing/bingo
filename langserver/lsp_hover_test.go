@@ -41,6 +41,10 @@ func TestHover(t *testing.T) {
 		test(t, "basic/b.go:1:23", "func A()")
 	})
 
+	t.Run("builtin hover", func(t *testing.T) {
+		test(t, "builtin/a.go:1:26", "func println(args ...Type); The println built-in function formats its arguments in an implementation-specific way and writes the result to standard error. Spaces are always added between arguments and a newline is appended. Println is useful for bootstrapping and debugging; it is not guaranteed to stay in the language. \n\n")
+	})
+
 	t.Run("detailed hover", func(t *testing.T) {
 		test(t, "detailed/a.go:1:28", "struct field F string")
 		test(t, "detailed/a.go:1:17", `type T struct; struct {

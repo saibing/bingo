@@ -27,10 +27,14 @@ func (h *HandlerShared) getFindPackageFunc() source.FindPackageFunc {
 	return defaultFindPackageFunc
 }
 
-func defaultFindPackageFunc(packageCache *source.GlobalCache, pkgDir, importPath string) (*packages.Package, error) {
+func defaultFindPackageFunc(globalCache *source.GlobalCache, pkgDir, importPath string) (*packages.Package, error) {
 	if strings.HasPrefix(importPath, "/") {
 		return nil, fmt.Errorf("import %q: cannot import absolute path", importPath)
 	}
 
-	return packageCache.GetFromPackagePath(pkgDir, importPath), nil
+	if importPath == source.BuiltinPkg {
+		return globalCache.GetBuiltinPackage(), nil
+	}
+
+	return globalCache.GetFromPackagePath(pkgDir, importPath), nil
 }

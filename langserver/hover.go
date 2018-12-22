@@ -90,6 +90,19 @@ func (h *LangHandler) hoverBasicLit(pkg *packages.Package, nodes []ast.Node, bas
 	return nil, nil
 }
 
+func (h *LangHandler) findObject(pkg *packages.Package, o types.Object) types.Object {
+	for _, def := range pkg.TypesInfo.Defs {
+		if def == nil {
+			continue
+		}
+		if def.Name() == o.Name() {
+			return def
+		}
+	}
+
+	return nil
+}
+
 func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
 
 	o := goast.FindIdentObject(pkg, ident)
@@ -106,7 +119,11 @@ func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, id
 
 	if o != nil && !o.Pos().IsValid() {
 		// Only builtins have invalid position, and don't have useful info.
-		return nil, nil
+		pkg = h.globalCache.GetBuiltinPackage()
+		o = h.findObject(pkg, o)
+		if o == nil {
+			return nil, nil
+		}
 	}
 	// Don't package-qualify the string output.
 	qf := func(*types.Package) string { return "" }

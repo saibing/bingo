@@ -31,10 +31,9 @@ func (n fakeNode) End() token.Pos { return n.e }
 func goRangeToLSPLocation(fSet *token.FileSet, pos token.Pos, name string) lsp.Location {
 	filename := fSet.Position(pos).Filename
 	if filename == "" {
-		return lsp.Location{
-			URI:   "",
-			Range: rangeForNode(fSet, fakeNode{p: pos, e: pos + token.Pos(len([]byte(name)))}),
-		}
+		// for builtin symbol
+		pos = token.Pos(1)
+		filename = fSet.File(pos).Name()
 	}
 
 	return lsp.Location{

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/goast"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
@@ -48,12 +49,9 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	}
 
 	if obj.Pkg() == nil {
-		if _, builtin := obj.(*types.Builtin); builtin {
-			// We don't support builtin references due to the massive number
-			// of references, so ignore the missing package error.
-			return []lsp.Location{}, nil
+		if _, builtin := obj.(*types.Builtin); !builtin {
+			return nil, fmt.Errorf("no package found for object %s", obj)
 		}
-		return nil, fmt.Errorf("no package found for object %s", obj)
 	}
 
 	refs, err := h.findReferences(ctx, obj)
@@ -114,15 +112,22 @@ func formatLocation(loc lsp.Location) string {
 func (h *LangHandler) findReferences(ctx context.Context, queryObj types.Object) ([]*ast.Ident, error) {
 	// Bail out early if the context is canceled
 	var refs []*ast.Ident
+	var defPkgPath string
+	if queryObj.Pkg() != nil {
+		defPkgPath = queryObj.Pkg().Path()
+	} else {
+		defPkgPath = source.BuiltinPkg
+	}
 
-	defPkgPath := queryObj.Pkg().Path()
 	f := func(pkg *packages.Package) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 
-		if _, ok := pkg.Imports[defPkgPath]; !ok && pkg.PkgPath != defPkgPath {
-			return nil
+		if defPkgPath != source.BuiltinPkg {
+			if _, ok := pkg.Imports[defPkgPath]; !ok && pkg.PkgPath != defPkgPath {
+				return nil
+			}
 		}
 
 		for id, obj := range pkg.TypesInfo.Uses {
@@ -156,6 +161,13 @@ func sameObj(x, y types.Object) bool {
 		x.Exported() &&
 		y.Exported() {
 		// enable find the xtest pakcage's uses, but this will product some duplicate results
+		return true
+	}
+
+	// builtin package symbol
+	if x.Pkg() == nil &&
+		y.Pkg() == nil &&
+		x.Name() == y.Name() {
 		return true
 	}
 
