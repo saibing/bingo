@@ -2,7 +2,7 @@ package langserver
 
 import (
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"golang.org/x/tools/go/packages"
@@ -23,16 +23,16 @@ func (h *HandlerShared) FilePath(uri lsp.DocumentURI) string {
 	return util.GetRealPath(path)
 }
 
-func (h *HandlerShared) getFindPackageFunc() source.FindPackageFunc {
+func (h *HandlerShared) getFindPackageFunc() cache.FindPackageFunc {
 	return defaultFindPackageFunc
 }
 
-func defaultFindPackageFunc(globalCache *source.GlobalCache, pkgDir, importPath string) (*packages.Package, error) {
+func defaultFindPackageFunc(globalCache *cache.GlobalCache, pkgDir, importPath string) (*packages.Package, error) {
 	if strings.HasPrefix(importPath, "/") {
 		return nil, fmt.Errorf("import %q: cannot import absolute path", importPath)
 	}
 
-	if importPath == source.BuiltinPkg {
+	if importPath == cache.BuiltinPkg {
 		return globalCache.GetBuiltinPackage(), nil
 	}
 

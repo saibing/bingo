@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/goast"
-	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
@@ -116,7 +116,7 @@ func (h *LangHandler) findReferences(ctx context.Context, queryObj types.Object)
 	if queryObj.Pkg() != nil {
 		defPkgPath = queryObj.Pkg().Path()
 	} else {
-		defPkgPath = source.BuiltinPkg
+		defPkgPath = cache.BuiltinPkg
 	}
 
 	f := func(pkg *packages.Package) error {
@@ -124,7 +124,7 @@ func (h *LangHandler) findReferences(ctx context.Context, queryObj types.Object)
 			return ctx.Err()
 		}
 
-		if defPkgPath != source.BuiltinPkg {
+		if defPkgPath != cache.BuiltinPkg {
 			if _, ok := pkg.Imports[defPkgPath]; !ok && pkg.PkgPath != defPkgPath {
 				return nil
 			}

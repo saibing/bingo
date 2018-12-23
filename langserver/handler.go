@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -54,7 +54,7 @@ type LangHandler struct {
 	*HandlerShared
 	init *InitializeParams // set by "initialize" request
 
-	globalCache *source.GlobalCache
+	globalCache *cache.GlobalCache
 
 	cancel *cancel
 
@@ -83,7 +83,7 @@ func (h *LangHandler) doInit(ctx context.Context, conn *jsonrpc2.Conn, init *Ini
 	h.cancel = &cancel{}
 
 	h.overlay = newOverlay(conn, h.DefaultConfig.DiagnosticsDisabled)
-	h.globalCache = source.NewGlobalCache()
+	h.globalCache = cache.NewGlobalCache()
 	if err := h.globalCache.Init(ctx, conn, h.FilePath(init.Root()), h.overlay.view); err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
@@ -66,12 +67,12 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 // requests.
 type overlay struct {
 	conn                *jsonrpc2.Conn
-	view                *source.View
+	view                *cache.View
 	diagnosticsDisabled bool
 }
 
 func newOverlay(conn *jsonrpc2.Conn, diagnosticsDisabled bool) *overlay {
-	return &overlay{conn: conn, view: source.NewView(), diagnosticsDisabled: diagnosticsDisabled}
+	return &overlay{conn: conn, view: cache.NewView(), diagnosticsDisabled: diagnosticsDisabled}
 }
 
 func (h *overlay) didOpen(ctx context.Context, params *lsp.DidOpenTextDocumentParams) {

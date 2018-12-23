@@ -3,8 +3,8 @@ package langserver
 import (
 	"context"
 	"errors"
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/goast"
-	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"
@@ -37,7 +37,7 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 
 // Adapted from golang.org/x/tools/cmd/guru (Copyright (c) 2013 The Go Authors). All rights
 // reserved. See NOTICE for full license.
-func implements(packageCache *source.GlobalCache, pkg *packages.Package, path []ast.Node, action action) ([]*lspext.ImplementationLocation, error) {
+func implements(globalCache *cache.GlobalCache, pkg *packages.Package, path []ast.Node, action action) ([]*lspext.ImplementationLocation, error) {
 	var method *types.Func
 	var T types.Type // selected type (receiver if method != nil)
 
@@ -85,7 +85,7 @@ func implements(packageCache *source.GlobalCache, pkg *packages.Package, path []
 		return nil
 	}
 
-	err := packageCache.Search(f)
+	err := globalCache.Search(f)
 	if err != nil {
 		return nil, err
 	}

@@ -1,9 +1,10 @@
-package source
+package cache
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"go/parser"
 	"go/token"
@@ -168,7 +169,7 @@ func (m *moduleCache) getFromURI(uri lsp.DocumentURI) *packages.Package {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	sourceURI := FromDocumentURI(uri)
+	sourceURI := source.FromDocumentURI(uri)
 	filename, _ := sourceURI.Filename()
 	pkgPath, testFile := m.getPackagePath(filename)
 	if testFile {

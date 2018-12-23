@@ -8,6 +8,7 @@ package langserver
 
 import (
 	"context"
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
@@ -23,7 +24,7 @@ func (h *LangHandler) handleTextDocumentRangeFormatting(ctx context.Context, con
 }
 
 // formatRange formats a document with a given range.
-func formatRange(ctx context.Context, v *source.View, uri lsp.DocumentURI, rng *lsp.Range) ([]lsp.TextEdit, error) {
+func formatRange(ctx context.Context, v *cache.View, uri lsp.DocumentURI, rng *lsp.Range) ([]lsp.TextEdit, error) {
 	f := v.GetFile(source.FromDocumentURI(uri))
 	tok, err := f.GetToken()
 	if err != nil {

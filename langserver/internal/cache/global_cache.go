@@ -1,8 +1,9 @@
-package source
+package cache
 
 import (
 	"context"
 	"fmt"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"io/ioutil"
 	"os"
@@ -262,7 +263,7 @@ func (gc *GlobalCache) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 		return cache.getFromURI(uri)
 	}
 
-	filename, _ := FromDocumentURI(uri).Filename()
+	filename, _ := source.FromDocumentURI(uri).Filename()
 	return gc.visitCache(filepath.Dir(filename), visit)
 }
 

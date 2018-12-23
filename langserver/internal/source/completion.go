@@ -1,9 +1,3 @@
-// Copyright 2018 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// NOTICE: Code adapted from golang.org/x/tools/internal/lsp/source/completion.go
-
 package source
 
 import (
@@ -40,7 +34,19 @@ const (
 	PackageCompletionItem
 )
 
-func Completion(ctx context.Context, f *File, pos token.Pos) ([]CompletionItem, string, error) {
+// stdScore is the base score value set for all completion items.
+const stdScore float64 = 1.0
+
+// finder is a function used to record a completion candidate item in a list of
+// completion items.
+type finder func(types.Object, float64, []CompletionItem) []CompletionItem
+
+// Completion returns a list of possible candidates for completion, given a
+// a file and a position. The prefix is computed based on the preceding
+// identifier and can be used by the client to score the quality of the
+// completion. For instance, some clients may tolerate imperfect matches as
+// valid completion results, since users may make typos.
+func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionItem, prefix string, err error) {
 	file, err := f.GetAST()
 	if err != nil {
 		return nil, "", err
@@ -49,19 +55,6 @@ func Completion(ctx context.Context, f *File, pos token.Pos) ([]CompletionItem, 
 	if err != nil {
 		return nil, "", err
 	}
-	return completions(file, pos, pkg.Fset, pkg.Types, pkg.TypesInfo)
-}
-
-const stdScore float64 = 1.0
-
-type finder func(types.Object, float64, []CompletionItem) []CompletionItem
-
-// completions returns the map of possible candidates for completion, given a
-// position, a file AST, and type information. The prefix is computed based on
-// the preceding identifier and can be used by the client to score the quality
-// of the completion. For instance, some clients may tolerate imperfect matches
-// as valid completion results, since users may make typos.
-func completions(file *ast.File, pos token.Pos, fset *token.FileSet, pkg *types.Package, info *types.Info) (items []CompletionItem, prefix string, err error) {
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	if path == nil {
 		return nil, "", fmt.Errorf("cannot find node enclosing position")
@@ -81,16 +74,16 @@ func completions(file *ast.File, pos token.Pos, fset *token.FileSet, pkg *types.
 	// Save certain facts about the query position, including the expected type
 	// of the completion result, the signature of the function enclosing the
 	// position.
-	typ := expectedType(path, pos, info)
-	sig := enclosingFunction(path, pos, info)
-	pkgStringer := qualifier(file, pkg, info)
+	typ := expectedType(path, pos, pkg.TypesInfo)
+	sig := enclosingFunction(path, pos, pkg.TypesInfo)
+	pkgStringer := qualifier(file, pkg.Types, pkg.TypesInfo)
 
 	seen := make(map[types.Object]bool)
 
 	// found adds a candidate completion.
 	// Only the first candidate of a given name is considered.
 	found := func(obj types.Object, weight float64, items []CompletionItem) []CompletionItem {
-		if obj.Pkg() != nil && obj.Pkg() != pkg && !obj.Exported() {
+		if obj.Pkg() != nil && obj.Pkg() != pkg.Types && !obj.Exported() {
 			return items // inaccessible
 		}
 		if !seen[obj] {
@@ -107,8 +100,8 @@ func completions(file *ast.File, pos token.Pos, fset *token.FileSet, pkg *types.
 	}
 
 	// The position is within a composite literal.
-	if items, ok := complit(path, pos, pkg, info, found); ok {
-		return items, "", nil
+	if items, prefix, ok := complit(path, pos, pkg.Types, pkg.TypesInfo, found); ok {
+		return items, prefix, nil
 	}
 	switch n := path[0].(type) {
 	case *ast.Ident:
@@ -117,39 +110,39 @@ func completions(file *ast.File, pos token.Pos, fset *token.FileSet, pkg *types.
 
 		// Is this the Sel part of a selector?
 		if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
-			items, err = selector(sel, pos, info, found)
+			items, err = selector(sel, pos, pkg.TypesInfo, found)
 			return items, prefix, err
 		}
 		// reject defining identifiers
-		if obj, ok := info.Defs[n]; ok {
+		if obj, ok := pkg.TypesInfo.Defs[n]; ok {
 			if v, ok := obj.(*types.Var); ok && v.IsField() {
 				// An anonymous field is also a reference to a type.
 			} else {
 				of := ""
 				if obj != nil {
-					qual := types.RelativeTo(pkg)
+					qual := types.RelativeTo(pkg.Types)
 					of += ", of " + types.ObjectString(obj, qual)
 				}
 				return nil, "", fmt.Errorf("this is a definition%s", of)
 			}
 		}
 
-		items = append(items, lexical(path, pos, pkg, info, found)...)
+		items = append(items, lexical(path, pos, pkg.Types, pkg.TypesInfo, found)...)
 
 	// The function name hasn't been typed yet, but the parens are there:
 	//   recv.‸(arg)
 	case *ast.TypeAssertExpr:
 		// Create a fake selector expression.
-		items, err = selector(&ast.SelectorExpr{X: n.X}, pos, info, found)
+		items, err = selector(&ast.SelectorExpr{X: n.X}, pos, pkg.TypesInfo, found)
 		return items, prefix, err
 
 	case *ast.SelectorExpr:
-		items, err = selector(n, pos, info, found)
+		items, err = selector(n, pos, pkg.TypesInfo, found)
 		return items, prefix, err
 
 	default:
 		// fallback to lexical completions
-		return lexical(path, pos, pkg, info, found), "", nil
+		return lexical(path, pos, pkg.Types, pkg.TypesInfo, found), "", nil
 	}
 
 	return items, prefix, nil
@@ -256,7 +249,7 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 
 // complit finds completions for field names inside a composite literal.
 // It reports whether the node was handled as part of a composite literal.
-func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder) (items []CompletionItem, ok bool) {
+func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder) (items []CompletionItem, prefix string, ok bool) {
 	var lit *ast.CompositeLit
 
 	// First, determine if the pos is within a composite literal.
@@ -292,6 +285,8 @@ func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 			}
 		}
 	case *ast.Ident:
+		prefix = n.Name[:pos-n.Pos()]
+
 		// If the enclosing node is an identifier, it can either be an identifier that is
 		// part of a composite literal (e.g. &x{fo<>}), or it can be an identifier that is
 		// part of a key-value expression, which is part of a composite literal (e.g. &x{foo: ba<>).
@@ -317,7 +312,7 @@ func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 	}
 	// We are not in a composite literal.
 	if lit == nil {
-		return nil, false
+		return nil, prefix, false
 	}
 	// Mark fields of the composite literal that have already been set,
 	// except for the current field.
@@ -357,10 +352,10 @@ func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 			if !hasKeys && structPkg == pkg {
 				items = append(items, lexical(path, pos, pkg, info, found)...)
 			}
-			return items, true
+			return items, prefix, true
 		}
 	}
-	return items, false
+	return items, prefix, false
 }
 
 // formatCompletion creates a completion item for a given types.Object.
@@ -398,6 +393,8 @@ func formatCompletion(obj types.Object, qualifier types.Qualifier, score float64
 		}
 	case *types.Func:
 		if sig, ok := o.Type().(*types.Signature); ok {
+			//label += formatParams(sig.Params(), sig.Variadic(), qualifier)
+			//detail = strings.Trim(types.TypeString(sig.Results(), qualifier), "()")
 			detail = "func"
 			detail += formatParams(sig.Params(), sig.Variadic(), qualifier)
 			retSignature := strings.Trim(types.TypeString(sig.Results(), qualifier), "()")
@@ -408,7 +405,6 @@ func formatCompletion(obj types.Object, qualifier types.Qualifier, score float64
 			}
 
 			detail += retSignature + " "
-
 			kind = FunctionCompletionItem
 			if sig.Recv() != nil {
 				kind = MethodCompletionItem

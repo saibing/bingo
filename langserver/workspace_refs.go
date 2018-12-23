@@ -3,7 +3,7 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
 	"log"
@@ -131,18 +131,16 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 	return nil
 }
 
-func defSymbolDescriptor(pkg *packages.Package, packageCache *source.GlobalCache, def refs.Def, findPackage source.FindPackageFunc) (*symbolDescriptor, error) {
+func defSymbolDescriptor(pkg *packages.Package, globalCache *cache.GlobalCache, def refs.Def, findPackage cache.FindPackageFunc) (*symbolDescriptor, error) {
 	var err error
 	defPkg, _ := pkg.Imports[def.ImportPath]
 	if defPkg == nil {
-		defPkg, err = findPackage(packageCache, filepath.Dir(pkg.GoFiles[0]), def.ImportPath)
-
-		if defPkg == nil {
-			return nil, fmt.Errorf("cannot find package for %s in %s", pkg.GoFiles[0], def.ImportPath)
-		}
-
+		defPkg, err = findPackage(globalCache, filepath.Dir(pkg.GoFiles[0]), def.ImportPath)
 		if err != nil {
 			return nil, err
+		}
+		if defPkg == nil {
+			return nil, fmt.Errorf("cannot find package for %s in %s", pkg.GoFiles[0], def.ImportPath)
 		}
 	}
 

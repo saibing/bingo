@@ -43,7 +43,7 @@ func TestReferences(t *testing.T) {
 	})
 
 	t.Run("builtin", func(t *testing.T) {
-		test(t, "builtin/a.go:1:26", []string{"goroot/src/builtin/builtin.go:246:8-246:15"})
+		test(t, "builtin/a.go:1:26", []string{"builtin/a.go:1:23"})
 	})
 
 
@@ -104,6 +104,10 @@ func doReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 	var results []string
 	for i := range references {
 		if strings.Contains(references[i], "go-build") {
+			continue
+		}
+
+		if strings.Contains(references[i], "go/src") {
 			continue
 		}
 
