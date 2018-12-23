@@ -130,6 +130,10 @@ func (h *LangHandler) findReferences(ctx context.Context, queryObj types.Object)
 			}
 		}
 
+		if pkg.TypesInfo == nil {
+			return nil
+		}
+
 		for id, obj := range pkg.TypesInfo.Uses {
 			if sameObj(queryObj, obj) {
 				refs = append(refs, id)

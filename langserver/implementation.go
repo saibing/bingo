@@ -74,6 +74,10 @@ func implements(globalCache *cache.GlobalCache, pkg *packages.Package, path []as
 	var allNamed []*types.Named
 
 	f := func(p *packages.Package) error {
+		if p.TypesInfo == nil {
+			return nil
+		}
+
 		for _, obj := range p.TypesInfo.Defs {
 			if obj, ok := obj.(*types.TypeName); ok && !isAlias(obj) {
 				if named, ok := obj.Type().(*types.Named); ok {

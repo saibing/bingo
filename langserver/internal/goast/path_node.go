@@ -210,6 +210,10 @@ func FindIdentObject(pkg *packages.Package, ident *ast.Ident) types.Object {
 	var o types.Object
 
 	found := func(pkg *packages.Package) bool {
+		if pkg.TypesInfo == nil {
+			return false
+		}
+
 		o = pkg.TypesInfo.ObjectOf(ident)
 		return o != nil
 	}
@@ -222,6 +226,10 @@ func FindIdentType(pkg *packages.Package, ident *ast.Ident) types.Type {
 	var t types.Type
 
 	found := func(pkg *packages.Package) bool {
+		if pkg.TypesInfo == nil {
+			return false
+		}
+
 		t = pkg.TypesInfo.TypeOf(ident)
 		return t != nil
 	}
