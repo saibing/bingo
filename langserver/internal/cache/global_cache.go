@@ -134,6 +134,11 @@ func (gc *GlobalCache) createGoPathProject() error {
 }
 
 func (gc *GlobalCache) createBuiltinCache() error {
+	value := os.Getenv("GO111MODULE")
+	_ = os.Setenv("GO111MODULE", "auto")
+	defer func() {
+		_ = os.Setenv("GO111MODULE", value)
+	}()
 	cache := newModuleCache(gc, filepath.Join(gc.goroot, BuiltinPkg))
 	err := cache.init()
 	if err != nil {
