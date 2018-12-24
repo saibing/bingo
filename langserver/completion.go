@@ -153,7 +153,7 @@ func labelToProtocolSnippets(label string, kind source.CompletionItemKind, inser
 			`$`, `\$`,
 		)
 		trimmed += "("
-		for i, p := range strings.Split(params, ",") {
+		for i, p := range splitArgs(params) {
 			if i != 0 {
 				trimmed += ", "
 			}
@@ -163,4 +163,28 @@ func labelToProtocolSnippets(label string, kind source.CompletionItemKind, inser
 
 	}
 	return label, false
+}
+
+func splitArgs(input string) []string {
+	if len(input) == 0 {
+		return nil
+	}
+	var res []string
+	var parCounter, prevIdx int
+	for i, c := range input {
+		switch c {
+		case '(':
+			parCounter++
+		case ')':
+			parCounter--
+		case ',':
+			if parCounter == 0 {
+				res = append(res, input[prevIdx:i])
+				prevIdx = i + 1
+			}
+		}
+	}
+	res = append(res, input[prevIdx:])
+
+	return res
 }
