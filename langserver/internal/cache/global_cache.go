@@ -53,7 +53,6 @@ func getGoRoot() string {
 }
 
 func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
-	_ = os.Setenv("GO111MODULE", "auto")
 	packages.NoUseCache = false
 	packages.DebugCache = false
 
