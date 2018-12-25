@@ -49,7 +49,7 @@ to build and install the `bingo`, please run
 ```bash
 git clone https://github.com/saibing/bingo.git
 cd bingo
-go build
+GO111MODULE=on; go build
 ```
 
 ## Usage

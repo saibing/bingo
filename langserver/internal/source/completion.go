@@ -393,18 +393,8 @@ func formatCompletion(obj types.Object, qualifier types.Qualifier, score float64
 		}
 	case *types.Func:
 		if sig, ok := o.Type().(*types.Signature); ok {
-			//label += formatParams(sig.Params(), sig.Variadic(), qualifier)
-			//detail = strings.Trim(types.TypeString(sig.Results(), qualifier), "()")
-			detail = "func"
-			detail += formatParams(sig.Params(), sig.Variadic(), qualifier)
-			retSignature := strings.Trim(types.TypeString(sig.Results(), qualifier), "()")
-			if strings.Contains(retSignature,",") {
-				retSignature = " (" + retSignature + ")"
-			} else if retSignature != "" {
-				retSignature = " " + retSignature
-			}
-
-			detail += retSignature + " "
+			label += formatParams(sig.Params(), sig.Variadic(), qualifier)
+			detail = strings.Trim(types.TypeString(sig.Results(), qualifier), "()")
 			kind = FunctionCompletionItem
 			if sig.Recv() != nil {
 				kind = MethodCompletionItem
