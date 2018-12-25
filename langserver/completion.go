@@ -21,7 +21,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		return nil, err
 	}
 	pos := fromProtocolPosition(tok, params.Position)
-	items, prefix, err := source.Completion(ctx, f, pos)
+	items, prefix, err := source.Completion(ctx, f, pos, h.config.FuncSnippetEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 
 	result := &lsp.CompletionList{
 		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items, prefix, params.Position, false, false),
+		Items:        toProtocolCompletionItems(items, prefix, params.Position, h.config.FuncSnippetEnabled, false),
 	}
 
 	return result, nil
@@ -70,7 +70,7 @@ func toProtocolCompletionItems(items []source.CompletionItem, prefix string, pos
 			InsertTextFormat: insertTextFormat,
 			TextEdit: &lsp.TextEdit{
 				NewText: insertText,
-				Range: getLspRange(pos, len(prefix)),
+				Range:   getLspRange(pos, len(prefix)),
 			},
 			// InsertText is deprecated in favor of TextEdit.
 			InsertText: insertText,
@@ -149,10 +149,11 @@ func labelToProtocolSnippets(label string, kind source.CompletionItemKind, inser
 		r := strings.NewReplacer(
 			`\`, `\\`,
 			`}`, `\}`,
+			`{`, `\{`,
 			`$`, `\$`,
 		)
 		trimmed += "("
-		for i, p := range strings.Split(params, ",") {
+		for i, p := range splitArgs(params) {
 			if i != 0 {
 				trimmed += ", "
 			}
@@ -162,4 +163,28 @@ func labelToProtocolSnippets(label string, kind source.CompletionItemKind, inser
 
 	}
 	return label, false
+}
+
+func splitArgs(input string) []string {
+	if len(input) == 0 {
+		return nil
+	}
+	var res []string
+	var parCounter, prevIdx int
+	for i, c := range input {
+		switch c {
+		case '(':
+			parCounter++
+		case ')':
+			parCounter--
+		case ',':
+			if parCounter == 0 {
+				res = append(res, input[prevIdx:i])
+				prevIdx = i + 1
+			}
+		}
+	}
+	res = append(res, input[prevIdx:])
+
+	return res
 }
