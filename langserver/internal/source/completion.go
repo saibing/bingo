@@ -46,7 +46,7 @@ type finder func(types.Object, float64, []CompletionItem) []CompletionItem
 // identifier and can be used by the client to score the quality of the
 // completion. For instance, some clients may tolerate imperfect matches as
 // valid completion results, since users may make typos.
-func Completion(ctx context.Context, f File, pos token.Pos, snippetsEnabled bool) (items []CompletionItem, prefix string, err error) {
+func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionItem, prefix string, err error) {
 	file, err := f.GetAST()
 	if err != nil {
 		return nil, "", err
@@ -93,7 +93,7 @@ func Completion(ctx context.Context, f File, pos token.Pos, snippetsEnabled bool
 			}
 			item := formatCompletion(obj, pkgStringer, weight, func(v *types.Var) bool {
 				return isParameter(sig, v)
-			}, snippetsEnabled)
+			})
 			items = append(items, item)
 		}
 		return items
@@ -359,7 +359,7 @@ func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 }
 
 // formatCompletion creates a completion item for a given types.Object.
-func formatCompletion(obj types.Object, qualifier types.Qualifier, score float64, isParam func(*types.Var) bool, snippetsEnabled bool) CompletionItem {
+func formatCompletion(obj types.Object, qualifier types.Qualifier, score float64, isParam func(*types.Var) bool) CompletionItem {
 	label := obj.Name()
 	detail := types.TypeString(obj.Type(), qualifier)
 	var kind CompletionItemKind
@@ -393,20 +393,8 @@ func formatCompletion(obj types.Object, qualifier types.Qualifier, score float64
 		}
 	case *types.Func:
 		if sig, ok := o.Type().(*types.Signature); ok {
-			if snippetsEnabled {
-				label += formatParams(sig.Params(), sig.Variadic(), qualifier)
-			}
-			//detail = strings.Trim(types.TypeString(sig.Results(), qualifier), "()")
-			detail = "func"
-			detail += formatParams(sig.Params(), sig.Variadic(), qualifier)
-			retSignature := strings.Trim(types.TypeString(sig.Results(), qualifier), "()")
-			if strings.Contains(retSignature, ",") {
-				retSignature = " (" + retSignature + ")"
-			} else if retSignature != "" {
-				retSignature = " " + retSignature
-			}
-
-			detail += retSignature + " "
+			label += formatParams(sig.Params(), sig.Variadic(), qualifier)
+			detail = strings.Trim(types.TypeString(sig.Results(), qualifier), "()")
 			kind = FunctionCompletionItem
 			if sig.Recv() != nil {
 				kind = MethodCompletionItem
