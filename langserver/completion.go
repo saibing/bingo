@@ -33,7 +33,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 
 	result := &lsp.CompletionList{
 		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items, prefix, params.Position, h.config.FuncSnippetEnabled, true),
+		Items:        toProtocolCompletionItems(items, prefix, params.Position, h.config.FuncSnippetEnabled, false),
 	}
 
 	return result, nil
@@ -139,9 +139,9 @@ func labelToProtocolSnippets(label string, kind source.CompletionItemKind, inser
 		}
 		// If we do have signature help enabled, the user can see parameters as
 		// they type in the function, so we just return empty parentheses.
-		// if signatureHelpEnabled {
-		// 	return trimmed + "($1)", true
-		// }
+		if signatureHelpEnabled {
+			return trimmed + "($1)", true
+		}
 		// If signature help is not enabled, we should give the user parameters
 		// that they can tab through. The insert text format follows the
 		// specification defined by Microsoft for LSP. The "$", "}, and "\"
