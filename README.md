@@ -49,7 +49,7 @@ to build and install the `bingo`, please run
 ```bash
 git clone https://github.com/saibing/bingo.git
 cd bingo
-GO111MODULE=on; go build
+GO111MODULE=on; go install
 ```
 
 ## Usage
@@ -102,6 +102,6 @@ So the -use-global-cache flag is great for reading a large go language project's
 
 ## FAQ
 
-- Please keep 'go build' or 'go list' command work ok
+- Please keep 'go list' command work ok
 
-> If they have some errors when they execute, these errors may affect the accuracy of the bingo's results.
+> If it have some errors when they execute, these errors may affect the accuracy of the bingo's results.

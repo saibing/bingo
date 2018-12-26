@@ -32,9 +32,5 @@ func defaultFindPackageFunc(globalCache *cache.GlobalCache, pkgDir, importPath s
 		return nil, fmt.Errorf("import %q: cannot import absolute path", importPath)
 	}
 
-	if importPath == cache.BuiltinPkg {
-		return globalCache.GetBuiltinPackage(), nil
-	}
-
 	return globalCache.GetFromPkgPath(pkgDir, importPath), nil
 }
