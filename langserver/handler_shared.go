@@ -36,5 +36,5 @@ func defaultFindPackageFunc(globalCache *cache.GlobalCache, pkgDir, importPath s
 		return globalCache.GetBuiltinPackage(), nil
 	}
 
-	return globalCache.GetFromPackagePath(pkgDir, importPath), nil
+	return globalCache.GetFromPkgPath(pkgDir, importPath), nil
 }

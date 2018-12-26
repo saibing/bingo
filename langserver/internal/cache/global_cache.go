@@ -40,10 +40,13 @@ type GlobalCache struct {
 	gomoduleMode bool
 	caches       []*moduleCache
 	builtinPkg   *packages.Package
+
+	filePath2id map[string]string
+	pkgPath2id map[string]string
 }
 
 func NewGlobalCache() *GlobalCache {
-	return &GlobalCache{goroot: getGoRoot()}
+	return &GlobalCache{goroot: getGoRoot(), filePath2id: map[string]string{}, pkgPath2id: map[string]string{}}
 }
 
 func getGoRoot() string {
@@ -266,42 +269,23 @@ func (gc *GlobalCache) fsNotifyPaths(paths []string) error {
 }
 
 func (gc *GlobalCache) GetFromURI(uri lsp.DocumentURI) *packages.Package {
-	visit := func(cache *moduleCache) *packages.Package {
-		return cache.getFromURI(uri)
+	sourceURI := source.FromDocumentURI(uri)
+	filename, _ := sourceURI.Filename()
+	id := gc.filePath2id[filename]
+	if id == "" {
+		return nil
 	}
 
-	filename, _ := source.FromDocumentURI(uri).Filename()
-	return gc.visitCache(filepath.Dir(filename), visit)
+	return packages.GetPackage(id)
 }
 
-func (gc *GlobalCache) GetFromPackagePath(pkgDir string, pkgPath string) *packages.Package {
-	visit := func(cache *moduleCache) *packages.Package {
-		return cache.getFromPackagePath(pkgPath)
+func (gc *GlobalCache) GetFromPkgPath(pkgDir string, pkgPath string) *packages.Package {
+	id := gc.pkgPath2id[pkgPath]
+	if id == "" {
+		return nil
 	}
 
-	return gc.visitCache(pkgDir, visit)
-}
-
-func (gc *GlobalCache) visitCache(pkgDir string, visit func(cache *moduleCache) *packages.Package) *packages.Package {
-	// the most situation
-	if len(gc.caches) == 1 {
-		return visit(gc.caches[0])
-	}
-
-	for _, v := range gc.caches {
-		if strings.HasPrefix(pkgDir, v.rootDir) {
-			return visit(v)
-		}
-	}
-
-	for _, v := range gc.caches {
-		pkg := visit(v)
-		if pkg != nil {
-			return pkg
-		}
-	}
-
-	return nil
+	return packages.GetPackage(id)
 }
 
 func (gc *GlobalCache) getLoadDir(filename string) string {
@@ -356,40 +340,12 @@ func (gc *GlobalCache) notifyLog(message string) {
 	_ = gc.conn.Notify(context.Background(), "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
 }
 
-func (gc *GlobalCache) Search(visit func(p *packages.Package) error) error {
-	seen := map[string]bool{}
-
-	visitView := func() error {
-		gc.view.mu.Lock()
-		defer gc.view.mu.Unlock()
-		for _, f := range gc.view.files {
-			pkg := f.pkg
-			if pkg == nil || seen[pkg.PkgPath] {
-				continue
-			}
-
-			seen[pkg.PkgPath] = true
-
-			//fmt.Printf("visit view package %s\n", pkg.PkgPath)
-			if err := visit(pkg); err != nil {
-				return err
-			}
-		}
-
-		return nil
+func (gc *GlobalCache) Search(walkFunc packages.WalkFunc) error {
+	var ranks []string
+	for _, cache := range gc.caches {
+		ranks = append(ranks, cache.rootDir)
 	}
 
-	err := visitView()
-	if err != nil {
-		return err
-	}
-
-	for _, v := range gc.caches {
-		err := v.search(seen, visit)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	ranks = append(ranks, gc.goroot)
+	return packages.Walk(walkFunc, ranks)
 }
