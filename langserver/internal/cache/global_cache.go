@@ -39,14 +39,10 @@ type GlobalCache struct {
 	view         *View
 	gomoduleMode bool
 	caches       []*moduleCache
-	builtinPkg   *packages.Package
-
-	filePath2id map[string]string
-	pkgPath2id map[string]string
 }
 
 func NewGlobalCache() *GlobalCache {
-	return &GlobalCache{goroot: getGoRoot(), filePath2id: map[string]string{}, pkgPath2id: map[string]string{}}
+	return &GlobalCache{goroot: getGoRoot()}
 }
 
 func getGoRoot() string {
@@ -94,7 +90,7 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 const BuiltinPkg = "builtin"
 
 func (gc *GlobalCache) GetBuiltinPackage() *packages.Package {
-	return gc.builtinPkg
+	return gc.GetFromPkgPath("", BuiltinPkg)
 }
 
 func (gc *GlobalCache) createGoModuleProject(gomodList []string) error {
@@ -148,7 +144,6 @@ func (gc *GlobalCache) createBuiltinCache() error {
 		return err
 	}
 
-	gc.builtinPkg = cache.getFromPackagePath(BuiltinPkg)
 	gc.caches = append(gc.caches, cache)
 	return nil
 }
@@ -269,23 +264,12 @@ func (gc *GlobalCache) fsNotifyPaths(paths []string) error {
 }
 
 func (gc *GlobalCache) GetFromURI(uri lsp.DocumentURI) *packages.Package {
-	sourceURI := source.FromDocumentURI(uri)
-	filename, _ := sourceURI.Filename()
-	id := gc.filePath2id[filename]
-	if id == "" {
-		return nil
-	}
-
-	return packages.GetPackage(id)
+	filename, _ := source.FromDocumentURI(uri).Filename()
+	return packages.GetPackageFromURI(filename)
 }
 
-func (gc *GlobalCache) GetFromPkgPath(pkgDir string, pkgPath string) *packages.Package {
-	id := gc.pkgPath2id[pkgPath]
-	if id == "" {
-		return nil
-	}
-
-	return packages.GetPackage(id)
+func (gc *GlobalCache) GetFromPkgPath(_ string, pkgPath string) *packages.Package {
+	return packages.GetPackage(pkgPath)
 }
 
 func (gc *GlobalCache) getLoadDir(filename string) string {

@@ -4,10 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
-	"go/parser"
-	"go/token"
 	"io"
 	"os"
 	"path/filepath"
@@ -15,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/saibing/bingo/pkg/lsp"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -33,12 +29,7 @@ type moduleCache struct {
 	mu             sync.RWMutex
 	gc             *GlobalCache
 	rootDir        string
-	pathMap        path2Package
-	workspacePkg   []string
-	modulePkg      []string
-	stdLibPkg      []string
 	mainModulePath string
-
 	moduleMap map[string]moduleInfo
 }
 
@@ -56,12 +47,8 @@ func (m *moduleCache) init() (err error) {
 		return err
 	}
 
-	pkgList, err := m.buildCache()
-	if err != nil {
-		return err
-	}
-	m.setCache(pkgList)
-	return nil
+	_, err = m.buildCache()
+	return err
 }
 
 func (m *moduleCache) initModuleProject() error {
@@ -136,64 +123,6 @@ func (m *moduleCache) readModuleFromFile() (map[string]moduleInfo, error) {
 	return moduleMap, nil
 }
 
-func (m *moduleCache) getFromPackagePath(pkgPath string) *packages.Package {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.pathMap[pkgPath]
-}
-
-func (m *moduleCache) getPackagePath(filename string) (pkgPath string, testFile bool) {
-	dir := util.LowerDriver(filepath.Dir(filename))
-	base := filepath.Base(filename)
-
-	if strings.HasPrefix(dir, m.gc.goroot) {
-		pkgPath = dir[len(m.gc.goroot)+1:]
-	} else {
-		for k, v := range m.moduleMap {
-			if strings.HasPrefix(dir, k) {
-				pkgPath = filepath.Join(v.Path, dir[len(k):])
-				break
-			}
-		}
-	}
-
-	pkgPath = filepath.ToSlash(pkgPath)
-
-	if strings.HasSuffix(base, "_test.go") {
-		testFile = true
-	}
-	return pkgPath, testFile
-}
-
-func (m *moduleCache) getFromURI(uri lsp.DocumentURI) *packages.Package {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	sourceURI := source.FromDocumentURI(uri)
-	filename, _ := sourceURI.Filename()
-	pkgPath, testFile := m.getPackagePath(filename)
-	if testFile {
-		file := m.gc.view.GetFile(sourceURI)
-		content, err := file.Read()
-		if err != nil {
-			panic(err)
-		}
-
-		fSet := token.NewFileSet()
-		astFile, err := parser.ParseFile(fSet, filename, content, parser.PackageClauseOnly)
-		if err != nil {
-			panic(err)
-		}
-
-		if strings.HasSuffix(astFile.Name.Name, "_test") {
-			return m.pathMap[pkgPath+"_test"]
-		}
-
-		return m.pathMap[pkgPath+".test"]
-	}
-	return m.pathMap[pkgPath]
-}
-
 func (m *moduleCache) initModule(moduleMap map[string]moduleInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -232,13 +161,8 @@ func (m *moduleCache) rebuildCache() (bool, error) {
 		}
 	}
 
-	pkgList, err := m.buildCache()
-	if err != nil {
-		return true, err
-	}
-
-	m.setCache(pkgList)
-	return true, nil
+	_, err := m.buildCache()
+	return err == nil, err
 }
 
 func (m *moduleCache) hasChanged(moduleMap map[string]moduleInfo) bool {
@@ -268,89 +192,5 @@ func (m *moduleCache) buildCache() ([]*packages.Package, error) {
 	}
 
 	return packages.Load(&cfg, pattern)
-}
-
-func (m *moduleCache) setCache(pkgList []*packages.Package) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.pathMap = path2Package{}
-	m.workspacePkg = []string{}
-	m.modulePkg = []string{}
-	m.stdLibPkg = []string{}
-
-	for _, pkg := range pkgList {
-		m.cache(pkg)
-	}
-}
-
-func (m *moduleCache) cache(pkg *packages.Package) {
-	if _, ok := m.pathMap[pkg.PkgPath]; ok {
-		return
-	}
-
-	if strings.HasPrefix(pkg.PkgPath, m.mainModulePath) {
-		m.workspacePkg = append(m.workspacePkg, pkg.PkgPath)
-	} else if strings.Contains(pkg.PkgPath, ".") {
-		m.modulePkg = append(m.modulePkg, pkg.PkgPath)
-	} else {
-		m.stdLibPkg = append(m.stdLibPkg, pkg.PkgPath)
-	}
-
-	m.pathMap[pkg.PkgPath] = pkg
-	m.gc.notifyLog(fmt.Sprintf("cached module %s's package %s", m.mainModulePath, pkg.PkgPath))
-	for _, importPkg := range pkg.Imports {
-		m.cache(importPkg)
-	}
-}
-
-func (m *moduleCache) search(seen map[string]bool, visit func(p *packages.Package) error) error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	visitPkgList := func(pkgList []string) error {
-		for _, pkgPath := range pkgList {
-			if seen[pkgPath] {
-				continue
-			}
-
-			seen[pkgPath] = true
-
-			pkg := m.pathMap[pkgPath]
-			if pkg == nil {
-				continue
-			}
-
-			if err := visit(pkg); err != nil {
-				return err
-			}
-
-			if strings.HasSuffix(pkgPath, ".test") || strings.HasSuffix(pkgPath, "_test") {
-				pkg = pkg.Imports[pkgPath[:len(pkgPath)-len(".test")]]
-				if pkg == nil {
-					continue
-				}
-
-				seen[pkg.PkgPath] = false
-				if err := visit(pkg); err != nil {
-					return err
-				}
-			}
-		}
-
-		return nil
-	}
-
-	err := visitPkgList(m.workspacePkg)
-	if err != nil {
-		return err
-	}
-
-	err = visitPkgList(m.modulePkg)
-	if err != nil {
-		return err
-	}
-
-	return visitPkgList(m.stdLibPkg)
 }
 

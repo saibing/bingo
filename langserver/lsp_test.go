@@ -8,6 +8,7 @@ import (
 	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -19,6 +20,8 @@ import (
 
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+
+	_ "net/http/pprof"
 )
 
 var h *LangHandler
@@ -321,6 +324,10 @@ func initServer(rootDir string) {
 }
 
 func startLanguageServer(h jsonrpc2.Handler) (addr string, done func()) {
+	go func() {
+		log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
+	}()
+
 	bindAddr := ":0"
 	if os.Getenv("CI") != "" || runtime.GOOS == "windows" {
 		// CircleCI has issues with IPv6 (e.g., "dial tcp [::]:39984:
