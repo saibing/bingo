@@ -7,12 +7,12 @@ import (
 // Config adjusts the behaviour of go-langserver. Please keep in sync with
 // InitializationOptions in the README.
 type Config struct {
-	// FuncSnippetEnabled enables the returning of argument snippets on `func`
+	// DisableFuncSnippet enables the returning of argument snippets on `func`
 	// completions, eg. func(foo string, arg2 bar). Requires code complete
 	// to be enabled.
 	//
 	// Defaults to true if not specified.
-	FuncSnippetEnabled bool
+	DisableFuncSnippet bool
 
 	// UseGlobalCache enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.
 	//
@@ -38,8 +38,8 @@ func (c Config) Apply(o *InitializationOptions) Config {
 	if o == nil {
 		return c
 	}
-	if o.FuncSnippetEnabled != nil {
-		c.FuncSnippetEnabled = *o.FuncSnippetEnabled
+	if o.DisableFuncSnippet != nil {
+		c.DisableFuncSnippet = *o.DisableFuncSnippet
 	}
 
 	if o.DiagnosticsDisabled != nil {
@@ -67,7 +67,7 @@ func NewDefaultConfig() Config {
 	}
 
 	return Config{
-		FuncSnippetEnabled: true,
+		DisableFuncSnippet: false,
 		MaxParallelism:     maxparallelism,
 	}
 }

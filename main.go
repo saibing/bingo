@@ -30,7 +30,7 @@ var (
 	// Default Config, can be overridden by InitializationOptions
 	maxparallelism     = flag.Int("maxparallelism", 0, "use at max N parallel goroutines to fulfill requests. Can be overridden by InitializationOptions.")
 	disableDiagnostics = flag.Bool("disable-diagnostics", false, "disable diagnostics. Can be overridden by InitializationOptions.")
-	funcSnippetEnabled = flag.Bool("func-snippet-enabled", true, "enable argument snippets on func completion. Can be overridden by InitializationOptions.")
+	disableFuncSnippet = flag.Bool("disable-func-snippet", false, "disable argument snippets on func completion. Can be overridden by InitializationOptions.")
 	useGlobalCache     = flag.Bool("use-global-cache", false, "enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.")
 )
 
@@ -57,7 +57,7 @@ func main() {
 	}
 
 	cfg := langserver.NewDefaultConfig()
-	cfg.FuncSnippetEnabled = *funcSnippetEnabled
+	cfg.DisableFuncSnippet = *disableFuncSnippet
 	cfg.DiagnosticsDisabled = *disableDiagnostics
 	cfg.UseGlobalCache = *useGlobalCache
 

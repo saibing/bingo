@@ -290,8 +290,8 @@ func initServer(rootDir string) {
 	root := util.PathToURI(filepath.ToSlash(rootDir))
 	fmt.Printf("root uri is %s\n", root)
 	cfg := NewDefaultConfig()
-	cfg.FuncSnippetEnabled = true
-	cfg.UseGlobalCache = true
+	cfg.DisableFuncSnippet = false
+	cfg.UseGlobalCache = false
 
 	h = &LangHandler{
 		DefaultConfig: cfg,
@@ -310,15 +310,8 @@ func initServer(rootDir string) {
 			RootURI:      root,
 			Capabilities: lsp.ClientCapabilities{TextDocument: tdCap},
 		},
-		NoOSFileSystemAccess: false,
+
 		RootImportPath:       rootImportPath,
-		BuildContext: &InitializeBuildContextParams{
-			GOOS:     runtime.GOOS,
-			GOARCH:   runtime.GOARCH,
-			GOPATH:   gopathDir,
-			GOROOT:   runtime.GOROOT(),
-			Compiler: runtime.Compiler,
-		},
 	}, nil); err != nil {
 		log.Fatal("conn.Call", err)
 	}

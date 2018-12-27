@@ -33,7 +33,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 
 	result := &lsp.CompletionList{
 		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items, prefix, params.Position, h.config.FuncSnippetEnabled, false),
+		Items:        toProtocolCompletionItems(items, prefix, params.Position, !h.config.DisableFuncSnippet, false),
 	}
 
 	return result, nil
