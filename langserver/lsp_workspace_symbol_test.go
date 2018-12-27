@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/saibing/bingo/pkg/lspext"
-	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"path/filepath"
 	"reflect"
@@ -21,19 +20,6 @@ const exportedOnUnexported = "exported_on_unexported"
 const gorootnoexport = "gorootnoexport"
 
 func TestWorkspaceSymbol(t *testing.T) {
-	exported = packagestest.Export(t, packagestest.Modules, testdata)
-	defer exported.Cleanup()
-
-	defer func() {
-		if conn != nil {
-			if err := conn.Close(); err != nil {
-				log.Fatal("conn.Close", err)
-			}
-		}
-	}()
-
-	initServer(exported.Config.Dir)
-
 	test := func(t *testing.T, data map[*lspext.WorkspaceSymbolParams][]string) {
 		for k, v := range data {
 			testWorkspaceSymbol(t, &workspaceSymbolTestCase{input: k, output: v})

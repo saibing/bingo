@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"golang.org/x/tools/go/packages/packagestest"
 	"log"
@@ -321,6 +322,25 @@ func initServer(rootDir string) {
 	}, nil); err != nil {
 		log.Fatal("conn.Call", err)
 	}
+}
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	exported = packagestest.Export2("bingo", packagestest.Modules, testdata)
+	defer exported.Cleanup()
+
+	defer func() {
+		if conn != nil {
+			if err := conn.Close(); err != nil {
+				log.Fatal("conn.Close", err)
+			}
+		}
+	}()
+
+	initServer(exported.Config.Dir)
+	code := m.Run()
+	os.Exit(code)
 }
 
 func startLanguageServer(h jsonrpc2.Handler) (addr string, done func()) {

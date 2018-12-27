@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
-	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"path/filepath"
 	"strings"
@@ -15,20 +14,6 @@ import (
 )
 
 func TestSignature(t *testing.T) {
-
-	exported = packagestest.Export(t, packagestest.Modules, testdata)
-	defer exported.Cleanup()
-
-	defer func() {
-		if conn != nil {
-			if err := conn.Close(); err != nil {
-				log.Fatal("conn.Close", err)
-			}
-		}
-	}()
-
-	initServer(exported.Config.Dir)
-
 	test := func(t *testing.T, data map[string]string) {
 		for k, v := range data {
 			testSignature(t, &signatureTestCase{input: k, output: v})
