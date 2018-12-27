@@ -39,7 +39,6 @@ type GlobalCache struct {
 	view         *View
 	gomoduleMode bool
 	caches       []*moduleCache
-	builtinPkg   *packages.Package
 }
 
 func NewGlobalCache() *GlobalCache {
@@ -91,7 +90,7 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 const BuiltinPkg = "builtin"
 
 func (gc *GlobalCache) GetBuiltinPackage() *packages.Package {
-	return gc.builtinPkg
+	return gc.GetFromPkgPath("", BuiltinPkg)
 }
 
 func (gc *GlobalCache) createGoModuleProject(gomodList []string) error {
@@ -145,7 +144,6 @@ func (gc *GlobalCache) createBuiltinCache() error {
 		return err
 	}
 
-	gc.builtinPkg = cache.getFromPackagePath(BuiltinPkg)
 	gc.caches = append(gc.caches, cache)
 	return nil
 }
@@ -266,42 +264,12 @@ func (gc *GlobalCache) fsNotifyPaths(paths []string) error {
 }
 
 func (gc *GlobalCache) GetFromURI(uri lsp.DocumentURI) *packages.Package {
-	visit := func(cache *moduleCache) *packages.Package {
-		return cache.getFromURI(uri)
-	}
-
 	filename, _ := source.FromDocumentURI(uri).Filename()
-	return gc.visitCache(filepath.Dir(filename), visit)
+	return packages.GetPackageFromURI(filename)
 }
 
-func (gc *GlobalCache) GetFromPackagePath(pkgDir string, pkgPath string) *packages.Package {
-	visit := func(cache *moduleCache) *packages.Package {
-		return cache.getFromPackagePath(pkgPath)
-	}
-
-	return gc.visitCache(pkgDir, visit)
-}
-
-func (gc *GlobalCache) visitCache(pkgDir string, visit func(cache *moduleCache) *packages.Package) *packages.Package {
-	// the most situation
-	if len(gc.caches) == 1 {
-		return visit(gc.caches[0])
-	}
-
-	for _, v := range gc.caches {
-		if strings.HasPrefix(pkgDir, v.rootDir) {
-			return visit(v)
-		}
-	}
-
-	for _, v := range gc.caches {
-		pkg := visit(v)
-		if pkg != nil {
-			return pkg
-		}
-	}
-
-	return nil
+func (gc *GlobalCache) GetFromPkgPath(_ string, pkgPath string) *packages.Package {
+	return packages.GetPackage(pkgPath)
 }
 
 func (gc *GlobalCache) getLoadDir(filename string) string {
@@ -356,40 +324,12 @@ func (gc *GlobalCache) notifyLog(message string) {
 	_ = gc.conn.Notify(context.Background(), "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
 }
 
-func (gc *GlobalCache) Search(visit func(p *packages.Package) error) error {
-	seen := map[string]bool{}
-
-	visitView := func() error {
-		gc.view.mu.Lock()
-		defer gc.view.mu.Unlock()
-		for _, f := range gc.view.files {
-			pkg := f.pkg
-			if pkg == nil || seen[pkg.PkgPath] {
-				continue
-			}
-
-			seen[pkg.PkgPath] = true
-
-			//fmt.Printf("visit view package %s\n", pkg.PkgPath)
-			if err := visit(pkg); err != nil {
-				return err
-			}
-		}
-
-		return nil
+func (gc *GlobalCache) Search(walkFunc packages.WalkFunc) error {
+	var ranks []string
+	for _, cache := range gc.caches {
+		ranks = append(ranks, cache.rootDir)
 	}
 
-	err := visitView()
-	if err != nil {
-		return err
-	}
-
-	for _, v := range gc.caches {
-		err := v.search(seen, visit)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	ranks = append(ranks, gc.goroot)
+	return packages.Walk(walkFunc, ranks)
 }

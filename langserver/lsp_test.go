@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -19,6 +21,8 @@ import (
 
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+
+	_ "net/http/pprof"
 )
 
 var h *LangHandler
@@ -320,7 +324,30 @@ func initServer(rootDir string) {
 	}
 }
 
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	exported = packagestest.Export2("bingo", packagestest.Modules, testdata)
+	defer exported.Cleanup()
+
+	defer func() {
+		if conn != nil {
+			if err := conn.Close(); err != nil {
+				log.Fatal("conn.Close", err)
+			}
+		}
+	}()
+
+	initServer(exported.Config.Dir)
+	code := m.Run()
+	os.Exit(code)
+}
+
 func startLanguageServer(h jsonrpc2.Handler) (addr string, done func()) {
+	go func() {
+		log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
+	}()
+
 	bindAddr := ":0"
 	if os.Getenv("CI") != "" || runtime.GOOS == "windows" {
 		// CircleCI has issues with IPv6 (e.g., "dial tcp [::]:39984:

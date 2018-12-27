@@ -3,7 +3,6 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"path"
 	"path/filepath"
@@ -18,20 +17,6 @@ import (
 )
 
 func TestDefinition(t *testing.T) {
-
-	exported = packagestest.Export(t, packagestest.Modules, testdata)
-	defer exported.Cleanup()
-
-	defer func() {
-		if conn != nil {
-			if err := conn.Close(); err != nil {
-				log.Fatal("conn.Close", err)
-			}
-		}
-	}()
-
-	initServer(exported.Config.Dir)
-
 	test := func(t *testing.T, input string, output string) {
 		testDefinition(t, &definitionTestCase{input: input, output: output})
 	}

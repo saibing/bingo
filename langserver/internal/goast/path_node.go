@@ -168,7 +168,7 @@ func visitPackage(root *packages.Package, f func(*packages.Package) bool) bool {
 }
 
 func visit(root *packages.Package, found func(*packages.Package) bool, seen map[string]bool, level int) bool {
-	if level >= 3 || seen[root.PkgPath] {
+	if level >= 2 || seen[root.PkgPath] {
 		return false
 	}
 	seen[root.PkgPath] = true

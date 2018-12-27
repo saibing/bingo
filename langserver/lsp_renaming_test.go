@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
-	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"path/filepath"
 	"reflect"
@@ -16,20 +15,6 @@ import (
 )
 
 func TestRenaming(t *testing.T) {
-
-	exported = packagestest.Export(t, packagestest.Modules, testdata)
-	defer exported.Cleanup()
-
-	defer func() {
-		if conn != nil {
-			if err := conn.Close(); err != nil {
-				log.Fatal("conn.Close", err)
-			}
-		}
-	}()
-
-	initServer(exported.Config.Dir)
-
 	test := func(t *testing.T, input string, output map[string]string) {
 		testRenaming(t, &renamingTestCase{input: input, output: output})
 	}
