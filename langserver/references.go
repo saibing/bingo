@@ -15,6 +15,16 @@ import (
 )
 
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
+	locs, err := h.doHandleTextDocumentReferences(ctx, conn, req,params)
+	if err != nil {
+		// fix https://github.com/saibing/bingo/issues/32
+		params.Position.Character--
+		locs, err = h.doHandleTextDocumentReferences(ctx, conn, req,params)
+	}
+	return locs, err
+}
+
+func (h *LangHandler) doHandleTextDocumentReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
 	pkg, pos, err := h.typeCheck(ctx, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
