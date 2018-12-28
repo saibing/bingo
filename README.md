@@ -8,4 +8,4 @@ but bingo more simpler, more faster, more smarter!
 
 ## Usage
 
-Please reference bingo's [wiki](https://github.com/saibing/bingo/wiki)
+Please reference bingo's [wiki](https://github.com/saibing/bingo/wiki).
