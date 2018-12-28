@@ -26,7 +26,7 @@ func uriHasPrefix(s, prefix lsp.DocumentURI) bool {
 func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
 	if uriHasPrefix(fileURI, h.init.RootURI) {
 		uri := source.FromDocumentURI(fileURI)
-		if !h.DefaultConfig.UseGlobalCache || h.overlay.view.HasParsed(uri) {
+		if !h.DefaultConfig.EnableGlobalCache || h.overlay.view.HasParsed(uri) {
 			pkg, pos, err := h.loadFromSourceView(uri, position)
 			if ctx.Err() != nil {
 				return nil, token.NoPos, ctx.Err()

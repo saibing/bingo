@@ -19,10 +19,10 @@ type InitializationOptions struct {
 	// Defaults to false if not specified.
 	DiagnosticsDisabled *bool `json:"diagnosticsDisabled"`
 
-	// UseGlobalCache enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.
+	// EnableGlobalCache enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.
 	//
 	// Defaults to false if not specified
-	UseGlobalCache *bool `json:"useGlobalCache"`
+	EnableGlobalCache *bool `json:"enableGlobalCache"`
 
 	// MaxParallelism is an optional version of Config.MaxParallelism
 	MaxParallelism *int `json:"maxParallelism"`

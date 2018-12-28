@@ -14,10 +14,10 @@ type Config struct {
 	// Defaults to true if not specified.
 	DisableFuncSnippet bool
 
-	// UseGlobalCache enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.
+	// EnableGlobalCache enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.
 	//
 	// Defaults to false if not specified
-	UseGlobalCache bool
+	EnableGlobalCache bool
 
 	// DiagnosticsEnabled enables handling of diagnostics
 	//
@@ -46,8 +46,8 @@ func (c Config) Apply(o *InitializationOptions) Config {
 		c.DiagnosticsDisabled = *o.DiagnosticsDisabled
 	}
 
-	if o.UseGlobalCache != nil {
-		c.UseGlobalCache = *o.UseGlobalCache
+	if o.EnableGlobalCache != nil {
+		c.EnableGlobalCache = *o.EnableGlobalCache
 	}
 
 	if o.MaxParallelism != nil {

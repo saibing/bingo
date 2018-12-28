@@ -31,7 +31,7 @@ var (
 	maxparallelism     = flag.Int("maxparallelism", 0, "use at max N parallel goroutines to fulfill requests. Can be overridden by InitializationOptions.")
 	disableDiagnostics = flag.Bool("disable-diagnostics", false, "disable diagnostics. Can be overridden by InitializationOptions.")
 	disableFuncSnippet = flag.Bool("disable-func-snippet", false, "disable argument snippets on func completion. Can be overridden by InitializationOptions.")
-	useGlobalCache     = flag.Bool("use-global-cache", false, "enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.")
+	enableGlobalCache  = flag.Bool("enable-global-cache", false, "enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.")
 )
 
 // version is the version field we report back. If you are releasing a new version:
@@ -59,7 +59,7 @@ func main() {
 	cfg := langserver.NewDefaultConfig()
 	cfg.DisableFuncSnippet = *disableFuncSnippet
 	cfg.DiagnosticsDisabled = *disableDiagnostics
-	cfg.UseGlobalCache = *useGlobalCache
+	cfg.EnableGlobalCache = *enableGlobalCache
 
 	if *maxparallelism > 0 {
 		cfg.MaxParallelism = *maxparallelism
