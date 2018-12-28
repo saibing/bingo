@@ -44,7 +44,7 @@ Differences between go-langserver, bingo, golsp.
 ## Install
 
 bingo is a go module project, so you need install [Go 1.11 or above](https://golang.google.cn/dl/),
-to build and install the `bingo`, please run
+to install the `bingo`, please run
 
 ```bash
 git clone https://github.com/saibing/bingo.git
@@ -54,54 +54,4 @@ GO111MODULE=on go install
 
 ## Usage
 
-### [vscode-go](https://github.com/Microsoft/vscode-go)
-
-vscode's settings:
-
-```json
-{
-    "go.useLanguageServer": true,
-
-    "go.alternateTools": {
-        "go-langserver": "bingo"
-    },
-
-    "go.languageServerFlags": ["--pprof", ":6060"],
-
-    "go.languageServerExperimentalFeatures": {
-        "format": true,
-        "autoComplete": true
-    }
-}
-```
-
-### [LanguageClient-neovim](https://github.com/autozimu/LanguageClient-neovim)
-
-neovim's settings:
-
-```vim
-let g:LanguageClient_rootMarkers = {
-        \ 'go': ['.git', 'go.mod'],
-        \ }
-
-let g:LanguageClient_serverCommands = {
-    \ 'go': ['bingo', '--mode', 'stdio', '--logfile', '/tmp/lspserver.log','--trace', '--pprof', ':6060'],
-    \ }
-
-```
-
-## Note
-
-bingo will create a global cache on startup, this will take some time.
-
-If your disk io performance is very poor, you can get a good experience on hover, go to definition, find references by enable the -use-global-cache flag. 
-
-But this will lead to miss some result for them, because currently bingo only rebuild the global cache when go.mod changes.
-
-So the -use-global-cache flag is great for reading a large go language project's code, you will have very fast hover, find references, workspace symbol search etc.
-
-## FAQ
-
-- Please keep 'go list' command work ok
-
-> If it have some errors when they execute, these errors may affect the accuracy of the bingo's results.
+Please reference bingo's [wiki](https://github.com/saibing/bingo/wiki)
