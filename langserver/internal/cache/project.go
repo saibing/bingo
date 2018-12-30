@@ -170,7 +170,8 @@ func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, strin
 
 	files, err := ioutil.ReadDir(rootDir)
 	if err != nil {
-		return err
+		p.notifyLog(err.Error())
+		return nil
 	}
 
 	for _, fi := range files {
