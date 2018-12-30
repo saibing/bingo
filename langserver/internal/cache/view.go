@@ -10,7 +10,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"log"
 	"sync"
 
 	"golang.org/x/tools/go/packages"
@@ -59,15 +58,15 @@ func (v *View) parseFile(fset *token.FileSet, filename string, src []byte) (*ast
 	if src != nil {
 		isrc = src
 
-		v.muFile.Lock()
-		uri := source.ToURI(filename)
-		file := v.getFile(uri)
-		if file != nil && file.content == nil {
-			log.Printf("set file %s to overlay", uri)
-			file.setContent(src)
-		}
+		// v.muFile.Lock()
+		// uri := source.ToURI(filename)
+		// file := v.getFile(uri)
+		// if file != nil && file.content == nil {
+		// 	log.Printf("set file %s to overlay", uri)
+		// 	file.setContent(src)
+		// }
 
-		v.muFile.Unlock()
+		// v.muFile.Unlock()
 	}
 	const mode = parser.AllErrors | parser.ParseComments
 	return parser.ParseFile(fset, filename, isrc, mode)
