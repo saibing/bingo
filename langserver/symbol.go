@@ -358,7 +358,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 		return nil
 	}
 
-	err := h.globalCache.Search(f)
+	err := h.project.Search(f)
 	if err != nil {
 		return nil, err
 	}

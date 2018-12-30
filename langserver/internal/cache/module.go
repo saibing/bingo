@@ -25,19 +25,19 @@ type moduleInfo struct {
 	Indirect bool      `json:"Indirect"`
 }
 
-type moduleCache struct {
+type module struct {
 	mu             sync.RWMutex
-	gc             *GlobalCache
+	gc             *Project
 	rootDir        string
 	mainModulePath string
 	moduleMap map[string]moduleInfo
 }
 
-func newModuleCache(gc *GlobalCache, rootDir string) *moduleCache {
-	return &moduleCache{gc: gc, rootDir: rootDir}
+func newModuleCache(gc *Project, rootDir string) *module {
+	return &module{gc: gc, rootDir: rootDir}
 }
 
-func (m *moduleCache) init() (err error) {
+func (m *module) init() (err error) {
 	if m.gc.gomoduleMode {
 		err = m.initModuleProject()
 	} else {
@@ -51,7 +51,7 @@ func (m *moduleCache) init() (err error) {
 	return err
 }
 
-func (m *moduleCache) initModuleProject() error {
+func (m *module) initModuleProject() error {
 	moduleMap, err := m.readModuleFromFile()
 	if err != nil {
 		return err
@@ -61,7 +61,7 @@ func (m *moduleCache) initModuleProject() error {
 	return nil
 }
 
-func (m *moduleCache) initGoPathProject() error {
+func (m *module) initGoPathProject() error {
 	if strings.HasPrefix(m.rootDir, util.LowerDriver(filepath.ToSlash(m.gc.goroot))) {
 		m.mainModulePath = "."
 		return nil
@@ -90,7 +90,7 @@ func (m *moduleCache) initGoPathProject() error {
 	return fmt.Errorf("%s is out of GOPATH workspace %v, but not a go module project", m.rootDir, paths)
 }
 
-func (m *moduleCache) readModuleFromFile() (map[string]moduleInfo, error) {
+func (m *module) readModuleFromFile() (map[string]moduleInfo, error) {
 	buf, err := invokeGo(context.Background(), m.rootDir, "list", "-m", "-json", "all")
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (m *moduleCache) readModuleFromFile() (map[string]moduleInfo, error) {
 	return moduleMap, nil
 }
 
-func (m *moduleCache) initModule(moduleMap map[string]moduleInfo) {
+func (m *module) initModule(moduleMap map[string]moduleInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, module := range moduleMap {
@@ -135,7 +135,7 @@ func (m *moduleCache) initModule(moduleMap map[string]moduleInfo) {
 	m.moduleMap = moduleMap
 }
 
-func (m *moduleCache) checkModuleCache() (bool, error) {
+func (m *module) checkModuleCache() (bool, error) {
 	moduleMap, err := m.readModuleFromFile()
 	if err != nil {
 		return false, err
@@ -149,7 +149,7 @@ func (m *moduleCache) checkModuleCache() (bool, error) {
 	return true, nil
 }
 
-func (m *moduleCache) rebuildCache() (bool, error) {
+func (m *module) rebuildCache() (bool, error) {
 	if m.gc.gomoduleMode {
 		rebuild, err := m.checkModuleCache()
 		if err != nil {
@@ -165,7 +165,7 @@ func (m *moduleCache) rebuildCache() (bool, error) {
 	return err == nil, err
 }
 
-func (m *moduleCache) hasChanged(moduleMap map[string]moduleInfo) bool {
+func (m *module) hasChanged(moduleMap map[string]moduleInfo) bool {
 	for dir := range moduleMap {
 		// there are some new module add into go.mod
 		if _, ok := m.moduleMap[dir]; !ok {
@@ -176,12 +176,9 @@ func (m *moduleCache) hasChanged(moduleMap map[string]moduleInfo) bool {
 	return false
 }
 
-func (m *moduleCache) buildCache() ([]*packages.Package, error) {
-	cfg := *m.gc.view.Config
+func (m *module) buildCache() ([]*packages.Package, error) {
+	cfg := m.gc.view.Config
 	cfg.Dir = m.rootDir
-	cfg.Mode = packages.LoadAllSyntax
-	cfg.Fset = m.gc.view.Config.Fset
-
 	var pattern string
 	if filepath.Join(m.gc.goroot, BuiltinPkg) == m.rootDir {
 		pattern = cfg.Dir
@@ -191,6 +188,6 @@ func (m *moduleCache) buildCache() ([]*packages.Package, error) {
 		pattern = m.mainModulePath + "/..."
 	}
 
-	return packages.Load(&cfg, pattern)
+	return packages.Load(cfg, pattern)
 }
 

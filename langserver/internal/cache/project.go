@@ -29,20 +29,20 @@ type path2Package map[string]*packages.Package
 
 // FindPackageFunc matches the signature of loader.Config.FindPackage, except
 // also takes a context.Context.
-type FindPackageFunc func(globalCache *GlobalCache, pkgDir, importPath string) (*packages.Package, error)
+type FindPackageFunc func(project *Project, pkgDir, importPath string) (*packages.Package, error)
 
-type GlobalCache struct {
+type Project struct {
 	conn         jsonrpc2.JSONRPC2
 	rootDir      string
 	vendorDir    string
 	goroot       string
 	view         *View
 	gomoduleMode bool
-	caches       []*moduleCache
+	caches       []*module
 }
 
-func NewGlobalCache() *GlobalCache {
-	return &GlobalCache{goroot: getGoRoot()}
+func NewProject() *Project {
+	return &Project{goroot: getGoRoot()}
 }
 
 func getGoRoot() string {
@@ -51,8 +51,7 @@ func getGoRoot() string {
 	return util.LowerDriver(root)
 }
 
-func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
-	packages.NoUseCache = false
+func (gc *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
 	packages.DebugCache = false
 
 	start := time.Now()
@@ -89,11 +88,11 @@ func (gc *GlobalCache) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root st
 // BuiltinPkg builtin package
 const BuiltinPkg = "builtin"
 
-func (gc *GlobalCache) GetBuiltinPackage() *packages.Package {
+func (gc *Project) GetBuiltinPackage() *packages.Package {
 	return gc.GetFromPkgPath("", BuiltinPkg)
 }
 
-func (gc *GlobalCache) createGoModuleProject(gomodList []string) error {
+func (gc *Project) createGoModuleProject(gomodList []string) error {
 	err := gc.createBuiltinCache()
 	if err != nil {
 		return err
@@ -116,7 +115,7 @@ func (gc *GlobalCache) createGoModuleProject(gomodList []string) error {
 	return nil
 }
 
-func (gc *GlobalCache) createGoPathProject() error {
+func (gc *Project) createGoPathProject() error {
 	err := gc.createBuiltinCache()
 	if err != nil {
 		return err
@@ -132,7 +131,7 @@ func (gc *GlobalCache) createGoPathProject() error {
 	return nil
 }
 
-func (gc *GlobalCache) createBuiltinCache() error {
+func (gc *Project) createBuiltinCache() error {
 	value := os.Getenv("GO111MODULE")
 	_ = os.Setenv("GO111MODULE", "auto")
 	defer func() {
@@ -148,7 +147,7 @@ func (gc *GlobalCache) createBuiltinCache() error {
 	return nil
 }
 
-func (gc *GlobalCache) findGoModFiles() ([]string, error) {
+func (gc *Project) findGoModFiles() ([]string, error) {
 	var gomodList []string
 	walkFunc := func(path string, name string) {
 		if name == gomod {
@@ -160,7 +159,7 @@ func (gc *GlobalCache) findGoModFiles() ([]string, error) {
 	return gomodList, err
 }
 
-func (gc *GlobalCache) walkDir(rootDir string, level int, walkFunc func(string, string)) error {
+func (gc *Project) walkDir(rootDir string, level int, walkFunc func(string, string)) error {
 	if level > 3 {
 		return nil
 	}
@@ -190,14 +189,14 @@ func (gc *GlobalCache) walkDir(rootDir string, level int, walkFunc func(string, 
 	return nil
 }
 
-func (gc *GlobalCache) fsNotify() error {
+func (gc *Project) fsNotify() error {
 	if gc.gomoduleMode {
 		return gc.fsNotifyModule()
 	}
 	return gc.fsNotifyVendor()
 }
 
-func (gc *GlobalCache) fsNotifyModule() error {
+func (gc *Project) fsNotifyModule() error {
 	var paths []string
 	for _, v := range gc.caches {
 		if v.rootDir == filepath.Join(gc.goroot, BuiltinPkg) {
@@ -209,7 +208,7 @@ func (gc *GlobalCache) fsNotifyModule() error {
 	return gc.fsNotifyPaths(paths)
 }
 
-func (gc *GlobalCache) fsNotifyVendor() error {
+func (gc *Project) fsNotifyVendor() error {
 	_, err := os.Stat(gc.vendorDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -221,7 +220,7 @@ func (gc *GlobalCache) fsNotifyVendor() error {
 	return gc.fsNotifyPaths([]string{gc.vendorDir})
 }
 
-func (gc *GlobalCache) fsNotifyPaths(paths []string) error {
+func (gc *Project) fsNotifyPaths(paths []string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -263,16 +262,16 @@ func (gc *GlobalCache) fsNotifyPaths(paths []string) error {
 	return nil
 }
 
-func (gc *GlobalCache) GetFromURI(uri lsp.DocumentURI) *packages.Package {
+func (gc *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	filename, _ := source.FromDocumentURI(uri).Filename()
-	return packages.GetPackageFromURI(filename)
+	return gc.view.Config.Cache.GetByURI(filename)
 }
 
-func (gc *GlobalCache) GetFromPkgPath(_ string, pkgPath string) *packages.Package {
-	return packages.GetPackage(pkgPath)
+func (gc *Project) GetFromPkgPath(_ string, pkgPath string) *packages.Package {
+	return gc.view.Config.Cache.Get(pkgPath)
 }
 
-func (gc *GlobalCache) getLoadDir(filename string) string {
+func (gc *Project) getLoadDir(filename string) string {
 	if len(gc.caches) == 1 {
 		return gc.caches[0].rootDir
 	}
@@ -294,7 +293,7 @@ func (gc *GlobalCache) getLoadDir(filename string) string {
 	return gc.rootDir
 }
 
-func (gc *GlobalCache) rebuildCache(eventName string) {
+func (gc *Project) rebuildCache(eventName string) {
 	for _, v := range gc.caches {
 		if v.rootDir == filepath.Dir(eventName) {
 			rebuild, err := v.rebuildCache()
@@ -312,24 +311,24 @@ func (gc *GlobalCache) rebuildCache(eventName string) {
 	}
 }
 
-func (gc *GlobalCache) notifyError(message string) {
+func (gc *Project) notifyError(message string) {
 	_ = gc.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: message})
 }
 
-func (gc *GlobalCache) notifyInfo(message string) {
+func (gc *Project) notifyInfo(message string) {
 	_ = gc.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: message})
 }
 
-func (gc *GlobalCache) notifyLog(message string) {
+func (gc *Project) notifyLog(message string) {
 	_ = gc.conn.Notify(context.Background(), "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
 }
 
-func (gc *GlobalCache) Search(walkFunc packages.WalkFunc) error {
+func (gc *Project) Search(walkFunc packages.WalkFunc) error {
 	var ranks []string
 	for _, cache := range gc.caches {
 		ranks = append(ranks, cache.rootDir)
 	}
 
 	ranks = append(ranks, gc.goroot)
-	return packages.Walk(walkFunc, ranks)
+	return gc.view.Config.Cache.Walk(walkFunc, ranks)
 }

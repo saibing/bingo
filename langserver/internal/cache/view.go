@@ -32,6 +32,7 @@ func NewView() *View {
 			Fset:    token.NewFileSet(),
 			Tests:   true,
 			Overlay: make(map[string][]byte),
+			Cache:   packages.NewCache(),
 		},
 		files: make(map[source.URI]*File),
 	}

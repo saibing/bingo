@@ -54,7 +54,7 @@ type LangHandler struct {
 	*HandlerShared
 	init *InitializeParams // set by "initialize" request
 
-	globalCache *cache.GlobalCache
+	project *cache.Project
 
 	cancel *cancel
 
@@ -83,8 +83,8 @@ func (h *LangHandler) doInit(ctx context.Context, conn *jsonrpc2.Conn, init *Ini
 	h.cancel = &cancel{}
 
 	h.overlay = newOverlay(conn, h.DefaultConfig.DiagnosticsDisabled)
-	h.globalCache = cache.NewGlobalCache()
-	if err := h.globalCache.Init(ctx, conn, h.FilePath(init.Root()), h.overlay.view); err != nil {
+	h.project = cache.NewProject()
+	if err := h.project.Init(ctx, conn, h.FilePath(init.Root()), h.overlay.view); err != nil {
 		return err
 	}
 	return nil

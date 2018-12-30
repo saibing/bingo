@@ -112,7 +112,7 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 			//
 			// TODO(sqs): find a way to actually emit builtin locations
 			// (pointing to builtin/builtin.go).
-			pkg = h.globalCache.GetBuiltinPackage()
+			pkg = h.project.GetBuiltinPackage()
 			obj = h.findObject(pkg, obj)
 			if obj == nil {
 				return []symbolLocationInformation{}, nil
@@ -144,7 +144,7 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 
 		// Determine metadata information for the ident.
 		if def, err := refs.DefInfo(pkg.Types, pkg.TypesInfo, pathNodes, found.ident.Pos()); err == nil {
-			symDesc, err := defSymbolDescriptor(pkg, h.globalCache, *def, findPackage)
+			symDesc, err := defSymbolDescriptor(pkg, h.project, *def, findPackage)
 			if err != nil {
 				// TODO: tracing
 				log.Println("refs.DefInfo:", err)

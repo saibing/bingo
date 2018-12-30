@@ -153,7 +153,7 @@ func (h *LangHandler) findReferences(ctx context.Context, queryObj types.Object)
 		return nil
 	}
 
-	err := h.globalCache.Search(f)
+	err := h.project.Search(f)
 	if err != nil {
 		return nil, err
 	}

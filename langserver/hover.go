@@ -119,7 +119,7 @@ func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, id
 
 	if o != nil && !o.Pos().IsValid() {
 		// Only builtins have invalid position, and don't have useful info.
-		pkg = h.globalCache.GetBuiltinPackage()
+		pkg = h.project.GetBuiltinPackage()
 		o = h.findObject(pkg, o)
 		if o == nil {
 			return nil, nil

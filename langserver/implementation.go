@@ -32,12 +32,12 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 	pathNodes, _ := goast.GetPathNodes(pkg, filePos, filePos)
 	pathNodes, action := findInterestingNode(pkg, pathNodes)
 
-	return implements(h.globalCache, pkg, pathNodes, action)
+	return implements(h.project, pkg, pathNodes, action)
 }
 
 // Adapted from golang.org/x/tools/cmd/guru (Copyright (c) 2013 The Go Authors). All rights
 // reserved. See NOTICE for full license.
-func implements(globalCache *cache.GlobalCache, pkg *packages.Package, path []ast.Node, action action) ([]*lspext.ImplementationLocation, error) {
+func implements(globalCache *cache.Project, pkg *packages.Package, path []ast.Node, action action) ([]*lspext.ImplementationLocation, error) {
 	var method *types.Func
 	var T types.Type // selected type (receiver if method != nil)
 

@@ -66,7 +66,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 		return err
 	}
 
-	err := h.globalCache.Search(f)
+	err := h.project.Search(f)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 		Info:     pkg.TypesInfo,
 	}
 	refsErr := cfg.Refs(func(r *refs.Ref) {
-		symDesc, err := defSymbolDescriptor(pkg, h.globalCache, r.Def, findPackage)
+		symDesc, err := defSymbolDescriptor(pkg, h.project, r.Def, findPackage)
 		if err != nil {
 			// Log the error, and flag it as one in the trace -- but do not
 			// halt execution (hopefully, it is limited to a small subset of
@@ -131,11 +131,11 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 	return nil
 }
 
-func defSymbolDescriptor(pkg *packages.Package, globalCache *cache.GlobalCache, def refs.Def, findPackage cache.FindPackageFunc) (*symbolDescriptor, error) {
+func defSymbolDescriptor(pkg *packages.Package, project *cache.Project, def refs.Def, findPackage cache.FindPackageFunc) (*symbolDescriptor, error) {
 	var err error
 	defPkg, _ := pkg.Imports[def.ImportPath]
 	if defPkg == nil {
-		defPkg, err = findPackage(globalCache, filepath.Dir(pkg.GoFiles[0]), def.ImportPath)
+		defPkg, err = findPackage(project, filepath.Dir(pkg.GoFiles[0]), def.ImportPath)
 		if err != nil {
 			return nil, err
 		}
