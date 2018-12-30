@@ -34,6 +34,11 @@ func (f *File) SetContent(content []byte) {
 	if f.content != nil && content != nil && string(f.content) == string(content) {
 		return
 	}
+
+	f.setContent(content)
+}
+
+func (f *File) setContent(content []byte) {
 	f.content = content
 	// the ast and token fields are invalid
 	f.ast = nil

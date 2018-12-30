@@ -7,7 +7,10 @@ package cache
 import (
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/source"
+	"go/ast"
+	"go/parser"
 	"go/token"
+	"log"
 	"sync"
 
 	"golang.org/x/tools/go/packages"
@@ -16,7 +19,8 @@ import (
 type getLoadDirFunc func(filename string) string
 
 type View struct {
-	mu sync.Mutex // protects all mutable state of the view
+	mu     sync.Mutex // protects all mutable state of the view
+	muFile sync.Mutex
 
 	Config *packages.Config
 
@@ -50,6 +54,25 @@ func (v *View) HasParsed(uri source.URI) bool {
 	return f.pkg != nil
 }
 
+func (v *View) parseFile(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+	var isrc interface{}
+	if src != nil {
+		isrc = src
+
+		v.muFile.Lock()
+		uri := source.ToURI(filename)
+		file := v.getFile(uri)
+		if file != nil && file.content == nil {
+			log.Printf("set file %s to overlay", uri)
+			file.setContent(src)
+		}
+
+		v.muFile.Unlock()
+	}
+	const mode = parser.AllErrors | parser.ParseComments
+	return parser.ParseFile(fset, filename, isrc, mode)
+}
+
 // GetFile returns a File for the given uri.
 // It will always succeed, adding the file to the managed set if needed.
 func (v *View) GetFile(uri source.URI) *File {
@@ -78,6 +101,7 @@ func (v *View) parse(uri source.URI) error {
 		return err
 	}
 	v.Config.Dir = v.getLoadDir(path)
+	v.Config.ParseFile = v.parseFile
 	pkgs, err := packages.Load(v.Config, fmt.Sprintf("file=%s", path))
 	if len(pkgs) == 0 {
 		if err == nil {
@@ -91,6 +115,7 @@ func (v *View) parse(uri source.URI) error {
 			// if a file was in multiple packages, which token/ast/pkg do we store
 			fToken := v.Config.Fset.File(fAST.Pos())
 			fURI := source.ToURI(fToken.Name())
+			//log.Printf("parsed file %s\n", fURI)
 			f := v.getFile(fURI)
 			f.token = fToken
 			f.ast = fAST
@@ -99,3 +124,4 @@ func (v *View) parse(uri source.URI) error {
 	}
 	return nil
 }
+

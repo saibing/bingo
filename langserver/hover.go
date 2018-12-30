@@ -50,7 +50,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 	case *ast.BasicLit:
 		return h.hoverBasicLit(pkg, pathNodes, node, params.Position)
 	case *ast.TypeSpec:
-		return h.hoverIdent(pkg, pathNodes,  node.Name, params.Position)
+		return h.hoverIdent(pkg, pathNodes, node.Name, params.Position)
 	case *ast.CallExpr:
 		return h.hoverCallExpr(pkg, pathNodes, node, params.Position)
 	case *ast.SelectorExpr:
@@ -104,7 +104,6 @@ func (h *LangHandler) findObject(pkg *packages.Package, o types.Object) types.Ob
 }
 
 func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
-
 	o := goast.FindIdentObject(pkg, ident)
 	t := goast.FindIdentType(pkg, ident)
 
@@ -168,7 +167,7 @@ func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, id
 	return &lsp.Hover{Contents: contents, Range: &r}, nil
 }
 
-func (h *LangHandler) packageStatement(pkg *packages.Package, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error){
+func (h *LangHandler) packageStatement(pkg *packages.Package, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
 	comments := packageDoc(pkg.Syntax, ident.Name)
 
 	// Package statement idents don't have an object, so try that separately.
@@ -557,3 +556,4 @@ func abs(x int) int {
 	}
 	return x
 }
+

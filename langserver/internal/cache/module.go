@@ -177,8 +177,13 @@ func (m *module) hasChanged(moduleMap map[string]moduleInfo) bool {
 }
 
 func (m *module) buildCache() ([]*packages.Package, error) {
+	m.project.view.mu.Lock()
+	defer m.project.view.mu.Unlock()
+
 	cfg := m.project.view.Config
 	cfg.Dir = m.rootDir
+	cfg.ParseFile = nil
+
 	var pattern string
 	if filepath.Join(m.project.goroot, BuiltinPkg) == m.rootDir {
 		pattern = cfg.Dir
