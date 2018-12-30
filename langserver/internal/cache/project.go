@@ -38,7 +38,7 @@ type Project struct {
 	goroot       string
 	view         *View
 	gomoduleMode bool
-	caches       []*module
+	modules      []*module
 }
 
 func NewProject() *Project {
@@ -105,11 +105,11 @@ func (gc *Project) createGoModuleProject(gomodList []string) error {
 			return err
 		}
 
-		gc.caches = append(gc.caches, cache)
+		gc.modules = append(gc.modules, cache)
 	}
 
-	sort.Slice(gc.caches, func(i, j int) bool {
-		return gc.caches[i].rootDir >= gc.caches[j].rootDir
+	sort.Slice(gc.modules, func(i, j int) bool {
+		return gc.modules[i].rootDir >= gc.modules[j].rootDir
 	})
 
 	return nil
@@ -127,7 +127,7 @@ func (gc *Project) createGoPathProject() error {
 		return err
 	}
 
-	gc.caches = append(gc.caches, cache)
+	gc.modules = append(gc.modules, cache)
 	return nil
 }
 
@@ -143,7 +143,7 @@ func (gc *Project) createBuiltinCache() error {
 		return err
 	}
 
-	gc.caches = append(gc.caches, cache)
+	gc.modules = append(gc.modules, cache)
 	return nil
 }
 
@@ -198,7 +198,7 @@ func (gc *Project) fsNotify() error {
 
 func (gc *Project) fsNotifyModule() error {
 	var paths []string
-	for _, v := range gc.caches {
+	for _, v := range gc.modules {
 		if v.rootDir == filepath.Join(gc.goroot, BuiltinPkg) {
 			continue
 		}
@@ -272,17 +272,17 @@ func (gc *Project) GetFromPkgPath(_ string, pkgPath string) *packages.Package {
 }
 
 func (gc *Project) getLoadDir(filename string) string {
-	if len(gc.caches) == 1 {
-		return gc.caches[0].rootDir
+	if len(gc.modules) == 1 {
+		return gc.modules[0].rootDir
 	}
 
-	for _, v := range gc.caches {
+	for _, v := range gc.modules {
 		if strings.HasPrefix(filename, v.rootDir) {
 			return v.rootDir
 		}
 	}
 
-	for _, v := range gc.caches {
+	for _, v := range gc.modules {
 		for k := range v.moduleMap {
 			if strings.HasPrefix(filename, k) {
 				return k
@@ -294,7 +294,7 @@ func (gc *Project) getLoadDir(filename string) string {
 }
 
 func (gc *Project) rebuildCache(eventName string) {
-	for _, v := range gc.caches {
+	for _, v := range gc.modules {
 		if v.rootDir == filepath.Dir(eventName) {
 			rebuild, err := v.rebuildCache()
 			if err != nil {
@@ -325,7 +325,7 @@ func (gc *Project) notifyLog(message string) {
 
 func (gc *Project) Search(walkFunc packages.WalkFunc) error {
 	var ranks []string
-	for _, cache := range gc.caches {
+	for _, cache := range gc.modules {
 		ranks = append(ranks, cache.rootDir)
 	}
 
