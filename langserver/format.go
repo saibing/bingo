@@ -72,4 +72,3 @@ func toProtocolRange(f *token.File, r source.Range) lsp.Range {
 	}
 }
 
-

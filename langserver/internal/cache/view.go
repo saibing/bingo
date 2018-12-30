@@ -19,13 +19,12 @@ type getLoadDirFunc func(filename string) string
 
 type View struct {
 	mu     sync.Mutex // protects all mutable state of the view
-	muFile sync.Mutex
-
 	Config *packages.Config
 
-	files map[source.URI]*File
-
-	getLoadDir getLoadDirFunc
+	files       map[source.URI]*File
+	tempOverlay map[string][]byte
+	muFile      sync.Mutex
+	getLoadDir  getLoadDirFunc
 }
 
 func NewView() *View {
@@ -37,7 +36,8 @@ func NewView() *View {
 			Overlay: make(map[string][]byte),
 			Cache:   packages.NewCache(),
 		},
-		files: make(map[source.URI]*File),
+		files:       make(map[source.URI]*File),
+		tempOverlay: make(map[string][]byte),
 	}
 }
 
@@ -58,15 +58,9 @@ func (v *View) parseFile(fset *token.FileSet, filename string, src []byte) (*ast
 	if src != nil {
 		isrc = src
 
-		// v.muFile.Lock()
-		// uri := source.ToURI(filename)
-		// file := v.getFile(uri)
-		// if file != nil && file.content == nil {
-		// 	log.Printf("set file %s to overlay", uri)
-		// 	file.setContent(src)
-		// }
-
-		// v.muFile.Unlock()
+		v.muFile.Lock()
+		v.tempOverlay[filename] = src
+		v.muFile.Unlock()
 	}
 	const mode = parser.AllErrors | parser.ParseComments
 	return parser.ParseFile(fset, filename, isrc, mode)
@@ -122,6 +116,10 @@ func (v *View) parse(uri source.URI) error {
 			fURI := source.ToURI(fToken.Name())
 			//log.Printf("parsed file %s\n", fURI)
 			f := v.getFile(fURI)
+			if f.content == nil {
+				f.setContent(v.tempOverlay[fToken.Name()])
+				delete(v.tempOverlay, fToken.Name())
+			}
 			f.token = fToken
 			f.ast = fAST
 			f.pkg = pkg

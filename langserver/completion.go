@@ -71,7 +71,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 			InsertTextFormat: insertTextFormat,
 			TextEdit: &lsp.TextEdit{
 				NewText: insertText,
-				Range: getLspRange(pos, len(prefix)),
+				Range:   getLspRange(pos, len(prefix)),
 			},
 			// InsertText is deprecated in favor of TextEdit.
 			InsertText: insertText,
@@ -190,3 +190,4 @@ func splitArgs(input string) []string {
 
 	return res
 }
+
