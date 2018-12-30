@@ -51,103 +51,103 @@ func getGoRoot() string {
 	return util.LowerDriver(root)
 }
 
-func (gc *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
+func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
 	packages.DebugCache = false
 
 	start := time.Now()
-	gc.conn = conn
-	gc.rootDir = util.LowerDriver(root)
-	gc.vendorDir = filepath.Join(gc.rootDir, vendor)
-	gc.view = view
-	gc.view.getLoadDir = gc.getLoadDir
+	p.conn = conn
+	p.rootDir = util.LowerDriver(root)
+	p.vendorDir = filepath.Join(p.rootDir, vendor)
+	p.view = view
+	p.view.getLoadDir = p.getLoadDir
 
-	gomodList, err := gc.findGoModFiles()
+	gomodList, err := p.findGoModFiles()
 	if err != nil {
-		gc.notifyError(err.Error())
+		p.notifyError(err.Error())
 		return err
 	}
 
-	gc.gomoduleMode = len(gomodList) > 0
-	if gc.gomoduleMode {
-		err = gc.createGoModuleProject(gomodList)
+	p.gomoduleMode = len(gomodList) > 0
+	if p.gomoduleMode {
+		err = p.createGoModuleProject(gomodList)
 	} else {
-		err = gc.createGoPathProject()
+		err = p.createGoPathProject()
 	}
 
 	if err != nil {
-		gc.notifyError(err.Error())
+		p.notifyError(err.Error())
 		return err
 	}
 
 	elapsedTime := time.Since(start) / time.Second
 
-	gc.notifyInfo(fmt.Sprintf("cache package for %s successfully! elapsed time: %d seconds", gc.rootDir, elapsedTime))
-	return gc.fsNotify()
+	p.notifyInfo(fmt.Sprintf("cache package for %s successfully! elapsed time: %d seconds", p.rootDir, elapsedTime))
+	return p.fsNotify()
 }
 
 // BuiltinPkg builtin package
 const BuiltinPkg = "builtin"
 
-func (gc *Project) GetBuiltinPackage() *packages.Package {
-	return gc.GetFromPkgPath("", BuiltinPkg)
+func (p *Project) GetBuiltinPackage() *packages.Package {
+	return p.GetFromPkgPath("", BuiltinPkg)
 }
 
-func (gc *Project) createGoModuleProject(gomodList []string) error {
-	err := gc.createBuiltinCache()
+func (p *Project) createGoModuleProject(gomodList []string) error {
+	err := p.createBuiltinModule()
 	if err != nil {
 		return err
 	}
 
 	for _, v := range gomodList {
-		cache := newModuleCache(gc, util.LowerDriver(filepath.Dir(v)))
-		err = cache.init()
+		module := newModule(p, util.LowerDriver(filepath.Dir(v)))
+		err = module.init()
 		if err != nil {
 			return err
 		}
 
-		gc.modules = append(gc.modules, cache)
+		p.modules = append(p.modules, module)
 	}
 
-	sort.Slice(gc.modules, func(i, j int) bool {
-		return gc.modules[i].rootDir >= gc.modules[j].rootDir
+	sort.Slice(p.modules, func(i, j int) bool {
+		return p.modules[i].rootDir >= p.modules[j].rootDir
 	})
 
 	return nil
 }
 
-func (gc *Project) createGoPathProject() error {
-	err := gc.createBuiltinCache()
+func (p *Project) createGoPathProject() error {
+	err := p.createBuiltinModule()
 	if err != nil {
 		return err
 	}
 
-	cache := newModuleCache(gc, gc.rootDir)
+	cache := newModule(p, p.rootDir)
 	err = cache.init()
 	if err != nil {
 		return err
 	}
 
-	gc.modules = append(gc.modules, cache)
+	p.modules = append(p.modules, cache)
 	return nil
 }
 
-func (gc *Project) createBuiltinCache() error {
+func (p *Project) createBuiltinModule() error {
 	value := os.Getenv("GO111MODULE")
 	_ = os.Setenv("GO111MODULE", "auto")
 	defer func() {
 		_ = os.Setenv("GO111MODULE", value)
 	}()
-	cache := newModuleCache(gc, filepath.Join(gc.goroot, BuiltinPkg))
-	err := cache.init()
+	module := newModule(p, filepath.Join(p.goroot, BuiltinPkg))
+	err := module.init()
 	if err != nil {
 		return err
 	}
 
-	gc.modules = append(gc.modules, cache)
+	p.modules = append(p.modules, module)
 	return nil
 }
 
-func (gc *Project) findGoModFiles() ([]string, error) {
+func (p *Project) findGoModFiles() ([]string, error) {
 	var gomodList []string
 	walkFunc := func(path string, name string) {
 		if name == gomod {
@@ -155,16 +155,16 @@ func (gc *Project) findGoModFiles() ([]string, error) {
 		}
 	}
 
-	err := gc.walkDir(gc.rootDir, 0, walkFunc)
+	err := p.walkDir(p.rootDir, 0, walkFunc)
 	return gomodList, err
 }
 
-func (gc *Project) walkDir(rootDir string, level int, walkFunc func(string, string)) error {
+func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, string)) error {
 	if level > 3 {
 		return nil
 	}
 
-	if strings.HasPrefix(rootDir, gc.vendorDir) {
+	if strings.HasPrefix(rootDir, p.vendorDir) {
 		return nil
 	}
 
@@ -176,7 +176,7 @@ func (gc *Project) walkDir(rootDir string, level int, walkFunc func(string, stri
 	for _, fi := range files {
 		if fi.IsDir() {
 			level++
-			err = gc.walkDir(filepath.Join(rootDir, fi.Name()), level, walkFunc)
+			err = p.walkDir(filepath.Join(rootDir, fi.Name()), level, walkFunc)
 			if err != nil {
 				return err
 			}
@@ -189,27 +189,27 @@ func (gc *Project) walkDir(rootDir string, level int, walkFunc func(string, stri
 	return nil
 }
 
-func (gc *Project) fsNotify() error {
-	if gc.gomoduleMode {
-		return gc.fsNotifyModule()
+func (p *Project) fsNotify() error {
+	if p.gomoduleMode {
+		return p.fsNotifyModule()
 	}
-	return gc.fsNotifyVendor()
+	return p.fsNotifyVendor()
 }
 
-func (gc *Project) fsNotifyModule() error {
+func (p *Project) fsNotifyModule() error {
 	var paths []string
-	for _, v := range gc.modules {
-		if v.rootDir == filepath.Join(gc.goroot, BuiltinPkg) {
+	for _, v := range p.modules {
+		if v.rootDir == filepath.Join(p.goroot, BuiltinPkg) {
 			continue
 		}
 		paths = append(paths, filepath.Join(v.rootDir, gomod))
 	}
 
-	return gc.fsNotifyPaths(paths)
+	return p.fsNotifyPaths(paths)
 }
 
-func (gc *Project) fsNotifyVendor() error {
-	_, err := os.Stat(gc.vendorDir)
+func (p *Project) fsNotifyVendor() error {
+	_, err := os.Stat(p.vendorDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -217,10 +217,10 @@ func (gc *Project) fsNotifyVendor() error {
 		return err
 	}
 
-	return gc.fsNotifyPaths([]string{gc.vendorDir})
+	return p.fsNotifyPaths([]string{p.vendorDir})
 }
 
-func (gc *Project) fsNotifyPaths(paths []string) error {
+func (p *Project) fsNotifyPaths(paths []string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -247,14 +247,14 @@ func (gc *Project) fsNotifyPaths(paths []string) error {
 				}
 
 				if event.Op&fsnotify.Write == fsnotify.Write {
-					gc.rebuildCache(event.Name)
+					p.rebuildCache(event.Name)
 
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					return
 				}
-				gc.notifyError(fmt.Sprintf("receive an fsNotify error: %s", err))
+				p.notifyError(fmt.Sprintf("receive an fsNotify error: %s", err))
 			}
 		}
 	}()
@@ -262,27 +262,27 @@ func (gc *Project) fsNotifyPaths(paths []string) error {
 	return nil
 }
 
-func (gc *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
+func (p *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	filename, _ := source.FromDocumentURI(uri).Filename()
-	return gc.view.Config.Cache.GetByURI(filename)
+	return p.view.Config.Cache.GetByURI(filename)
 }
 
-func (gc *Project) GetFromPkgPath(_ string, pkgPath string) *packages.Package {
-	return gc.view.Config.Cache.Get(pkgPath)
+func (p *Project) GetFromPkgPath(_ string, pkgPath string) *packages.Package {
+	return p.view.Config.Cache.Get(pkgPath)
 }
 
-func (gc *Project) getLoadDir(filename string) string {
-	if len(gc.modules) == 1 {
-		return gc.modules[0].rootDir
+func (p *Project) getLoadDir(filename string) string {
+	if len(p.modules) == 1 {
+		return p.modules[0].rootDir
 	}
 
-	for _, v := range gc.modules {
+	for _, v := range p.modules {
 		if strings.HasPrefix(filename, v.rootDir) {
 			return v.rootDir
 		}
 	}
 
-	for _, v := range gc.modules {
+	for _, v := range p.modules {
 		for k := range v.moduleMap {
 			if strings.HasPrefix(filename, k) {
 				return k
@@ -290,20 +290,20 @@ func (gc *Project) getLoadDir(filename string) string {
 		}
 	}
 
-	return gc.rootDir
+	return p.rootDir
 }
 
-func (gc *Project) rebuildCache(eventName string) {
-	for _, v := range gc.modules {
+func (p *Project) rebuildCache(eventName string) {
+	for _, v := range p.modules {
 		if v.rootDir == filepath.Dir(eventName) {
 			rebuild, err := v.rebuildCache()
 			if err != nil {
-				gc.notifyError(err.Error())
+				p.notifyError(err.Error())
 				return
 			}
 
 			if rebuild {
-				gc.notifyInfo(fmt.Sprintf("rebuile module cache for %s changed", eventName))
+				p.notifyInfo(fmt.Sprintf("rebuile module cache for %s changed", eventName))
 			}
 
 			return
@@ -311,24 +311,24 @@ func (gc *Project) rebuildCache(eventName string) {
 	}
 }
 
-func (gc *Project) notifyError(message string) {
-	_ = gc.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: message})
+func (p *Project) notifyError(message string) {
+	_ = p.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: message})
 }
 
-func (gc *Project) notifyInfo(message string) {
-	_ = gc.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: message})
+func (p *Project) notifyInfo(message string) {
+	_ = p.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: message})
 }
 
-func (gc *Project) notifyLog(message string) {
-	_ = gc.conn.Notify(context.Background(), "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
+func (p *Project) notifyLog(message string) {
+	_ = p.conn.Notify(context.Background(), "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
 }
 
-func (gc *Project) Search(walkFunc packages.WalkFunc) error {
+func (p *Project) Search(walkFunc packages.WalkFunc) error {
 	var ranks []string
-	for _, cache := range gc.modules {
+	for _, cache := range p.modules {
 		ranks = append(ranks, cache.rootDir)
 	}
 
-	ranks = append(ranks, gc.goroot)
-	return gc.view.Config.Cache.Walk(walkFunc, ranks)
+	ranks = append(ranks, p.goroot)
+	return p.view.Config.Cache.Walk(walkFunc, ranks)
 }

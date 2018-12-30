@@ -27,18 +27,18 @@ type moduleInfo struct {
 
 type module struct {
 	mu             sync.RWMutex
-	gc             *Project
+	project        *Project
 	rootDir        string
 	mainModulePath string
-	moduleMap map[string]moduleInfo
+	moduleMap      map[string]moduleInfo
 }
 
-func newModuleCache(gc *Project, rootDir string) *module {
-	return &module{gc: gc, rootDir: rootDir}
+func newModule(gc *Project, rootDir string) *module {
+	return &module{project: gc, rootDir: rootDir}
 }
 
 func (m *module) init() (err error) {
-	if m.gc.gomoduleMode {
+	if m.project.gomoduleMode {
 		err = m.initModuleProject()
 	} else {
 		err = m.initGoPathProject()
@@ -62,7 +62,7 @@ func (m *module) initModuleProject() error {
 }
 
 func (m *module) initGoPathProject() error {
-	if strings.HasPrefix(m.rootDir, util.LowerDriver(filepath.ToSlash(m.gc.goroot))) {
+	if strings.HasPrefix(m.rootDir, util.LowerDriver(filepath.ToSlash(m.project.goroot))) {
 		m.mainModulePath = "."
 		return nil
 	}
@@ -150,7 +150,7 @@ func (m *module) checkModuleCache() (bool, error) {
 }
 
 func (m *module) rebuildCache() (bool, error) {
-	if m.gc.gomoduleMode {
+	if m.project.gomoduleMode {
 		rebuild, err := m.checkModuleCache()
 		if err != nil {
 			return false, err
@@ -177,12 +177,12 @@ func (m *module) hasChanged(moduleMap map[string]moduleInfo) bool {
 }
 
 func (m *module) buildCache() ([]*packages.Package, error) {
-	cfg := m.gc.view.Config
+	cfg := m.project.view.Config
 	cfg.Dir = m.rootDir
 	var pattern string
-	if filepath.Join(m.gc.goroot, BuiltinPkg) == m.rootDir {
+	if filepath.Join(m.project.goroot, BuiltinPkg) == m.rootDir {
 		pattern = cfg.Dir
-	} else if m.gc.gomoduleMode {
+	} else if m.project.gomoduleMode {
 		pattern = cfg.Dir + "/..."
 	} else {
 		pattern = m.mainModulePath + "/..."
