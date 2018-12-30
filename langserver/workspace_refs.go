@@ -58,7 +58,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 				return nil
 			}
 		}
-		
+
 		err := h.workspaceRefsFromPkg(ctx, conn, params, pkg, rootPath, &results)
 		if err != nil {
 			log.Printf("workspaceRefsFromPkg: %v: %v", pkg, err)
@@ -76,7 +76,6 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 		// If we don't have a limit, just set it to a value we should never exceed
 		limit = math.MaxInt32
 	}
-
 
 	r := results.results
 	if len(r) > limit {
@@ -135,7 +134,7 @@ func defSymbolDescriptor(pkg *packages.Package, project *cache.Project, def refs
 	var err error
 	defPkg, _ := pkg.Imports[def.ImportPath]
 	if defPkg == nil {
-		defPkg, err = findPackage(project, filepath.Dir(pkg.GoFiles[0]), def.ImportPath)
+		defPkg, err = findPackage(project, def.ImportPath)
 		if err != nil {
 			return nil, err
 		}
@@ -174,5 +173,6 @@ func defSymbolDescriptor(pkg *packages.Package, project *cache.Project, def refs
 
 // refResult is a utility struct for collecting workspace reference results.
 type refResult struct {
-	results   []referenceInformation
+	results []referenceInformation
 }
+

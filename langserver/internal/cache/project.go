@@ -29,7 +29,7 @@ type path2Package map[string]*packages.Package
 
 // FindPackageFunc matches the signature of loader.Config.FindPackage, except
 // also takes a context.Context.
-type FindPackageFunc func(project *Project, pkgDir, importPath string) (*packages.Package, error)
+type FindPackageFunc func(project *Project, importPath string) (*packages.Package, error)
 
 type Project struct {
 	conn         jsonrpc2.JSONRPC2
@@ -89,7 +89,7 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 const BuiltinPkg = "builtin"
 
 func (p *Project) GetBuiltinPackage() *packages.Package {
-	return p.GetFromPkgPath("", BuiltinPkg)
+	return p.GetFromPkgPath(BuiltinPkg)
 }
 
 func (p *Project) createGoModuleProject(gomodList []string) error {
@@ -268,7 +268,7 @@ func (p *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	return p.view.Config.Cache.GetByURI(filename)
 }
 
-func (p *Project) GetFromPkgPath(_ string, pkgPath string) *packages.Package {
+func (p *Project) GetFromPkgPath(pkgPath string) *packages.Package {
 	return p.view.Config.Cache.Get(pkgPath)
 }
 

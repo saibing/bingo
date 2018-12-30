@@ -100,7 +100,7 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 				obj = t.Obj()
 			}
 		}
-		
+
 		if p := obj.Pos(); p.IsValid() {
 			nodes = append(nodes, foundNode{
 				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
@@ -159,3 +159,4 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 	}
 	return locs, nil
 }
+
