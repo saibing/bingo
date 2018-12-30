@@ -112,7 +112,13 @@ func (v *View) parse(uri source.URI) error {
 		// add everything we find to the files cache
 		for _, fAST := range pkg.Syntax {
 			// if a file was in multiple packages, which token/ast/pkg do we store
+			if fAST == nil {
+				continue
+			}
 			fToken := v.Config.Fset.File(fAST.Pos())
+			if fToken == nil {
+				continue
+			}
 			fURI := source.ToURI(fToken.Name())
 			//log.Printf("parsed file %s\n", fURI)
 			f := v.getFile(fURI)
