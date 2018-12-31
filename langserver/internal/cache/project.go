@@ -327,10 +327,13 @@ func (p *Project) NotifyLog(message string) {
 
 func (p *Project) Search(walkFunc packages.WalkFunc) error {
 	var ranks []string
-	for _, cache := range p.modules {
-		ranks = append(ranks, cache.rootDir)
+	for _, module := range p.modules {
+		if module.mainModulePath == "." || module.mainModulePath == "" {
+			continue
+		}
+		ranks = append(ranks, module.mainModulePath)
 	}
 
-	ranks = append(ranks, p.goroot)
 	return p.view.Config.Cache.Walk(walkFunc, ranks)
 }
+

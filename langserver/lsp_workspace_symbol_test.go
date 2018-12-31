@@ -28,24 +28,24 @@ func TestWorkspaceSymbol(t *testing.T) {
 
 	t.Run("basic workspace symbol", func(t *testing.T) {
 		test(t, map[*lspext.WorkspaceSymbolParams][]string{
-			{Query: ""}: {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
-			{Query: "A"}:           {"basic/a.go:function:A:1:17"},
-			{Query: "B"}:           {"basic/b.go:function:B:1:17"},
-			{Query: "is:exported"}: {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
-			{Query: "dir:basic/"}:       {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
-			{Query: "dir:basic/ A"}:     {"basic/a.go:function:A:1:17"},
-			{Query: "dir:basic/ B"}:     {"basic/b.go:function:B:1:17"},
+			{Query: ""}:             {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
+			{Query: "A"}:            {"basic/a.go:function:A:1:17"},
+			{Query: "B"}:            {"basic/b.go:function:B:1:17"},
+			{Query: "is:exported"}:  {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
+			{Query: "dir:basic/"}:   {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
+			{Query: "dir:basic/ A"}: {"basic/a.go:function:A:1:17"},
+			{Query: "dir:basic/ B"}: {"basic/b.go:function:B:1:17"},
 
 			// non-nil SymbolDescriptor + no keys.
 			{Symbol: make(lspext.SymbolDescriptor)}: {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
 
 			//Individual filter fields.
 			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/basic"}}: {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"name": "A"}}:           {"basic/a.go:function:A:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"name": "B"}}:           {"basic/b.go:function:B:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"packageName": "p"}}:    {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"recv": ""}}:            {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
-			{Symbol: lspext.SymbolDescriptor{"vendor": false}}:       {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"name": "A"}}:                                                     {"basic/a.go:function:A:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"name": "B"}}:                                                     {"basic/b.go:function:B:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"packageName": "p"}}:                                              {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"recv": ""}}:                                                      {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
+			{Symbol: lspext.SymbolDescriptor{"vendor": false}}:                                                 {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
 
 			// Combined filter fields.
 			{Symbol: lspext.SymbolDescriptor{"package": "github.com/saibing/bingo/langserver/test/pkg/basic"}}:                                                               {"basic/a.go:function:A:1:17", "basic/b.go:function:B:1:17"},
@@ -81,13 +81,13 @@ func TestWorkspaceSymbol(t *testing.T) {
 
 	t.Run("subdirectory workspace symbol", func(t *testing.T) {
 		test(t, map[*lspext.WorkspaceSymbolParams][]string{
-			{Query: ""}:            {"subdirectory/a.go:function:A:1:17", "subdirectory/d2/b.go:function:B:1:86"},
-			{Query: "is:exported"}: {"subdirectory/a.go:function:A:1:17", "subdirectory/d2/b.go:function:B:1:86"},
-			{Query: "dir:subdirectory"}:        {"subdirectory/a.go:function:A:1:17"},
-			{Query: "dir:subdirectory/"}:       {"subdirectory/a.go:function:A:1:17"},
-			{Query: "dir:./subdirectory"}:       {"subdirectory/a.go:function:A:1:17"},
-			{Query: "dir:subdirectory/d2"}:     {"subdirectory/d2/b.go:function:B:1:86"},
-			{Query: "dir:./subdirectory/d2"}:    {"subdirectory/d2/b.go:function:B:1:86"},
+			{Query: ""}:                      {"subdirectory/a.go:function:A:1:17", "subdirectory/d2/b.go:function:B:1:86"},
+			{Query: "is:exported"}:           {"subdirectory/a.go:function:A:1:17", "subdirectory/d2/b.go:function:B:1:86"},
+			{Query: "dir:subdirectory"}:      {"subdirectory/a.go:function:A:1:17"},
+			{Query: "dir:subdirectory/"}:     {"subdirectory/a.go:function:A:1:17"},
+			{Query: "dir:./subdirectory"}:    {"subdirectory/a.go:function:A:1:17"},
+			{Query: "dir:subdirectory/d2"}:   {"subdirectory/d2/b.go:function:B:1:86"},
+			{Query: "dir:./subdirectory/d2"}: {"subdirectory/d2/b.go:function:B:1:86"},
 		})
 	})
 
@@ -186,7 +186,7 @@ func doWorkspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn,
 
 func callWorkspaceSymbols(ctx context.Context, c *jsonrpc2.Conn, params lspext.WorkspaceSymbolParams) ([]string, error) {
 	var symbols []lsp.SymbolInformation
-	params.Limit = 10000
+	params.Limit = 2000
 	err := c.Call(ctx, "workspace/symbol", params, &symbols)
 	if err != nil {
 		return nil, err
@@ -197,3 +197,4 @@ func callWorkspaceSymbols(ctx context.Context, c *jsonrpc2.Conn, params lspext.W
 	}
 	return syms, nil
 }
+

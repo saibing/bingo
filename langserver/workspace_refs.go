@@ -6,7 +6,6 @@ import (
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
-	"log"
 	"math"
 	"path/filepath"
 	"strings"
@@ -61,7 +60,8 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 
 		err := h.workspaceRefsFromPkg(ctx, conn, params, pkg, rootPath, &results)
 		if err != nil {
-			log.Printf("workspaceRefsFromPkg: %v: %v", pkg, err)
+			h.project.NotifyLog(fmt.Sprintf("workspaceRefsFromPkg: %v: %v", pkg, err))
+			//log.Printf("workspaceRefsFromPkg: %v: %v", pkg, err)
 		}
 		return err
 	}
@@ -107,7 +107,8 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 			// halt execution (hopefully, it is limited to a small subset of
 			// the data).
 			err := fmt.Errorf("workspaceRefsFromPkg: failed to import %v: %v", r.Def.ImportPath, err)
-			log.Println(err)
+			h.project.NotifyLog(err.Error())
+			//log.Println(err)
 			return
 		}
 
@@ -125,7 +126,8 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 		// Trace the error, but do not consider it a true error. In many cases
 		// it is a problem with the user's code, not our workspace reference
 		// finding code.
-		log.Println(fmt.Sprintf("workspaceRefsFromPkg: workspace refs failed: %v: %v", pkg, refsErr))
+		//log.Println(fmt.Sprintf("workspaceRefsFromPkg: workspace refs failed: %v: %v", pkg, refsErr))
+		h.project.NotifyLog(fmt.Sprintf("workspaceRefsFromPkg: workspace refs failed: %v: %v", pkg, refsErr))
 	}
 	return nil
 }
