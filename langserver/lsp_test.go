@@ -38,7 +38,7 @@ var testdata = []packagestest.Module{
 			"basic/a.go": `package p; func A() { A() }`,
 			"basic/b.go": `package p; func B() { A() }`,
 
-			"builtin/a.go":`package p; func A() { println("hello") }`,
+			"builtin/a.go": `package p; func A() { println("hello") }`,
 
 			"detailed/a.go": `package p; type T struct { F string }`,
 
@@ -164,7 +164,10 @@ func C(x int, y int) int {
 	return x+y
 }
 `,
-			"signature/b.go": `package p; func main() { B(); A(); A(0,); A(0); C(1,2) }`,
+			"signature/b.go": `package p; func main() { B(); A(); A(0,); A(0); C(1,2); A(,) }`,
+			"signature/c.go": `package p; import "fmt"; func test1() { fmt.Printf("%s",)}`,
+			"signature/d.go": `package p; import "fmt"; func test2() { fmt.Printf()}`,
+			"signature/e.go": `package p; import "fmt"; func test3() { append()}`,
 
 			"issue/223.go": `package main
 
@@ -311,7 +314,7 @@ func initServer(rootDir string) {
 			Capabilities: lsp.ClientCapabilities{TextDocument: tdCap},
 		},
 
-		RootImportPath:       rootImportPath,
+		RootImportPath: rootImportPath,
 	}, nil); err != nil {
 		log.Fatal("conn.Call", err)
 	}
@@ -491,3 +494,4 @@ func makePath(elem ...string) string {
 	path := filepath.Join(elem...)
 	return util.LowerDriver(filepath.ToSlash(path))
 }
+

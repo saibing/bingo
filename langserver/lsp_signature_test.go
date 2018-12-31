@@ -29,6 +29,9 @@ func TestSignature(t *testing.T) {
 			"signature/b.go:1:51": "C(x int, y int) 0",
 			"signature/b.go:1:53": "C(x int, y int) 1",
 			"signature/b.go:1:54": "C(x int, y int) 1",
+			"signature/c.go:1:57": "fmt.Printf(format string, a ...interface{}) 1",
+			"signature/d.go:1:52": "fmt.Printf(format string, a ...interface{}) 0",
+			"signature/e.go:1:48": "builtin.append(slice []builtin.Type, elems ...builtin.Type) 0",
 		})
 	})
 }

@@ -262,3 +262,16 @@ func SearchImportPackage(root *packages.Package, path string) *packages.Package 
 	return p
 }
 
+// FindObject find object
+func FindObject(pkg *packages.Package, o types.Object) types.Object {
+	for _, def := range pkg.TypesInfo.Defs {
+		if def == nil {
+			continue
+		}
+		if def.Name() == o.Name() {
+			return def
+		}
+	}
+
+	return nil
+}

@@ -11,7 +11,9 @@ import (
 	"go/token"
 	"go/types"
 
+	"github.com/saibing/bingo/langserver/internal/goast"
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/packages"
 )
 
 type SignatureInformation struct {
@@ -24,7 +26,7 @@ type ParameterInformation struct {
 	Label string
 }
 
-func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInformation, error) {
+func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packages.Package) (*SignatureInformation, error) {
 	fAST, err := f.GetAST()
 	if err != nil {
 		return nil, err
@@ -72,6 +74,11 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInform
 		}
 	case *types.Func:
 		sig = obj.Type().(*types.Signature)
+	case *types.Builtin:
+		obj = goast.FindObject(builtinPkg, obj)
+		if _, ok := obj.(*types.Func); ok {
+			sig = obj.Type().(*types.Signature)
+		}
 	}
 	if sig == nil {
 		return nil, fmt.Errorf("no function signatures found for %s", obj.Name())
@@ -116,3 +123,4 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos) (*SignatureInform
 		ActiveParameter: activeParam,
 	}, nil
 }
+
