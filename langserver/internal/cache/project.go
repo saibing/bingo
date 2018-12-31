@@ -64,7 +64,7 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 
 	gomodList, err := p.findGoModFiles()
 	if err != nil {
-		p.notifyError(err.Error())
+		p.NotifyError(err.Error())
 		return err
 	}
 
@@ -76,13 +76,13 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 	}
 
 	if err != nil {
-		p.notifyError(err.Error())
+		p.NotifyError(err.Error())
 		return err
 	}
 
 	elapsedTime := time.Since(start) / time.Second
 
-	p.notifyInfo(fmt.Sprintf("cache package for %s successfully! elapsed time: %d seconds", p.rootDir, elapsedTime))
+	p.NotifyInfo(fmt.Sprintf("cache package for %s successfully! elapsed time: %d seconds", p.rootDir, elapsedTime))
 	return p.fsNotify()
 }
 
@@ -171,7 +171,7 @@ func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, strin
 
 	files, err := ioutil.ReadDir(rootDir)
 	if err != nil {
-		p.notifyLog(err.Error())
+		p.NotifyLog(err.Error())
 		return nil
 	}
 
@@ -256,7 +256,7 @@ func (p *Project) fsNotifyPaths(paths []string) error {
 				if !ok {
 					return
 				}
-				p.notifyError(fmt.Sprintf("receive an fsNotify error: %s", err))
+				p.NotifyError(fmt.Sprintf("receive an fsNotify error: %s", err))
 			}
 		}
 	}()
@@ -300,12 +300,12 @@ func (p *Project) rebuildCache(eventName string) {
 		if v.rootDir == filepath.Dir(eventName) {
 			rebuild, err := v.rebuildCache()
 			if err != nil {
-				p.notifyError(err.Error())
+				p.NotifyError(err.Error())
 				return
 			}
 
 			if rebuild {
-				p.notifyInfo(fmt.Sprintf("rebuile module cache for %s changed", eventName))
+				p.NotifyInfo(fmt.Sprintf("rebuile module cache for %s changed", eventName))
 			}
 
 			return
@@ -313,15 +313,15 @@ func (p *Project) rebuildCache(eventName string) {
 	}
 }
 
-func (p *Project) notifyError(message string) {
+func (p *Project) NotifyError(message string) {
 	_ = p.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: message})
 }
 
-func (p *Project) notifyInfo(message string) {
+func (p *Project) NotifyInfo(message string) {
 	_ = p.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: message})
 }
 
-func (p *Project) notifyLog(message string) {
+func (p *Project) NotifyLog(message string) {
 	_ = p.conn.Notify(context.Background(), "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
 }
 

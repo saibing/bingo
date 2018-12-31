@@ -147,21 +147,6 @@ func GetObjectPathNode(pkg *packages.Package, o types.Object) (nodes []ast.Node,
 	return
 }
 
-func PosForFileOffset(fset *token.FileSet, filename string, offset int) token.Pos {
-	var f *token.File
-	fset.Iterate(func(ff *token.File) bool {
-		if util.PathEqual(ff.Name(), filename) {
-			f = ff
-			return false // break out of loop
-		}
-		return true
-	})
-	if f == nil {
-		return token.NoPos
-	}
-	return f.Pos(offset)
-}
-
 func visitPackage(root *packages.Package, f func(*packages.Package) bool) bool {
 	seen := map[string]bool{}
 	return visit(root, f, seen, 0)

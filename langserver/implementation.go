@@ -28,8 +28,7 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 		return nil, err
 	}
 
-	filePos := goast.PosForFileOffset(pkg.Fset, pkg.Fset.Position(pos).Filename, pkg.Fset.Position(pos).Offset)
-	pathNodes, _ := goast.GetPathNodes(pkg, filePos, filePos)
+	pathNodes, _ := goast.GetPathNodes(pkg, pos, pos)
 	pathNodes, action := findInterestingNode(pkg, pathNodes)
 
 	return implements(h.project, pkg, pathNodes, action)

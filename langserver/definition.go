@@ -3,6 +3,7 @@ package langserver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/refs"
 	"github.com/saibing/bingo/pkg/lsp"
@@ -10,7 +11,6 @@ import (
 	"go/ast"
 	"go/types"
 	"golang.org/x/tools/go/packages"
-	"log"
 )
 
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
@@ -147,13 +147,14 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 			symDesc, err := defSymbolDescriptor(pkg, h.project, *def, findPackage)
 			if err != nil {
 				// TODO: tracing
-				log.Println("refs.DefInfo:", err)
+				//log.Println("refs.DefInfo:", err)
+				h.project.NotifyLog(fmt.Sprintf("refs.DelInfo: %s", err))
 			} else {
 				l.Symbol = symDesc
 			}
 		} else {
 			// TODO: tracing
-			log.Println("refs.DefInfo:", err)
+			h.project.NotifyLog(fmt.Sprintf("refs.DelInfo: %s", err))
 		}
 		locs = append(locs, l)
 	}
