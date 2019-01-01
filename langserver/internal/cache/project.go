@@ -305,7 +305,7 @@ func (p *Project) rebuildCache(eventName string) {
 			}
 
 			if rebuild {
-				p.NotifyInfo(fmt.Sprintf("rebuile module cache for %s changed", eventName))
+				p.NotifyInfo(fmt.Sprintf("rebuild module cache for %s changed", eventName))
 			}
 
 			return

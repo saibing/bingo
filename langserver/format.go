@@ -13,6 +13,9 @@ import (
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"go/token"
+	"strings"
+
+	"github.com/pmezard/go-difflib/difflib"
 )
 
 func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentFormattingParams) ([]lsp.TextEdit, error) {
@@ -42,9 +45,9 @@ func formatRange(ctx context.Context, v *cache.View, uri lsp.DocumentURI, rng *l
 		return nil, err
 	}
 
-	content, _ := f.Read()
-	if len(edits) == 1 && edits[0].NewText == string(content) {
-		return []lsp.TextEdit{}, nil
+	if len(edits) == 1 && rng == nil {
+		content, _ := f.Read()
+		return ComputeTextEdits(string(content), edits[0].NewText), nil
 	}
 
 	return toProtocolEdits(tok, edits), nil
@@ -72,3 +75,56 @@ func toProtocolRange(f *token.File, r source.Range) lsp.Range {
 	}
 }
 
+// ComputeTextEdits computes text edits that are required to
+// change the `unformatted` to the `formatted` text.
+func ComputeTextEdits(unformatted string, formatted string) []lsp.TextEdit {
+	// LSP wants a list of TextEdits. We use difflib to compute a
+	// non-naive TextEdit. Originally we returned an edit which deleted
+	// everything followed by inserting everything. This leads to a poor
+	// experience in vscode.
+	unformattedLines := strings.Split(unformatted, "\n")
+	formattedLines := strings.Split(formatted, "\n")
+	m := difflib.NewMatcher(unformattedLines, formattedLines)
+	var edits []lsp.TextEdit
+	for _, op := range m.GetOpCodes() {
+		switch op.Tag {
+		case 'r': // 'r' (replace):  a[i1:i2] should be replaced by b[j1:j2]
+			edits = append(edits, lsp.TextEdit{
+				Range: lsp.Range{
+					Start: lsp.Position{
+						Line: op.I1,
+					},
+					End: lsp.Position{
+						Line: op.I2,
+					},
+				},
+				NewText: strings.Join(formattedLines[op.J1:op.J2], "\n") + "\n",
+			})
+		case 'd': // 'd' (delete):   a[i1:i2] should be deleted, j1==j2 in this case.
+			edits = append(edits, lsp.TextEdit{
+				Range: lsp.Range{
+					Start: lsp.Position{
+						Line: op.I1,
+					},
+					End: lsp.Position{
+						Line: op.I2,
+					},
+				},
+			})
+		case 'i': // 'i' (insert):   b[j1:j2] should be inserted at a[i1:i1], i1==i2 in this case.
+			edits = append(edits, lsp.TextEdit{
+				Range: lsp.Range{
+					Start: lsp.Position{
+						Line: op.I1,
+					},
+					End: lsp.Position{
+						Line: op.I1,
+					},
+				},
+				NewText: strings.Join(formattedLines[op.J1:op.J2], "\n") + "\n",
+			})
+		}
+	}
+
+	return edits
+}
