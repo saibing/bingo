@@ -24,6 +24,16 @@ type Config struct {
 	// Defaults to false if not specified.
 	DiagnosticsDisabled bool
 
+	// FormatStyle format style
+	//
+	// Defaults to "gofmt" if not secified
+	FormatStyle string
+
+	// GoimportsLocalPrefix sets the local prefix (comma-separated string) that goimports will use
+	//
+	// Defaults to empty string if not specified.
+	GoimportsLocalPrefix string
+
 	// MaxParallelism controls the maximum number of goroutines that should be used
 	// to fulfill requests. This is useful in editor environments where users do
 	// not want results ASAP, but rather just semi quickly without eating all of
@@ -48,6 +58,14 @@ func (c Config) Apply(o *InitializationOptions) Config {
 
 	if o.EnableGlobalCache != nil {
 		c.EnableGlobalCache = *o.EnableGlobalCache
+	}
+
+	if o.FormatStyle != nil {
+		c.FormatStyle = *o.FormatStyle
+	}
+
+	if o.GoimportsLocalPrefix != nil {
+		c.GoimportsLocalPrefix = *o.GoimportsLocalPrefix
 	}
 
 	if o.MaxParallelism != nil {

@@ -32,6 +32,7 @@ var (
 	disableDiagnostics = flag.Bool("disable-diagnostics", false, "disable diagnostics. Can be overridden by InitializationOptions.")
 	disableFuncSnippet = flag.Bool("disable-func-snippet", false, "disable argument snippets on func completion. Can be overridden by InitializationOptions.")
 	enableGlobalCache  = flag.Bool("enable-global-cache", false, "enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.")
+	formatStyle        = flag.String("format-style", "gofmt", "which format style is used to format documents. Supported: gofmt and goimports. Can be overridden by InitializationOptions.")
 )
 
 // version is the version field we report back. If you are releasing a new version:
@@ -60,6 +61,7 @@ func main() {
 	cfg.DisableFuncSnippet = *disableFuncSnippet
 	cfg.DiagnosticsDisabled = *disableDiagnostics
 	cfg.EnableGlobalCache = *enableGlobalCache
+	cfg.FormatStyle = *formatStyle
 
 	if *maxparallelism > 0 {
 		cfg.MaxParallelism = *maxparallelism

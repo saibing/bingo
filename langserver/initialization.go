@@ -24,6 +24,15 @@ type InitializationOptions struct {
 	// Defaults to false if not specified
 	EnableGlobalCache *bool `json:"enableGlobalCache"`
 
+	// FormatStyle format style
+	//
+	// Defaults to "gofmt" if not specified
+	FormatStyle *string `json:"formatStyle"`
+
+	// GoimportsLocalPrefix is an optional version of
+	// Config.GoimportsLocalPrefix
+	GoimportsLocalPrefix *string `json:"goimportsLocalPrefix"`
+
 	// MaxParallelism is an optional version of Config.MaxParallelism
 	MaxParallelism *int `json:"maxParallelism"`
 }
