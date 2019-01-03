@@ -23,6 +23,7 @@ func TestSignature(t *testing.T) {
 	t.Run("signature help", func(t *testing.T) {
 		test(t, map[string]string{
 			"signature/b.go:1:28": "B() 0",
+			"signature/b.go:1:29": " 0",
 			"signature/b.go:1:33": "A(foo int, bar func(baz int) int) 0",
 			"signature/b.go:1:40": "A(foo int, bar func(baz int) int) 1",
 			"signature/b.go:1:46": "A(foo int, bar func(baz int) int) 0",
