@@ -29,7 +29,7 @@ var (
 
 	// Default Config, can be overridden by InitializationOptions
 	maxparallelism     = flag.Int("maxparallelism", 0, "use at max N parallel goroutines to fulfill requests. Can be overridden by InitializationOptions.")
-	disableDiagnostics = flag.Bool("disable-diagnostics", false, "disable diagnostics. Can be overridden by InitializationOptions.")
+	diagnosticsStyle   = flag.String("diagnostics-style", "onsave", "diagnostics style: none, instant, onsave. Can be overridden by InitializationOptions.")
 	disableFuncSnippet = flag.Bool("disable-func-snippet", false, "disable argument snippets on func completion. Can be overridden by InitializationOptions.")
 	enableGlobalCache  = flag.Bool("enable-global-cache", false, "enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.")
 	formatStyle        = flag.String("format-style", "gofmt", "which format style is used to format documents. Supported: gofmt and goimports. Can be overridden by InitializationOptions.")
@@ -60,7 +60,7 @@ func main() {
 
 	cfg := langserver.NewDefaultConfig()
 	cfg.DisableFuncSnippet = *disableFuncSnippet
-	cfg.DiagnosticsDisabled = *disableDiagnostics
+	cfg.DiagnosticsStyle = *diagnosticsStyle
 	cfg.EnableGlobalCache = *enableGlobalCache
 	cfg.FormatStyle = *formatStyle
 	cfg.GolistDuration = *golistDuration
