@@ -54,7 +54,7 @@ func getGoRoot() string {
 
 func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
 	packages.DebugCache = false
-	packages.ParseFileTrace = false
+	packages.ParseFileTrace = true
 
 	start := time.Now()
 	p.conn = conn
@@ -82,6 +82,8 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 	}
 
 	elapsedTime := time.Since(start) / time.Second
+
+	packages.StartMonitor(10 * time.Second)
 
 	p.NotifyInfo(fmt.Sprintf("cache package for %s successfully! elapsed time: %d seconds", p.rootDir, elapsedTime))
 	return p.fsNotify()
