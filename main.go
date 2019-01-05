@@ -33,7 +33,7 @@ var (
 	disableFuncSnippet = flag.Bool("disable-func-snippet", false, "disable argument snippets on func completion. Can be overridden by InitializationOptions.")
 	enableGlobalCache  = flag.Bool("enable-global-cache", false, "enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.")
 	formatStyle        = flag.String("format-style", "gofmt", "which format style is used to format documents. Supported: gofmt and goimports. Can be overridden by InitializationOptions.")
-	golistDuration     = flag.Int("golist-duration", 30, "the interval of refresh the go list cache, unit: second, default value is 30, 0 means that does not use go list cache. Can be overridden by InitializationOptions.")
+	golistDuration     = flag.Int("golist-duration", 30, "the interval of refresh the go list cache, unit: second, 0 means that does not use go list cache. Can be overridden by InitializationOptions.")
 )
 
 // version is the version field we report back. If you are releasing a new version:
