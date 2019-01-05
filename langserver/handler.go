@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"sync"
+
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/saibing/bingo/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
-	"log"
-	"sync"
 
 	"github.com/saibing/bingo/langserver/internal/util"
 )
@@ -84,7 +85,7 @@ func (h *LangHandler) doInit(ctx context.Context, conn *jsonrpc2.Conn, init *Ini
 
 	h.overlay = newOverlay(conn, h.DefaultConfig.DiagnosticsDisabled)
 	h.project = cache.NewProject()
-	if err := h.project.Init(ctx, conn, h.FilePath(init.Root()), h.overlay.view); err != nil {
+	if err := h.project.Init(ctx, conn, h.FilePath(init.Root()), h.overlay.view, h.DefaultConfig.GolistDuration); err != nil {
 		return err
 	}
 	return nil

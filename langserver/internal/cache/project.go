@@ -52,9 +52,10 @@ func getGoRoot() string {
 	return util.LowerDriver(root)
 }
 
-func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View) error {
+func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View, golistDuration int) error {
 	packages.DebugCache = false
-	packages.ParseFileTrace = true
+	packages.ParseFileTrace = false
+	packages.GolistTrace = true
 
 	start := time.Now()
 	p.conn = conn
@@ -83,7 +84,7 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 
 	elapsedTime := time.Since(start) / time.Second
 
-	packages.StartMonitor(10 * time.Second)
+	packages.StartMonitor(time.Duration(golistDuration) * time.Second)
 
 	p.NotifyInfo(fmt.Sprintf("cache package for %s successfully! elapsed time: %d seconds", p.rootDir, elapsedTime))
 	return p.fsNotify()
