@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"golang.org/x/tools/go/packages"
 )
 
 // isFileSystemRequest returns if this is an LSP method whose sole
@@ -47,7 +49,7 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return err
 		}
-		overlay.didClose(&params)
+		overlay.didClose(ctx, &params)
 		return nil
 
 	case "textDocument/didSave":
@@ -55,7 +57,7 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return err
 		}
-		// no-op
+		overlay.didSave(ctx, &params)
 		return nil
 
 	default:
@@ -76,7 +78,7 @@ func newOverlay(conn *jsonrpc2.Conn, diagnosticsDisabled bool) *overlay {
 }
 
 func (h *overlay) didOpen(ctx context.Context, params *lsp.DidOpenTextDocumentParams) {
-	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, []byte(params.TextDocument.Text))
+	h.cacheFile(ctx, params.TextDocument.URI, []byte(params.TextDocument.Text))
 }
 
 func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocumentParams) error {
@@ -94,12 +96,16 @@ func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocume
 		return err
 	}
 
-	h.cacheAndDiagnoseFile(ctx, params.TextDocument.URI, contents)
+	h.cacheFile(ctx, params.TextDocument.URI, contents)
 	return nil
 }
 
-func (h *overlay) didClose(params *lsp.DidCloseTextDocumentParams) {
+func (h *overlay) didClose(ctx context.Context, params *lsp.DidCloseTextDocumentParams) {
 	//h.view.GetFile(source.FromDocumentURI(params.TextDocument.URI)).SetContent(nil)
+}
+
+func (h *overlay) didSave(ctx context.Context, param *lsp.DidSaveTextDocumentParams) {
+	h.diagnoseFile(ctx, param.TextDocument.URI, h.diagnosticsDisabled)
 }
 
 func (h *overlay) get(uri lsp.DocumentURI) ([]byte, bool) {
@@ -111,23 +117,32 @@ func (h *overlay) get(uri lsp.DocumentURI) ([]byte, bool) {
 	return nil, false
 }
 
-func (h *overlay) cacheAndDiagnoseFile(ctx context.Context, uri lsp.DocumentURI, text []byte) {
+func (h *overlay) cacheFile(ctx context.Context, uri lsp.DocumentURI, text []byte) {
 	sourceURI := source.FromDocumentURI(uri)
 	f := h.view.GetFile(sourceURI)
 	f.SetContent(text)
+}
 
-	if h.diagnosticsDisabled {
+func (h *overlay) diagnoseFile(ctx context.Context, uri lsp.DocumentURI, diagnosticsDisabled bool) {
+	sourceURI := source.FromDocumentURI(uri)
+	f := h.view.GetFile(sourceURI)
+
+	if diagnosticsDisabled {
 		return
 	}
 
-	go func() {
+	data, _ := f.Read()
+	pkg, _ := f.GetPackage()
+	if pkg != nil {
+		pkg.Errors = []packages.Error{}
+	}
+	f.SetContent(data)
+
+	func() {
 		reports, err := diagnostics(f)
 		if err == nil {
 			for filename, diagnostics := range reports {
 				fileURI := source.ToURI(filename)
-				if fileURI != sourceURI {
-					continue
-				}
 				params := &lsp.PublishDiagnosticsParams{
 					URI:         lsp.DocumentURI(fileURI),
 					Diagnostics: diagnostics,

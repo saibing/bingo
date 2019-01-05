@@ -6,10 +6,11 @@ package cache
 
 import (
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/token"
 	"io/ioutil"
+
+	"github.com/saibing/bingo/langserver/internal/source"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -31,10 +32,6 @@ type File struct {
 func (f *File) SetContent(content []byte) {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
-	if f.content != nil && content != nil && string(f.content) == string(content) {
-		return
-	}
-
 	f.setContent(content)
 }
 
