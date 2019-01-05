@@ -68,13 +68,13 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 // overlay owns the overlay filesystem, as well as handling LSP filesystem
 // requests.
 type overlay struct {
-	conn                *jsonrpc2.Conn
-	view                *cache.View
-	diagnosticsDisabled bool
+	conn             *jsonrpc2.Conn
+	view             *cache.View
+	diagnosticsStyle DiagnosticsStyleEnum
 }
 
-func newOverlay(conn *jsonrpc2.Conn, diagnosticsDisabled bool) *overlay {
-	return &overlay{conn: conn, view: cache.NewView(), diagnosticsDisabled: diagnosticsDisabled}
+func newOverlay(conn *jsonrpc2.Conn, diagnosticsStyle DiagnosticsStyleEnum) *overlay {
+	return &overlay{conn: conn, view: cache.NewView(), diagnosticsStyle: diagnosticsStyle}
 }
 
 func (h *overlay) didOpen(ctx context.Context, params *lsp.DidOpenTextDocumentParams) {
@@ -105,7 +105,21 @@ func (h *overlay) didClose(ctx context.Context, params *lsp.DidCloseTextDocument
 }
 
 func (h *overlay) didSave(ctx context.Context, param *lsp.DidSaveTextDocumentParams) {
-	h.diagnoseFile(ctx, param.TextDocument.URI, h.diagnosticsDisabled)
+	if h.diagnosticsStyle != onsaveDiagnostics {
+		return
+	}
+
+	sourceURI := source.FromDocumentURI(param.TextDocument.URI)
+	f := h.view.GetFile(sourceURI)
+
+	data, _ := f.Read()
+	pkg, _ := f.GetPackage()
+	if pkg != nil {
+		pkg.Errors = []packages.Error{}
+	}
+	f.SetContent(data)
+
+	h.diagnosetics(ctx, f)
 }
 
 func (h *overlay) get(uri lsp.DocumentURI) ([]byte, bool) {
@@ -121,37 +135,35 @@ func (h *overlay) cacheFile(ctx context.Context, uri lsp.DocumentURI, text []byt
 	sourceURI := source.FromDocumentURI(uri)
 	f := h.view.GetFile(sourceURI)
 	f.SetContent(text)
-}
 
-func (h *overlay) diagnoseFile(ctx context.Context, uri lsp.DocumentURI, diagnosticsDisabled bool) {
-	sourceURI := source.FromDocumentURI(uri)
-	f := h.view.GetFile(sourceURI)
-
-	if diagnosticsDisabled {
+	if h.diagnosticsStyle != instantDiagnostics {
 		return
 	}
 
-	data, _ := f.Read()
-	pkg, _ := f.GetPackage()
-	if pkg != nil {
-		pkg.Errors = []packages.Error{}
-	}
-	f.SetContent(data)
+	go h.diagnosetics(ctx, f)
+}
 
-	func() {
-		reports, err := diagnostics(f)
-		if err == nil {
-			for filename, diagnostics := range reports {
-				fileURI := source.ToURI(filename)
-				params := &lsp.PublishDiagnosticsParams{
-					URI:         lsp.DocumentURI(fileURI),
-					Diagnostics: diagnostics,
-				}
+type DiagnosticsStyleEnum string
 
-				h.conn.Notify(ctx, "textDocument/publishDiagnostics", params)
+const (
+	noneDiagnostics    DiagnosticsStyleEnum = "none"
+	onsaveDiagnostics  DiagnosticsStyleEnum = "onsave"
+	instantDiagnostics DiagnosticsStyleEnum = "instant"
+)
+
+func (h *overlay) diagnosetics(ctx context.Context, f source.File) {
+	reports, err := diagnostics(f)
+	if err == nil {
+		for filename, diagnostics := range reports {
+			fileURI := source.ToURI(filename)
+			params := &lsp.PublishDiagnosticsParams{
+				URI:         lsp.DocumentURI(fileURI),
+				Diagnostics: diagnostics,
 			}
+
+			h.conn.Notify(ctx, "textDocument/publishDiagnostics", params)
 		}
-	}()
+	}
 }
 
 // applyContentChanges updates `contents` based on `changes`

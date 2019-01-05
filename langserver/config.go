@@ -22,7 +22,7 @@ type Config struct {
 	// DiagnosticsEnabled enables handling of diagnostics
 	//
 	// Defaults to false if not specified.
-	DiagnosticsDisabled bool
+	DiagnosticsStyle string
 
 	// FormatStyle format style
 	//
@@ -57,8 +57,8 @@ func (c Config) Apply(o *InitializationOptions) Config {
 		c.DisableFuncSnippet = *o.DisableFuncSnippet
 	}
 
-	if o.DiagnosticsDisabled != nil {
-		c.DiagnosticsDisabled = *o.DiagnosticsDisabled
+	if o.DiagnosticsStyle != nil {
+		c.DiagnosticsStyle = *o.DiagnosticsStyle
 	}
 
 	if o.EnableGlobalCache != nil {
