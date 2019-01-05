@@ -6,6 +6,7 @@ require (
 	github.com/gorilla/websocket v1.4.0 // indirect
 	github.com/mattn/go-colorable v0.0.9 // indirect
 	github.com/mattn/go-isatty v0.0.4 // indirect
+	github.com/pmezard/go-difflib v1.0.0
 	github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3
 	github.com/sourcegraph/jsonrpc2 v0.0.0-20180831160525-549eb959f029
 	golang.org/x/sys v0.0.0-20181212120007-b05ddf57801d // indirect

@@ -57,7 +57,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		return h.hoverIdent(pkg, pathNodes, node.Sel, params.Position)
 	}
 
-	return nil, goast.NewInvalidNodeError(pkg, pathNodes[0])
+	return nil, nil
 }
 
 func (h *LangHandler) hoverCallExpr(pkg *packages.Package, nodes []ast.Node, call *ast.CallExpr, position lsp.Position) (*lsp.Hover, error) {
