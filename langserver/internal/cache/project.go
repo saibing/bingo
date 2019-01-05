@@ -3,8 +3,6 @@ package cache
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/source"
-	"github.com/saibing/bingo/langserver/internal/util"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,6 +10,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/saibing/bingo/pkg/lsp"
