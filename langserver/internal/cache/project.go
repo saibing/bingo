@@ -55,7 +55,7 @@ func getGoRoot() string {
 func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View, golistDuration int) error {
 	packages.DebugCache = false
 	packages.ParseFileTrace = false
-	packages.GolistTrace = true
+	packages.GolistTrace = false
 
 	start := time.Now()
 	p.conn = conn
