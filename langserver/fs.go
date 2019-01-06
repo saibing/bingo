@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/source"
@@ -92,14 +91,14 @@ func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocume
 		return fmt.Errorf("received textDocument/didChange for unknown file %q", params.TextDocument.URI)
 	}
 
-	log.Printf("old text: %s\n", string(contents))
+	//log.Printf("old text: %s\n", string(contents))
 
 	contents, err := applyContentChanges(params.TextDocument.URI, contents, params.ContentChanges)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("new text: %s\n", string(contents))
+	//log.Printf("new text: %s\n", string(contents))
 
 	h.cacheFile(ctx, params.TextDocument.URI, contents)
 	return nil
@@ -178,9 +177,9 @@ func applyContentChanges(uri lsp.DocumentURI, contents []byte, changes []lsp.Tex
 			contents = []byte(change.Text) // new full content
 			continue
 		}
-		log.Printf("change range: %s\n", change.Range.String())
-		log.Printf("change text: %s\n", change.Text)
-		log.Printf("change length: %d\n", change.RangeLength)
+		// log.Printf("change range: %s\n", change.Range.String())
+		// log.Printf("change text: %s\n", change.Text)
+		// log.Printf("change length: %d\n", change.RangeLength)
 
 		start, _, ok, why := offsetForPosition(contents, change.Range.Start)
 		if !ok {
