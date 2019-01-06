@@ -127,4 +127,3 @@ func (v *View) parse(uri source.URI) error {
 	}
 	return nil
 }
-

@@ -340,4 +340,3 @@ func (p *Project) Search(walkFunc packages.WalkFunc) error {
 
 	return p.view.Config.Cache.Walk(walkFunc, ranks)
 }
-

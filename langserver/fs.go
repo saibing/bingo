@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/source"
@@ -91,10 +92,14 @@ func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocume
 		return fmt.Errorf("received textDocument/didChange for unknown file %q", params.TextDocument.URI)
 	}
 
+	log.Printf("old text: %s\n", string(contents))
+
 	contents, err := applyContentChanges(params.TextDocument.URI, contents, params.ContentChanges)
 	if err != nil {
 		return err
 	}
+
+	log.Printf("new text: %s\n", string(contents))
 
 	h.cacheFile(ctx, params.TextDocument.URI, contents)
 	return nil
@@ -173,20 +178,21 @@ func applyContentChanges(uri lsp.DocumentURI, contents []byte, changes []lsp.Tex
 			contents = []byte(change.Text) // new full content
 			continue
 		}
-		start, ok, why := offsetForPosition(contents, change.Range.Start)
+		log.Printf("change range: %s\n", change.Range.String())
+		log.Printf("change text: %s\n", change.Text)
+		log.Printf("change length: %d\n", change.RangeLength)
+
+		start, _, ok, why := offsetForPosition(contents, change.Range.Start)
 		if !ok {
 			return nil, fmt.Errorf("received textDocument/didChange for invalid position %q on %q: %s", change.Range.Start, uri, why)
 		}
-		var end int
-		if change.RangeLength != 0 {
-			end = start + int(change.RangeLength)
-		} else {
-			// RangeLength not specified, work it out from Range.End
-			end, ok, why = offsetForPosition(contents, change.Range.End)
-			if !ok {
-				return nil, fmt.Errorf("received textDocument/didChange for invalid position %q on %q: %s", change.Range.Start, uri, why)
-			}
+
+		// fixed illegal UTF-8 encoding https://github.com/saibing/bingo/issues/47
+		end, _, ok, why := offsetForPosition(contents, change.Range.End)
+		if !ok {
+			return nil, fmt.Errorf("received textDocument/didChange for invalid position %q on %q: %s", change.Range.End, uri, why)
 		}
+
 		if start < 0 || end > len(contents) || end < start {
 			return nil, fmt.Errorf("received textDocument/didChange for out of range position %q on %q", change.Range, uri)
 		}
@@ -201,20 +207,22 @@ func applyContentChanges(uri lsp.DocumentURI, contents []byte, changes []lsp.Tex
 	return contents, nil
 }
 
-func offsetForPosition(contents []byte, p lsp.Position) (offset int, valid bool, whyInvalid string) {
+func offsetForPosition(contents []byte, p lsp.Position) (offset int, size int, valid bool, whyInvalid string) {
 	line := 0
 	col := 0
 	// TODO(sqs): count chars, not bytes, per LSP. does that mean we
 	// need to maintain 2 separate counters since we still need to
 	// return the offset as bytes?
-	for _, b := range contents {
+	s := string(contents)
+	for i, b := range s {
 		if line == p.Line && col == p.Character {
-			return offset, true, ""
+			return offset, size, true, ""
 		}
 		if (line == p.Line && col > p.Character) || line > p.Line {
-			return 0, false, fmt.Sprintf("character %d is beyond line %d boundary", p.Character, p.Line)
+			return 0, 0, false, fmt.Sprintf("character %d is beyond line %d boundary", p.Character, p.Line)
 		}
-		offset++
+		size = len(string(b))
+		offset = i + size
 		if b == '\n' {
 			line++
 			col = 0
@@ -223,10 +231,10 @@ func offsetForPosition(contents []byte, p lsp.Position) (offset int, valid bool,
 		}
 	}
 	if line == p.Line && col == p.Character {
-		return offset, true, ""
+		return offset, size, true, ""
 	}
 	if line == 0 {
-		return 0, false, fmt.Sprintf("character %d is beyond first line boundary", p.Character)
+		return 0, 0, false, fmt.Sprintf("character %d is beyond first line boundary", p.Character)
 	}
-	return 0, false, fmt.Sprintf("file only has %d lines", line+1)
+	return 0, 0, false, fmt.Sprintf("file only has %d lines", line+1)
 }
