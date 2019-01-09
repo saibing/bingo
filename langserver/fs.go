@@ -105,7 +105,7 @@ func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocume
 }
 
 func (h *overlay) didClose(ctx context.Context, params *lsp.DidCloseTextDocumentParams) {
-	//h.view.GetFile(source.FromDocumentURI(params.TextDocument.URI)).SetContent(nil)
+	h.view.GetFile(source.FromDocumentURI(params.TextDocument.URI)).SetContent(nil)
 }
 
 func (h *overlay) didSave(ctx context.Context, param *lsp.DidSaveTextDocumentParams) {
