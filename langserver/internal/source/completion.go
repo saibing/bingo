@@ -461,6 +461,37 @@ func formatParams(t *types.Tuple, variadic bool, qualifier types.Qualifier) stri
 	return b.String()
 }
 
+func formatResults(t *types.Tuple, qualifier types.Qualifier) string {
+	if t.Len() == 0 {
+		return ""
+	}
+	var b bytes.Buffer
+	b.WriteByte(' ')
+	if t.Len() > 1 {
+		b.WriteByte('(')
+	}
+	for i := 0; i < t.Len(); i++ {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		el := t.At(i)
+		typ := types.TypeString(el.Type(), qualifier)
+		// handle single named result
+		if t.Len() == 1 && el.Name() != "" {
+			fmt.Fprintf(&b, "(%v %v)", el.Name(), typ)
+		}
+		if el.Name() == "" {
+			fmt.Fprintf(&b, "%v", typ)
+		} else {
+			fmt.Fprintf(&b, "%v %v", el.Name(), typ)
+		}
+	}
+	if t.Len() > 1 {
+		b.WriteByte(')')
+	}
+	return b.String()
+}
+
 // isParameter returns true if the given *types.Var is a parameter to the given
 // *types.Signature.
 func isParameter(sig *types.Signature, v *types.Var) bool {
