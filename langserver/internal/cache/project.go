@@ -161,6 +161,28 @@ func (p *Project) findGoModFiles() ([]string, error) {
 	}
 
 	err := p.walkDir(p.rootDir, 0, walkFunc)
+
+	if len(gomodList) == 0 {
+		// {"/", "path", "to", "rootDir"}
+		var segs = append(
+			[]string{string(filepath.Separator)},
+			strings.Split(p.rootDir, string(filepath.Separator))...,
+		)
+
+		for i := len(segs) - 1; i > 0; i-- {
+			var (
+				newRoot = filepath.Join(segs[0:i]...)
+				newMod  = filepath.Join(newRoot, gomod)
+			)
+			info, err := os.Stat(newMod)
+			if err == nil && !info.IsDir() {
+				p.rootDir = newRoot
+				gomodList = append([]string{newMod}, gomodList...)
+				break
+			}
+		}
+	}
+
 	return gomodList, err
 }
 
