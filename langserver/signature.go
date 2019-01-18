@@ -2,6 +2,7 @@ package langserver
 
 import (
 	"context"
+
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
@@ -14,7 +15,7 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 		return nil, err
 	}
 	pos := fromProtocolPosition(tok, params.Position)
-	info, err := source.SignatureHelp(ctx, f, pos, h.project.GetBuiltinPackage())
+	info, err := source.SignatureHelp(ctx, f, pos, h.project.GetBuiltinPackage(), h.DefaultConfig.EnhanceSignatureHelp)
 	if err != nil {
 		return nil, err
 	}

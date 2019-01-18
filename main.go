@@ -28,12 +28,13 @@ var (
 	pprof        = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
 
 	// Default Config, can be overridden by InitializationOptions
-	maxparallelism     = flag.Int("maxparallelism", 0, "use at max N parallel goroutines to fulfill requests. Can be overridden by InitializationOptions.")
-	diagnosticsStyle   = flag.String("diagnostics-style", "onsave", "diagnostics style: none, instant, onsave. Can be overridden by InitializationOptions.")
-	disableFuncSnippet = flag.Bool("disable-func-snippet", false, "disable argument snippets on func completion. Can be overridden by InitializationOptions.")
-	enableGlobalCache  = flag.Bool("enable-global-cache", false, "enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.")
-	formatStyle        = flag.String("format-style", "gofmt", "which format style is used to format documents. Supported: gofmt and goimports. Can be overridden by InitializationOptions.")
-	golistDuration     = flag.Int("golist-duration", 0, "the interval of refresh the go list cache, unit: second, 0 means that does not use go list cache. Can be overridden by InitializationOptions.")
+	maxparallelism       = flag.Int("maxparallelism", 0, "use at max N parallel goroutines to fulfill requests. Can be overridden by InitializationOptions.")
+	diagnosticsStyle     = flag.String("diagnostics-style", "onsave", "diagnostics style: none, instant, onsave. Can be overridden by InitializationOptions.")
+	disableFuncSnippet   = flag.Bool("disable-func-snippet", false, "disable argument snippets on func completion. Can be overridden by InitializationOptions.")
+	enableGlobalCache    = flag.Bool("enable-global-cache", false, "enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.")
+	formatStyle          = flag.String("format-style", "gofmt", "which format style is used to format documents. Supported: gofmt and goimports. Can be overridden by InitializationOptions.")
+	golistDuration       = flag.Int("golist-duration", 0, "the interval of refresh the go list cache, unit: second, 0 means that does not use go list cache. Can be overridden by InitializationOptions.")
+	enhanceSignatureHelp = flag.Bool("enhance-signature-help", false, "enhance signature help with return result. Can be overridden by InitializationOptions.")
 )
 
 // version is the version field we report back. If you are releasing a new version:
@@ -64,6 +65,7 @@ func main() {
 	cfg.EnableGlobalCache = *enableGlobalCache
 	cfg.FormatStyle = *formatStyle
 	cfg.GolistDuration = *golistDuration
+	cfg.EnhanceSignatureHelp = *enhanceSignatureHelp
 
 	if *maxparallelism > 0 {
 		cfg.MaxParallelism = *maxparallelism

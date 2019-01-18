@@ -6,11 +6,12 @@ package cache
 
 import (
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"sync"
+
+	"github.com/saibing/bingo/langserver/internal/source"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -103,6 +104,10 @@ func (v *View) parse(uri source.URI) error {
 		return err
 	}
 	for _, pkg := range pkgs {
+		if len(pkg.Syntax) == 0 {
+			return fmt.Errorf("no syntax trees for %s", pkg.PkgPath)
+		}
+
 		// add everything we find to the files cache
 		for _, fAST := range pkg.Syntax {
 			// if a file was in multiple packages, which token/ast/pkg do we store

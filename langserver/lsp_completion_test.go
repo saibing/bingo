@@ -3,12 +3,13 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/pkg/lsp"
-	"github.com/sourcegraph/jsonrpc2"
 	"log"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/jsonrpc2"
 
 	"github.com/saibing/bingo/langserver/internal/util"
 )
@@ -57,6 +58,7 @@ func TestCompletion(t *testing.T) {
 		test(t, "completion/a.go:7:7", "7:6-7:7 new(T) function *T, nil variable ")
 		test(t, "completion/a.go:12:11", "12:8-12:11 int typeParameter , int16 typeParameter , int32 typeParameter , int64 typeParameter , int8 typeParameter ")
 		test(t, "completion/b.go:1:44", "1:38-1:44 Println(a ...interface{}) function n int, err error")
+		test(t, "completion/c.go:8:11", "1:38-1:44 Println(a ...interface{}) function n int, err error")
 	})
 }
 

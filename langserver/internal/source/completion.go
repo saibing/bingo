@@ -59,6 +59,7 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 	if path == nil {
 		return nil, "", fmt.Errorf("cannot find node enclosing position")
 	}
+
 	// If the position is not an identifier but immediately follows
 	// an identifier or selector period (as is common when
 	// requesting a completion), use the path to the preceding node.
@@ -69,6 +70,11 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 				path = p // use preceding ident/selector
 			}
 		}
+	}
+
+	// Skip completion inside comment blocks.
+	if p, ok := path[0].(*ast.File); ok && isCommentNode(p, pos) {
+		return items, prefix, nil
 	}
 
 	// Save certain facts about the query position, including the expected type
@@ -144,7 +150,6 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 		// fallback to lexical completions
 		return lexical(path, pos, pkg.Types, pkg.TypesInfo, found), "", nil
 	}
-
 	return items, prefix, nil
 }
 
@@ -245,6 +250,24 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 		}
 	}
 	return items
+}
+
+// isCommentNode checks if given token position is inside ast.Comment node.
+func isCommentNode(root ast.Node, pos token.Pos) bool {
+	var found bool
+	ast.Inspect(root, func(n ast.Node) bool {
+		if n == nil {
+			return false
+		}
+		if n.Pos() <= pos && pos <= n.End() {
+			if _, ok := n.(*ast.Comment); ok {
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+	return found
 }
 
 // complit finds completions for field names inside a composite literal.
@@ -458,37 +481,6 @@ func formatParams(t *types.Tuple, variadic bool, qualifier types.Qualifier) stri
 		fmt.Fprintf(&b, "%v %v", el.Name(), typ)
 	}
 	b.WriteByte(')')
-	return b.String()
-}
-
-func formatResults(t *types.Tuple, qualifier types.Qualifier) string {
-	if t.Len() == 0 {
-		return ""
-	}
-	var b bytes.Buffer
-	b.WriteByte(' ')
-	if t.Len() > 1 {
-		b.WriteByte('(')
-	}
-	for i := 0; i < t.Len(); i++ {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		el := t.At(i)
-		typ := types.TypeString(el.Type(), qualifier)
-		// handle single named result
-		if t.Len() == 1 && el.Name() != "" {
-			fmt.Fprintf(&b, "(%v %v)", el.Name(), typ)
-		}
-		if el.Name() == "" {
-			fmt.Fprintf(&b, "%v", typ)
-		} else {
-			fmt.Fprintf(&b, "%v %v", el.Name(), typ)
-		}
-	}
-	if t.Len() > 1 {
-		b.WriteByte(')')
-	}
 	return b.String()
 }
 
@@ -722,11 +714,11 @@ var builtinDetails = map[string]itemDetails{
 		label: "close(c chan<- T)",
 	},
 	"complex": { // complex(r, i float64) complex128
-		label:  "complex(real, imag float64)",
+		label:  "complex(real float64, imag float64)",
 		detail: "complex128",
 	},
 	"copy": { // copy(dst, src []T) int
-		label:  "copy(dst, src []T)",
+		label:  "copy(dst []T, src []T)",
 		detail: "int",
 	},
 	"delete": { // delete(m map[T]T1, key T)

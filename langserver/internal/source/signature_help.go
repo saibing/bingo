@@ -5,6 +5,7 @@
 package source
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
@@ -26,7 +27,7 @@ type ParameterInformation struct {
 	Label string
 }
 
-func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packages.Package) (*SignatureInformation, error) {
+func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packages.Package, enhance bool) (*SignatureInformation, error) {
 	fAST, err := f.GetAST()
 	if err != nil {
 		return nil, err
@@ -49,7 +50,7 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packa
 		}
 	}
 	if callExpr == nil || callExpr.Fun == nil {
-		return nil, nil
+		return nil, fmt.Errorf("cannot find an enclosing function")
 	}
 
 	// Get the type information for the function corresponding to the call expression.
@@ -74,6 +75,7 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packa
 		}
 	case *types.Func:
 		sig = obj.Type().(*types.Signature)
+
 	case *types.Builtin:
 		obj = goast.FindObject(builtinPkg, obj)
 		if _, ok := obj.(*types.Func); ok {
@@ -117,9 +119,46 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packa
 	if pkg := pkgStringer(obj.Pkg()); pkg != "" {
 		label = pkg + "." + label
 	}
+
+	label += formatParams(sig.Params(), sig.Variadic(), pkgStringer)
+	if enhance {
+		label += formatResults(sig.Results(), pkgStringer)
+	}
+
 	return &SignatureInformation{
-		Label:           label + formatParams(sig.Params(), sig.Variadic(), pkgStringer) + formatResults(sig.Results(), pkgStringer),
+		Label:           label,
 		Parameters:      paramInfo,
 		ActiveParameter: activeParam,
 	}, nil
+}
+
+func formatResults(t *types.Tuple, qualifier types.Qualifier) string {
+	if t.Len() == 0 {
+		return ""
+	}
+	var b bytes.Buffer
+	b.WriteByte(' ')
+	if t.Len() > 1 {
+		b.WriteByte('(')
+	}
+	for i := 0; i < t.Len(); i++ {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		el := t.At(i)
+		typ := types.TypeString(el.Type(), qualifier)
+		// handle single named result
+		if t.Len() == 1 && el.Name() != "" {
+			fmt.Fprintf(&b, "(%v %v)", el.Name(), typ)
+		}
+		if el.Name() == "" {
+			fmt.Fprintf(&b, "%v", typ)
+		} else {
+			fmt.Fprintf(&b, "%v %v", el.Name(), typ)
+		}
+	}
+	if t.Len() > 1 {
+		b.WriteByte(')')
+	}
+	return b.String()
 }

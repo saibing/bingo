@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"golang.org/x/tools/go/packages/packagestest"
 	"log"
 	"net"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/go/packages/packagestest"
 
 	"github.com/saibing/bingo/langserver/internal/util"
 
@@ -263,6 +264,16 @@ const s1 = 42
 var s3 int
 var s4 func()`,
 			"completion/b.go": `package p; import "fmt"; var _ = fmt.Printl`,
+			"completion/c.go": `package p; 
+
+import (
+	"fmt"
+)
+
+func main() {
+	fmt.Println("hahah")
+	defer fmt.
+}`,
 		},
 	},
 }

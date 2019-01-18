@@ -46,6 +46,11 @@ type Config struct {
 	//
 	// Defaults to 30s
 	GolistDuration int
+
+	// EnhanceSignatureHelp enhance the signature help with return result.
+	//
+	// Defaults to false
+	EnhanceSignatureHelp bool
 }
 
 // Apply sets the corresponding field in c for each non-nil field in o.
@@ -67,6 +72,10 @@ func (c Config) Apply(o *InitializationOptions) Config {
 
 	if o.FormatStyle != nil {
 		c.FormatStyle = *o.FormatStyle
+	}
+
+	if o.EnhanceSignatureHelp != nil {
+		c.EnhanceSignatureHelp = *o.EnhanceSignatureHelp
 	}
 
 	if o.GoimportsLocalPrefix != nil {

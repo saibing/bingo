@@ -29,6 +29,11 @@ type InitializationOptions struct {
 	// Defaults to "gofmt" if not specified
 	FormatStyle *string `json:"formatStyle"`
 
+	// Enhance sigature help
+	//
+	// Defaults to false if not specified
+	EnhanceSignatureHelp *bool `json:"enhanceSignatureHelp"`
+
 	// GoimportsLocalPrefix is an optional version of
 	// Config.GoimportsLocalPrefix
 	GoimportsLocalPrefix *string `json:"goimportsLocalPrefix"`
