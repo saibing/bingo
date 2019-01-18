@@ -118,9 +118,8 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packa
 		label = pkg + "." + label
 	}
 	return &SignatureInformation{
-		Label:           label + formatParams(sig.Params(), sig.Variadic(), pkgStringer),
+		Label:           label + formatParams(sig.Params(), sig.Variadic(), pkgStringer) + formatResults(sig.Results(), pkgStringer),
 		Parameters:      paramInfo,
 		ActiveParameter: activeParam,
 	}, nil
 }
-
