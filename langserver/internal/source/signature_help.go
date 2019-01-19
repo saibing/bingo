@@ -150,6 +150,7 @@ func formatResults(t *types.Tuple, qualifier types.Qualifier) string {
 		// handle single named result
 		if t.Len() == 1 && el.Name() != "" {
 			fmt.Fprintf(&b, "(%v %v)", el.Name(), typ)
+			break
 		}
 		if el.Name() == "" {
 			fmt.Fprintf(&b, "%v", typ)
