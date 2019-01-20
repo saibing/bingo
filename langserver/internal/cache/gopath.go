@@ -19,8 +19,8 @@ type gopath struct {
 	importPath string
 }
 
-func newGopath(gc *Project, rootDir string) *gopath {
-	return &gopath{project: gc, rootDir: rootDir}
+func newGopath(project *Project, rootDir string) *gopath {
+	return &gopath{project: project, rootDir: rootDir}
 }
 
 func (p *gopath) init() (err error) {
