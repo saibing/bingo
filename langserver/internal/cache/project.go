@@ -73,6 +73,7 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 	p.vendorDir = filepath.Join(p.rootDir, vendor)
 	p.view = view
 	p.view.getLoadDir = p.getLoadDir
+	p.cached = false
 
 	gomodList, err := p.findGoModFiles()
 
