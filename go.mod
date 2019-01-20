@@ -43,4 +43,4 @@ require (
 	sourcegraph.com/sqs/pbtypes v1.0.0 // indirect
 )
 
-replace golang.org/x/tools => github.com/saibing/tools v1.6.7
+replace golang.org/x/tools => github.com/saibing/tools v1.7.0

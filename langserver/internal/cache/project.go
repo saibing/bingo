@@ -34,6 +34,7 @@ type path2Package map[string]*packages.Package
 // also takes a context.Context.
 type FindPackageFunc func(project *Project, importPath string) (*packages.Package, error)
 
+// Project project struct
 type Project struct {
 	conn      jsonrpc2.JSONRPC2
 	view      *View
@@ -46,6 +47,7 @@ type Project struct {
 	cached    bool
 }
 
+// NewProject new project
 func NewProject() *Project {
 	return &Project{goroot: getGoRoot()}
 }
@@ -62,6 +64,7 @@ func (p *Project) notify(err error) {
 	}
 }
 
+// Init init project
 func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View, golistDuration int) error {
 	packages.DebugCache = false
 	packages.ParseFileTrace = false
@@ -106,6 +109,7 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 // BuiltinPkg builtin package
 const BuiltinPkg = "builtin"
 
+// GetBuiltinPackage get builtin package
 func (p *Project) GetBuiltinPackage() *packages.Package {
 	return p.GetFromPkgPath(BuiltinPkg)
 }
@@ -255,10 +259,10 @@ func (p *Project) watch(rootDir string, watcher *fsnotify.Watcher) {
 		if fi.IsDir() {
 			p.watch(fullpath, watcher)
 		} else {
-			if p.needWatch(fi.Name()) {
-				err = watcher.Add(fullpath)
-				p.notify(err)
-			}
+			// if p.needWatch(fi.Name()) {
+			// 	err = watcher.Add(fullpath)
+			// 	p.notify(err)
+			// }
 		}
 	}
 }
@@ -270,11 +274,13 @@ func (p *Project) needWatch(filename string) bool {
 	return filename == gomod
 }
 
+// GetFromURI get package from document uri.
 func (p *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	filename, _ := source.FromDocumentURI(uri).Filename()
 	return p.view.Config.Cache.GetByURI(filename)
 }
 
+// GetFromPkgPath get package from package import path.
 func (p *Project) GetFromPkgPath(pkgPath string) *packages.Package {
 	return p.view.Config.Cache.Get(pkgPath)
 }
@@ -305,12 +311,21 @@ func (p *Project) rebuildCache(eventName string) {
 	p.NotifyLog("fsnotify " + eventName)
 
 	if p.needRebuild(eventName) {
+		packages.CleanListCache()
 		p.rebuildGopapthCache(eventName)
 		p.rebuildModuleCache(eventName)
 	}
 }
 
 func (p *Project) needRebuild(eventName string) bool {
+	if strings.HasSuffix(eventName, gomod) {
+		return true
+	}
+
+	if !strings.HasSuffix(eventName, goext) {
+		return false
+	}
+
 	p.view.mu.Lock()
 	defer p.view.mu.Unlock()
 
