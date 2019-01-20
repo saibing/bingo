@@ -160,7 +160,7 @@ func labelToProtocolSnippets(label string, kind source.CompletionItemKind, inser
 			}
 			fmt.Fprintf(b, "${%v:%v}", i+1, r.Replace(strings.Trim(p, " ")))
 		}
-		b.WriteByte(')')
+		fmt.Fprintf(b, ")${0}")
 		return b.String(), false
 
 	}
