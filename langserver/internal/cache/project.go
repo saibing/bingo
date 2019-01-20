@@ -21,9 +21,11 @@ import (
 )
 
 const (
-	gomod     = "go.mod"
-	vendor    = "vendor"
-	gopathEnv = "GOPATH"
+	goext       = ".go"
+	gomod       = "go.mod"
+	vendor      = "vendor"
+	gopathEnv   = "GOPATH"
+	go111module = "GO111MODULE"
 )
 
 type path2Package map[string]*packages.Package
@@ -33,13 +35,15 @@ type path2Package map[string]*packages.Package
 type FindPackageFunc func(project *Project, importPath string) (*packages.Package, error)
 
 type Project struct {
-	conn         jsonrpc2.JSONRPC2
-	rootDir      string
-	vendorDir    string
-	goroot       string
-	view         *View
-	gomoduleMode bool
-	modules      []*module
+	conn      jsonrpc2.JSONRPC2
+	view      *View
+	rootDir   string
+	vendorDir string
+	goroot    string
+	modules   []*module
+	gopath    *gopath
+	bulitin   *gopath
+	cached    bool
 }
 
 func NewProject() *Project {
@@ -50,6 +54,12 @@ func getGoRoot() string {
 	root := runtime.GOROOT()
 	root = filepath.Join(root, "src")
 	return util.LowerDriver(root)
+}
+
+func (p *Project) notify(err error) {
+	if err != nil {
+		p.NotifyLog(fmt.Sprintf("notify: %s\n", err))
+	}
 }
 
 func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View, golistDuration int) error {
@@ -65,29 +75,32 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 	p.view.getLoadDir = p.getLoadDir
 
 	gomodList, err := p.findGoModFiles()
-	if err != nil {
-		p.NotifyError(err.Error())
-		return err
-	}
 
-	p.gomoduleMode = len(gomodList) > 0
-	if p.gomoduleMode {
-		err = p.createGoModuleProject(gomodList)
+	p.notify(err)
+	err = p.createBuiltin()
+	p.notify(err)
+
+	if len(gomodList) > 0 {
+		err = p.createGoModule(gomodList)
 	} else {
-		err = p.createGoPathProject()
+		err = p.createGoPath()
 	}
 
-	if err != nil {
-		p.NotifyError(err.Error())
-		return err
-	}
+	p.notify(err)
 
 	elapsedTime := time.Since(start) / time.Second
 
 	packages.StartMonitor(time.Duration(golistDuration) * time.Second)
 
-	p.NotifyInfo(fmt.Sprintf("cache package for %s successfully! elapsed time: %d seconds", p.rootDir, elapsedTime))
-	return p.fsNotify()
+	if p.cached {
+		p.NotifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds", p.rootDir, elapsedTime))
+	} else {
+		p.NotifyInfo(fmt.Sprintf("load %s without cache successfully! elapsed time: %d seconds", p.rootDir, elapsedTime))
+	}
+
+	go p.fsnotify()
+
+	return nil
 }
 
 // BuiltinPkg builtin package
@@ -97,22 +110,19 @@ func (p *Project) GetBuiltinPackage() *packages.Package {
 	return p.GetFromPkgPath(BuiltinPkg)
 }
 
-func (p *Project) createGoModuleProject(gomodList []string) error {
-	err := p.createBuiltinModule()
-	if err != nil {
-		return err
-	}
-
+func (p *Project) createGoModule(gomodList []string) error {
 	for _, v := range gomodList {
 		module := newModule(p, util.LowerDriver(filepath.Dir(v)))
-		err = module.init()
-		if err != nil {
-			return err
-		}
-
+		err := module.init()
+		p.notify(err)
 		p.modules = append(p.modules, module)
 	}
 
+	if len(p.modules) == 0 {
+		return nil
+	}
+
+	p.cached = true
 	sort.Slice(p.modules, func(i, j int) bool {
 		return p.modules[i].rootDir >= p.modules[j].rootDir
 	})
@@ -120,36 +130,21 @@ func (p *Project) createGoModuleProject(gomodList []string) error {
 	return nil
 }
 
-func (p *Project) createGoPathProject() error {
-	err := p.createBuiltinModule()
-	if err != nil {
-		return err
-	}
-
-	cache := newModule(p, p.rootDir)
-	err = cache.init()
-	if err != nil {
-		return err
-	}
-
-	p.modules = append(p.modules, cache)
-	return nil
+func (p *Project) createGoPath() error {
+	gopath := newGopath(p, p.rootDir)
+	err := gopath.init()
+	p.cached = err == nil
+	return err
 }
 
-func (p *Project) createBuiltinModule() error {
-	value := os.Getenv("GO111MODULE")
-	_ = os.Setenv("GO111MODULE", "auto")
+func (p *Project) createBuiltin() error {
+	value := os.Getenv(go111module)
+	_ = os.Setenv(go111module, "auto")
 	defer func() {
-		_ = os.Setenv("GO111MODULE", value)
+		_ = os.Setenv(go111module, value)
 	}()
-	module := newModule(p, filepath.Join(p.goroot, BuiltinPkg))
-	err := module.init()
-	if err != nil {
-		return err
-	}
-
-	p.modules = append(p.modules, module)
-	return nil
+	p.bulitin = newGopath(p, filepath.Join(p.goroot, BuiltinPkg))
+	return p.bulitin.init()
 }
 
 func (p *Project) findGoModFiles() ([]string, error) {
@@ -164,22 +159,34 @@ func (p *Project) findGoModFiles() ([]string, error) {
 	return gomodList, err
 }
 
+var defaultExcludeDir = []string{".git", ".svn", ".hg", ".vscode", ".idea", vendor}
+
+func (p *Project) isExclude(dir string) bool {
+	for _, d := range defaultExcludeDir {
+		if d == dir {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, string)) error {
 	if level > 3 {
 		return nil
 	}
 
-	if strings.HasPrefix(rootDir, p.vendorDir) {
-		return nil
-	}
-
 	files, err := ioutil.ReadDir(rootDir)
 	if err != nil {
-		p.NotifyLog(err.Error())
+		p.notify(err)
 		return nil
 	}
 
 	for _, fi := range files {
+		if p.isExclude(fi.Name()) {
+			continue
+		}
+
 		if fi.IsDir() {
 			level++
 			err = p.walkDir(filepath.Join(rootDir, fi.Name()), level, walkFunc)
@@ -195,50 +202,14 @@ func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, strin
 	return nil
 }
 
-func (p *Project) fsNotify() error {
-	if p.gomoduleMode {
-		return p.fsNotifyModule()
-	}
-	return p.fsNotifyVendor()
-}
-
-func (p *Project) fsNotifyModule() error {
-	var paths []string
-	for _, v := range p.modules {
-		if v.rootDir == filepath.Join(p.goroot, BuiltinPkg) {
-			continue
-		}
-		paths = append(paths, filepath.Join(v.rootDir, gomod))
-	}
-
-	return p.fsNotifyPaths(paths)
-}
-
-func (p *Project) fsNotifyVendor() error {
-	_, err := os.Stat(p.vendorDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-
-	return p.fsNotifyPaths([]string{p.vendorDir})
-}
-
-func (p *Project) fsNotifyPaths(paths []string) error {
+func (p *Project) fsnotify() {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return err
+		p.notify(err)
+		return
 	}
 
-	for _, p := range paths {
-		err = watcher.Add(p)
-		if err != nil {
-			_ = watcher.Close()
-			return err
-		}
-	}
+	p.watch(p.rootDir, watcher)
 
 	go func() {
 		defer func() {
@@ -254,7 +225,6 @@ func (p *Project) fsNotifyPaths(paths []string) error {
 
 				if event.Op&fsnotify.Write == fsnotify.Write {
 					p.rebuildCache(event.Name)
-
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
@@ -264,8 +234,40 @@ func (p *Project) fsNotifyPaths(paths []string) error {
 			}
 		}
 	}()
+}
 
-	return nil
+func (p *Project) watch(rootDir string, watcher *fsnotify.Watcher) {
+	err := watcher.Add(rootDir)
+	p.notify(err)
+
+	files, err := ioutil.ReadDir(rootDir)
+	if err != nil {
+		p.notify(err)
+		return
+	}
+
+	for _, fi := range files {
+		if p.isExclude(fi.Name()) {
+			continue
+		}
+
+		fullpath := filepath.Join(rootDir, fi.Name())
+		if fi.IsDir() {
+			p.watch(fullpath, watcher)
+		} else {
+			if p.needWatch(fi.Name()) {
+				err = watcher.Add(fullpath)
+				p.notify(err)
+			}
+		}
+	}
+}
+
+func (p *Project) needWatch(filename string) bool {
+	if strings.HasSuffix(filename, goext) {
+		return true
+	}
+	return filename == gomod
 }
 
 func (p *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
@@ -282,14 +284,14 @@ func (p *Project) getLoadDir(filename string) string {
 		return p.modules[0].rootDir
 	}
 
-	for _, v := range p.modules {
-		if strings.HasPrefix(filename, v.rootDir) {
-			return v.rootDir
+	for _, m := range p.modules {
+		if strings.HasPrefix(filename, m.rootDir) {
+			return m.rootDir
 		}
 	}
 
-	for _, v := range p.modules {
-		for k := range v.moduleMap {
+	for _, m := range p.modules {
+		for k := range m.moduleMap {
 			if strings.HasPrefix(filename, k) {
 				return k
 			}
@@ -300,9 +302,40 @@ func (p *Project) getLoadDir(filename string) string {
 }
 
 func (p *Project) rebuildCache(eventName string) {
-	for _, v := range p.modules {
-		if v.rootDir == filepath.Dir(eventName) {
-			rebuild, err := v.rebuildCache()
+	p.NotifyLog("fsnotify " + eventName)
+
+	if p.needRebuild(eventName) {
+		p.rebuildGopapthCache(eventName)
+		p.rebuildModuleCache(eventName)
+	}
+}
+
+func (p *Project) needRebuild(eventName string) bool {
+	p.view.mu.Lock()
+	defer p.view.mu.Unlock()
+
+	uri := source.ToURI(util.LowerDriver(eventName))
+	return p.view.files[uri] == nil
+}
+
+func (p *Project) rebuildGopapthCache(eventName string) {
+	if p.gopath == nil {
+		return
+	}
+
+	if strings.HasSuffix(eventName, p.gopath.rootDir) {
+		p.gopath.rebuildCache()
+	}
+}
+
+func (p *Project) rebuildModuleCache(eventName string) {
+	if len(p.modules) == 0 {
+		return
+	}
+
+	for _, m := range p.modules {
+		if strings.HasPrefix(filepath.Dir(eventName), m.rootDir) {
+			rebuild, err := m.rebuildCache()
 			if err != nil {
 				p.NotifyError(err.Error())
 				return

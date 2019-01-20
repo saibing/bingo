@@ -3,14 +3,11 @@ package cache
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"github.com/saibing/bingo/langserver/internal/util"
 	"io"
-	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/saibing/bingo/langserver/internal/util"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -38,11 +35,7 @@ func newModule(gc *Project, rootDir string) *module {
 }
 
 func (m *module) init() (err error) {
-	if m.project.gomoduleMode {
-		err = m.initModuleProject()
-	} else {
-		err = m.initGoPathProject()
-	}
+	err = m.doInit()
 	if err != nil {
 		return err
 	}
@@ -51,8 +44,8 @@ func (m *module) init() (err error) {
 	return err
 }
 
-func (m *module) initModuleProject() error {
-	moduleMap, err := m.readModuleFromFile()
+func (m *module) doInit() error {
+	moduleMap, err := m.readGoModule()
 	if err != nil {
 		return err
 	}
@@ -61,36 +54,7 @@ func (m *module) initModuleProject() error {
 	return nil
 }
 
-func (m *module) initGoPathProject() error {
-	if strings.HasPrefix(m.rootDir, util.LowerDriver(filepath.ToSlash(m.project.goroot))) {
-		m.mainModulePath = "."
-		return nil
-	}
-
-	gopath := os.Getenv(gopathEnv)
-	if gopath == "" {
-		gopath = filepath.Join(os.Getenv("HOME"), "go")
-	}
-
-	paths := strings.Split(gopath, string(os.PathListSeparator))
-
-	for _, path := range paths {
-		p := util.LowerDriver(filepath.ToSlash(path))
-		if strings.HasPrefix(m.rootDir, p) && m.rootDir != p {
-			srcDir := filepath.Join(p, "src")
-			if m.rootDir == srcDir {
-				continue
-			}
-
-			m.mainModulePath = filepath.ToSlash(m.rootDir[len(srcDir)+1:])
-			return nil
-		}
-	}
-
-	return fmt.Errorf("%s is out of GOPATH workspace %v, but not a go module project", m.rootDir, paths)
-}
-
-func (m *module) readModuleFromFile() (map[string]moduleInfo, error) {
+func (m *module) readGoModule() (map[string]moduleInfo, error) {
 	buf, err := invokeGo(context.Background(), m.rootDir, "list", "-m", "-json", "all")
 	if err != nil {
 		return nil, err
@@ -136,7 +100,7 @@ func (m *module) initModule(moduleMap map[string]moduleInfo) {
 }
 
 func (m *module) checkModuleCache() (bool, error) {
-	moduleMap, err := m.readModuleFromFile()
+	moduleMap, err := m.readGoModule()
 	if err != nil {
 		return false, err
 	}
@@ -150,18 +114,16 @@ func (m *module) checkModuleCache() (bool, error) {
 }
 
 func (m *module) rebuildCache() (bool, error) {
-	if m.project.gomoduleMode {
-		rebuild, err := m.checkModuleCache()
-		if err != nil {
-			return false, err
-		}
-
-		if !rebuild {
-			return false, nil
-		}
+	rebuild, err := m.checkModuleCache()
+	if err != nil {
+		return false, err
 	}
 
-	_, err := m.buildCache()
+	if !rebuild {
+		return false, nil
+	}
+
+	_, err = m.buildCache()
 	return err == nil, err
 }
 
@@ -183,15 +145,7 @@ func (m *module) buildCache() ([]*packages.Package, error) {
 	cfg := m.project.view.Config
 	cfg.Dir = m.rootDir
 	cfg.ParseFile = nil
-
-	var pattern string
-	if filepath.Join(m.project.goroot, BuiltinPkg) == m.rootDir {
-		pattern = cfg.Dir
-	} else if m.project.gomoduleMode {
-		pattern = cfg.Dir + "/..."
-	} else {
-		pattern = m.mainModulePath + "/..."
-	}
+	pattern := cfg.Dir + "/..."
 
 	return packages.Load(cfg, pattern)
 }
