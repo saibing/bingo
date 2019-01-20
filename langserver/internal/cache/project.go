@@ -45,6 +45,7 @@ type Project struct {
 	gopath    *gopath
 	bulitin   *gopath
 	cached    bool
+	watched   int
 }
 
 // NewProject new project
@@ -95,13 +96,11 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 
 	elapsedTime := time.Since(start) / time.Second
 	packages.StartMonitor(time.Duration(golistDuration) * time.Second)
-	if p.cached {
-		p.NotifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds", p.rootDir, elapsedTime))
-	} else {
-		p.NotifyInfo(fmt.Sprintf("load %s without cache successfully! elapsed time: %d seconds", p.rootDir, elapsedTime))
-	}
 
-	go p.fsnotify()
+	p.fsnotify()
+
+	p.NotifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds, watch dir number: %d, cached: %t",
+		p.rootDir, elapsedTime, p.watched, p.cached))
 
 	return nil
 }
@@ -213,6 +212,8 @@ func (p *Project) fsnotify() {
 		return
 	}
 
+	p.watched = 0
+
 	p.watch(p.rootDir, watcher)
 
 	go func() {
@@ -243,6 +244,10 @@ func (p *Project) fsnotify() {
 func (p *Project) watch(rootDir string, watcher *fsnotify.Watcher) {
 	err := watcher.Add(rootDir)
 	p.notify(err)
+	if err == nil {
+		p.watched++
+	}
+	//p.NotifyLog(fmt.Sprintf("watch %s", rootDir))
 
 	files, err := ioutil.ReadDir(rootDir)
 	if err != nil {
