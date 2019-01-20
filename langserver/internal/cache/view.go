@@ -18,6 +18,7 @@ import (
 
 type getLoadDirFunc func(filename string) string
 
+// View view
 type View struct {
 	mu     sync.Mutex // protects all mutable state of the view
 	Config *packages.Config
@@ -28,6 +29,7 @@ type View struct {
 	getLoadDir  getLoadDirFunc
 }
 
+// NewView create a new view
 func NewView() *View {
 	return &View{
 		Config: &packages.Config{

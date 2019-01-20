@@ -66,6 +66,7 @@ func (f *File) Read() ([]byte, error) {
 	return f.read()
 }
 
+// GetFileSet get file set
 func (f *File) GetFileSet() (*token.FileSet, error) {
 	if f.view.Config == nil {
 		return nil, fmt.Errorf("no config for file view")
@@ -76,6 +77,7 @@ func (f *File) GetFileSet() (*token.FileSet, error) {
 	return f.view.Config.Fset, nil
 }
 
+// GetToken get  token
 func (f *File) GetToken() (*token.File, error) {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
@@ -90,6 +92,7 @@ func (f *File) GetToken() (*token.File, error) {
 	return f.token, nil
 }
 
+// GetAST get ast
 func (f *File) GetAST() (*ast.File, error) {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
@@ -101,6 +104,7 @@ func (f *File) GetAST() (*ast.File, error) {
 	return f.ast, nil
 }
 
+// GetPackage get package
 func (f *File) GetPackage() (*packages.Package, error) {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()

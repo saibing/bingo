@@ -365,18 +365,22 @@ func (p *Project) rebuildModuleCache(eventName string) {
 	}
 }
 
+// NotifyError notify error to lsp client
 func (p *Project) NotifyError(message string) {
 	_ = p.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: message})
 }
 
+// NotifyInfo notify info to lsp client
 func (p *Project) NotifyInfo(message string) {
 	_ = p.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: message})
 }
 
+// NotifyLog notify log to lsp client
 func (p *Project) NotifyLog(message string) {
 	_ = p.conn.Notify(context.Background(), "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
 }
 
+// Search serach package cache
 func (p *Project) Search(walkFunc packages.WalkFunc) error {
 	var ranks []string
 	for _, module := range p.modules {
