@@ -143,7 +143,7 @@ func (p *Project) createBuiltin() error {
 	defer func() {
 		_ = os.Setenv(go111module, value)
 	}()
-	p.bulitin = newGopath(p, filepath.Join(p.goroot, BuiltinPkg))
+	p.bulitin = newGopath(p, filepath.ToSlash(filepath.Join(p.goroot, BuiltinPkg)))
 	return p.bulitin.init()
 }
 
