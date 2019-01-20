@@ -52,7 +52,7 @@ func NewProject() *Project {
 
 func getGoRoot() string {
 	root := runtime.GOROOT()
-	root = filepath.Join(root, "src")
+	root = filepath.ToSlash(filepath.Join(root, "src"))
 	return util.LowerDriver(root)
 }
 
@@ -73,14 +73,15 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 	p.vendorDir = filepath.Join(p.rootDir, vendor)
 	p.view = view
 	p.view.getLoadDir = p.getLoadDir
+
+	err := p.createBuiltin()
+	if err != nil {
+		return err
+	}
+
 	p.cached = false
-
 	gomodList, err := p.findGoModFiles()
-
 	p.notify(err)
-	err = p.createBuiltin()
-	p.notify(err)
-
 	if len(gomodList) > 0 {
 		err = p.createGoModule(gomodList)
 	} else {
@@ -90,9 +91,7 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 	p.notify(err)
 
 	elapsedTime := time.Since(start) / time.Second
-
 	packages.StartMonitor(time.Duration(golistDuration) * time.Second)
-
 	if p.cached {
 		p.NotifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds", p.rootDir, elapsedTime))
 	} else {

@@ -17,6 +17,7 @@ type gopath struct {
 	project    *Project
 	rootDir    string
 	importPath string
+	isGoroot   bool
 }
 
 func newGopath(project *Project, rootDir string) *gopath {
@@ -34,8 +35,9 @@ func (p *gopath) init() (err error) {
 }
 
 func (p *gopath) doInit() error {
-	if strings.HasPrefix(p.rootDir, util.LowerDriver(filepath.ToSlash(p.project.goroot))) {
+	if strings.HasPrefix(p.rootDir, p.project.goroot) {
 		p.importPath = ""
+		p.isGoroot = true
 		return nil
 	}
 
@@ -59,7 +61,7 @@ func (p *gopath) doInit() error {
 		}
 	}
 
-	return fmt.Errorf("%s is out of GOPATH workspace %v, but not a go module project", p.rootDir, paths)
+	return fmt.Errorf("%s is out of GOPATH workspace %v, go root is %s", p.rootDir, paths, p.project.goroot)
 }
 
 func (p *gopath) rebuildCache() (bool, error) {
@@ -76,7 +78,7 @@ func (p *gopath) buildCache() ([]*packages.Package, error) {
 	cfg.ParseFile = nil
 
 	var pattern string
-	if filepath.Join(p.project.goroot, BuiltinPkg) == p.rootDir {
+	if p.isGoroot {
 		pattern = cfg.Dir
 	} else {
 		pattern = p.importPath + "/..."
