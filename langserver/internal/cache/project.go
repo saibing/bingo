@@ -89,8 +89,8 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 	elapsedTime := time.Since(start) / time.Second
 	packages.StartMonitor(time.Duration(golistDuration) * time.Second)
 
-	p.NotifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds, cached: %t.",
-		p.rootDir, elapsedTime, p.cached))
+	p.NotifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds, cached: %t, go module: %t.",
+		p.rootDir, elapsedTime, p.cached, len(p.modules) > 0))
 
 	go p.fsnotify()
 	return nil
@@ -103,15 +103,10 @@ func (p *Project) getImportPath() ([]string, string) {
 	}
 
 	paths := strings.Split(gopath, string(os.PathListSeparator))
-
 	for _, path := range paths {
 		path = util.LowerDriver(filepath.ToSlash(path))
-		if strings.HasPrefix(p.rootDir, path) && p.rootDir != path {
-			srcDir := filepath.Join(path, "src")
-			if p.rootDir == srcDir {
-				continue
-			}
-
+		srcDir := filepath.Join(path, "src")
+		if strings.HasPrefix(p.rootDir, srcDir) && p.rootDir != srcDir {
 			return paths, filepath.ToSlash(p.rootDir[len(srcDir)+1:])
 		}
 	}
@@ -136,6 +131,7 @@ func (p *Project) createProject() error {
 	}
 
 	paths, importPath := p.getImportPath()
+	p.NotifyLog(fmt.Sprintf("GOPATH: %v, import path: %s", paths, importPath))
 	if (value == "" || value == "auto") && importPath == "" {
 		gomodList := p.findGoModFiles()
 		return p.createGoModule(gomodList)
@@ -201,7 +197,9 @@ func (p *Project) findGoModFiles() []string {
 	var gomodList []string
 	walkFunc := func(path string, name string) {
 		if name == gomod {
-			gomodList = append(gomodList, filepath.Join(path, name))
+			fullpath := filepath.Join(path, name)
+			gomodList = append(gomodList, fullpath)
+			p.NotifyLog(fullpath)
 		}
 	}
 
