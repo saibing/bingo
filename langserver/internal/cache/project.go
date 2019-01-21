@@ -118,6 +118,12 @@ func (p *Project) isUnderGoroot() bool {
 	return strings.HasPrefix(p.rootDir, p.goroot)
 }
 
+var siteLenMap = map[string]int{
+	"github.com": 3,
+	"golang.org": 3,
+	"gopkg.in":   2,
+}
+
 func (p *Project) createProject() error {
 	value := os.Getenv(go111module)
 
@@ -127,6 +133,7 @@ func (p *Project) createProject() error {
 	}
 
 	if p.isUnderGoroot() {
+		p.NotifyLog(fmt.Sprintf("%s under go root dir %s", p.rootDir, p.goroot))
 		return p.createGoPath("", true)
 	}
 
@@ -139,6 +146,13 @@ func (p *Project) createProject() error {
 
 	if importPath == "" {
 		return fmt.Errorf("%s is out of GOPATH workspace %v", p.rootDir, paths)
+	}
+
+	dirs := strings.Split(importPath, "/")
+	siteLen := siteLenMap[dirs[0]]
+
+	if len(dirs) < siteLen {
+		return fmt.Errorf("%s is not correct root dir of project.", p.rootDir)
 	}
 
 	return p.createGoPath(importPath, false)
@@ -252,6 +266,10 @@ func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, strin
 }
 
 func (p *Project) fsnotify() {
+	if !p.cached {
+		return
+	}
+
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		p.notify(err)
