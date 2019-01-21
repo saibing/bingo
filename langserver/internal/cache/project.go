@@ -83,26 +83,69 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 		return err
 	}
 
-	p.cached = false
-	gomodList, err := p.findGoModFiles()
-	p.notify(err)
-	if len(gomodList) > 0 {
-		err = p.createGoModule(gomodList)
-	} else {
-		err = p.createGoPath()
-	}
-
+	err = p.createProject()
 	p.notify(err)
 
 	elapsedTime := time.Since(start) / time.Second
 	packages.StartMonitor(time.Duration(golistDuration) * time.Second)
 
-	p.fsnotify()
+	p.NotifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds, cached: %t.",
+		p.rootDir, elapsedTime, p.cached))
 
-	p.NotifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds, watch dir number: %d, cached: %t",
-		p.rootDir, elapsedTime, p.watched, p.cached))
-
+	go p.fsnotify()
 	return nil
+}
+
+func (p *Project) getImportPath() ([]string, string) {
+	gopath := os.Getenv(gopathEnv)
+	if gopath == "" {
+		gopath = filepath.Join(os.Getenv("HOME"), "go")
+	}
+
+	paths := strings.Split(gopath, string(os.PathListSeparator))
+
+	for _, path := range paths {
+		path = util.LowerDriver(filepath.ToSlash(path))
+		if strings.HasPrefix(p.rootDir, path) && p.rootDir != path {
+			srcDir := filepath.Join(path, "src")
+			if p.rootDir == srcDir {
+				continue
+			}
+
+			return paths, filepath.ToSlash(p.rootDir[len(srcDir)+1:])
+		}
+	}
+
+	return paths, ""
+}
+
+func (p *Project) isUnderGoroot() bool {
+	return strings.HasPrefix(p.rootDir, p.goroot)
+}
+
+func (p *Project) createProject() error {
+	value := os.Getenv(go111module)
+
+	if value == "on" {
+		gomodList := p.findGoModFiles()
+		return p.createGoModule(gomodList)
+	}
+
+	if p.isUnderGoroot() {
+		return p.createGoPath("", true)
+	}
+
+	paths, importPath := p.getImportPath()
+	if (value == "" || value == "auto") && importPath == "" {
+		gomodList := p.findGoModFiles()
+		return p.createGoModule(gomodList)
+	}
+
+	if importPath == "" {
+		return fmt.Errorf("%s is out of GOPATH workspace %v", p.rootDir, paths)
+	}
+
+	return p.createGoPath(importPath, false)
 }
 
 // BuiltinPkg builtin package
@@ -133,8 +176,8 @@ func (p *Project) createGoModule(gomodList []string) error {
 	return nil
 }
 
-func (p *Project) createGoPath() error {
-	gopath := newGopath(p, p.rootDir)
+func (p *Project) createGoPath(importPath string, underGoroot bool) error {
+	gopath := newGopath(p, p.rootDir, importPath, underGoroot)
 	err := gopath.init()
 	p.cached = err == nil
 	return err
@@ -142,15 +185,19 @@ func (p *Project) createGoPath() error {
 
 func (p *Project) createBuiltin() error {
 	value := os.Getenv(go111module)
-	_ = os.Setenv(go111module, "auto")
-	defer func() {
-		_ = os.Setenv(go111module, value)
-	}()
-	p.bulitin = newGopath(p, filepath.ToSlash(filepath.Join(p.goroot, BuiltinPkg)))
+
+	if value == "on" {
+		_ = os.Setenv(go111module, "auto")
+		defer func() {
+			_ = os.Setenv(go111module, value)
+		}()
+	}
+
+	p.bulitin = newGopath(p, filepath.ToSlash(filepath.Join(p.goroot, BuiltinPkg)), "", true)
 	return p.bulitin.init()
 }
 
-func (p *Project) findGoModFiles() ([]string, error) {
+func (p *Project) findGoModFiles() []string {
 	var gomodList []string
 	walkFunc := func(path string, name string) {
 		if name == gomod {
@@ -159,7 +206,8 @@ func (p *Project) findGoModFiles() ([]string, error) {
 	}
 
 	err := p.walkDir(p.rootDir, 0, walkFunc)
-	return gomodList, err
+	p.notify(err)
+	return gomodList
 }
 
 var defaultExcludeDir = []string{".git", ".svn", ".hg", ".vscode", ".idea", vendor}
@@ -175,7 +223,7 @@ func (p *Project) isExclude(dir string) bool {
 }
 
 func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, string)) error {
-	if level > 3 {
+	if level > 8 {
 		return nil
 	}
 
@@ -215,6 +263,8 @@ func (p *Project) fsnotify() {
 	p.watched = 0
 
 	p.watch(p.rootDir, watcher)
+
+	p.NotifyLog(fmt.Sprintf("fsnotify watch dir number: %d", p.watched))
 
 	go func() {
 		defer func() {
@@ -313,9 +363,8 @@ func (p *Project) getLoadDir(filename string) string {
 }
 
 func (p *Project) rebuildCache(eventName string) {
-	p.NotifyLog("fsnotify " + eventName)
-
 	if p.needRebuild(eventName) {
+		p.NotifyLog("fsnotify " + eventName)
 		packages.CleanListCache()
 		p.rebuildGopapthCache(eventName)
 		p.rebuildModuleCache(eventName)
@@ -327,15 +376,17 @@ func (p *Project) needRebuild(eventName string) bool {
 		return true
 	}
 
-	if !strings.HasSuffix(eventName, goext) {
-		return false
-	}
+	return false
 
-	p.view.mu.Lock()
-	defer p.view.mu.Unlock()
+	// if !strings.HasSuffix(eventName, goext) {
+	// 	return false
+	// }
 
-	uri := source.ToURI(util.LowerDriver(eventName))
-	return p.view.files[uri] == nil
+	// p.view.mu.Lock()
+	// defer p.view.mu.Unlock()
+
+	// uri := source.ToURI(util.LowerDriver(eventName))
+	// return p.view.files[uri] == nil
 }
 
 func (p *Project) rebuildGopapthCache(eventName string) {
