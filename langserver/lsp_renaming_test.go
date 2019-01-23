@@ -27,7 +27,7 @@ func TestRenaming(t *testing.T) {
 
 		test(t, "renaming/a.go:9:6", map[string]string{
 			"4:8-4:9": "renaming/a.go",
-			"8:5-8:6":   "renaming/a.go",
+			"8:5-8:6": "renaming/a.go",
 		})
 	})
 }
@@ -83,4 +83,3 @@ func callRenaming(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, li
 	}, &edit)
 	return edit, err
 }
-

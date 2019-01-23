@@ -10,7 +10,6 @@ import (
 	"go/token"
 )
 
-
 // fromProtocolRange converts a protocol range to a source range.
 // It uses fromProtocolPosition to convert the start and end positions, which
 // requires the token file the positions belongs to.

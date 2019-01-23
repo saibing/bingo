@@ -49,7 +49,6 @@ func TestImplementations(t *testing.T) {
 		test(t, "implementations/t1p.go:1:44", []string{"implementations/i1.go:1:32:from:method"})
 	})
 
-
 }
 
 type implementationsTestCase struct {

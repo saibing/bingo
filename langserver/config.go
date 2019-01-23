@@ -107,4 +107,3 @@ func NewDefaultConfig() Config {
 		MaxParallelism:     maxparallelism,
 	}
 }
-

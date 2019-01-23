@@ -11,8 +11,8 @@ import (
 // struct; it is just common functionality. (Unlike HandlerCommon,
 // HandlerShared is shared in-memory.)
 type HandlerCommon struct {
-	mu         sync.Mutex // guards all fields
-	shutdown   bool
+	mu       sync.Mutex // guards all fields
+	shutdown bool
 }
 
 // ShutDown marks this server as being shut down and causes all future calls to checkReady to return an error.

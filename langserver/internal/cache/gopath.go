@@ -59,4 +59,3 @@ func (p *gopath) buildCache() ([]*packages.Package, error) {
 
 	return packages.Load(cfg, pattern)
 }
-

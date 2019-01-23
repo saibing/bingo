@@ -28,7 +28,6 @@ func normalizePath(s string) string {
 	return s
 }
 
-
 // PathTrimPrefix removes the prefix from s
 func PathTrimPrefix(s, prefix string) string {
 	s = normalizePath(s)
@@ -141,4 +140,3 @@ func LowerDriver(path string) string {
 
 	return strings.ToLower(path[0:1]) + path[1:]
 }
-

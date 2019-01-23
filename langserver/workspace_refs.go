@@ -177,4 +177,3 @@ func defSymbolDescriptor(pkg *packages.Package, project *cache.Project, def refs
 type refResult struct {
 	results []referenceInformation
 }
-

@@ -26,7 +26,7 @@ func diagnostics(f source.File) (map[string][]lsp.Diagnostic, error) {
 	if pkg == nil {
 		return nil, fmt.Errorf("package is null for file")
 	}
-	
+
 	reports := make(map[string][]lsp.Diagnostic)
 	for _, filename := range pkg.GoFiles {
 		reports[filename] = []lsp.Diagnostic{}

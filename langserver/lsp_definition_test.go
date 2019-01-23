@@ -33,7 +33,7 @@ func TestDefinition(t *testing.T) {
 	})
 
 	t.Run("subdirectory definition", func(t *testing.T) {
-		test(t,  "subdirectory/a.go:1:17", "subdirectory/a.go:1:17-1:18")
+		test(t, "subdirectory/a.go:1:17", "subdirectory/a.go:1:17-1:18")
 		test(t, "subdirectory/a.go:1:23", "subdirectory/a.go:1:17-1:18")
 		test(t, "subdirectory/d2/b.go:1:86", "subdirectory/d2/b.go:1:86-1:87")
 		test(t, "subdirectory/d2/b.go:1:94", "subdirectory/a.go:1:17-1:18")
@@ -88,7 +88,6 @@ func testDefinition(tb testing.TB, c *definitionTestCase) {
 	})
 }
 
-
 func doDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want, trimPrefix string) {
 	file, line, char, err := parsePos(pos)
 	if err != nil {
@@ -121,7 +120,7 @@ func doDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 		want = makePath(exported.Config.Dir, want)
 	}
 
-	if definition != want  {
+	if definition != want {
 		t.Errorf("\n%s\ngot %q, \nwant %q", pos, definition, want)
 	}
 }

@@ -84,19 +84,19 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 			p.rootDir, elapsedTime, p.cached, len(p.modules) > 0))
 	}()
 
-    if globalCacheStyle == "none" {
-        p.view.Config.Cache = nil
-        return nil
-    }
+	if globalCacheStyle == "none" {
+		p.view.Config.Cache = nil
+		return nil
+	}
 
 	err := p.createBuiltin()
 	if err != nil {
 		return err
 	}
 
-    if globalCacheStyle != "always" {
-        return nil
-    }
+	if globalCacheStyle != "always" {
+		return nil
+	}
 
 	err = p.createProject()
 	p.notify(err)

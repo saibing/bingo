@@ -526,4 +526,3 @@ func isExported(sym *symbolPair) bool {
 	}
 	return ast.IsExported(sym.ContainerName) && ast.IsExported(sym.Name)
 }
-
