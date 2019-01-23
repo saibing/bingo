@@ -44,18 +44,6 @@ func NewView() *View {
 	}
 }
 
-// HasParsed return true if package is not nil
-func (v *View) HasParsed(uri source.URI) bool {
-	v.mu.Lock()
-	f, found := v.files[uri]
-	v.mu.Unlock()
-	if !found {
-		return false
-	}
-
-	return f.pkg != nil
-}
-
 func (v *View) parseFile(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
 	var isrc interface{}
 	if src != nil {

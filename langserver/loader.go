@@ -3,16 +3,16 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"go/ast"
+	"go/token"
+	"strings"
+
 	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
-	"go/ast"
-	"go/token"
 	"golang.org/x/tools/go/packages"
-	"strings"
 )
-
 
 // uriHasPrefix returns true if s is starts with the given prefix
 func uriHasPrefix(s, prefix lsp.DocumentURI) bool {
@@ -22,20 +22,18 @@ func uriHasPrefix(s, prefix lsp.DocumentURI) bool {
 	return strings.HasPrefix(s1, s2)
 }
 
-
 func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
-	if uriHasPrefix(fileURI, h.init.RootURI) {
-		uri := source.FromDocumentURI(fileURI)
-		if !h.DefaultConfig.EnableGlobalCache || h.overlay.view.HasParsed(uri) {
-			pkg, pos, err := h.loadFromSourceView(uri, position)
-			if ctx.Err() != nil {
-				return nil, token.NoPos, ctx.Err()
-			}
-			return pkg, pos, err
-		}
+	pkg, pos, _ := h.loadFromGlobalCache(ctx, fileURI, position)
+	if pkg != nil {
+		return pkg, pos, nil
 	}
 
-	return h.loadFromGlobalCache(ctx, fileURI, position)
+	uri := source.FromDocumentURI(fileURI)
+	pkg, pos, err := h.loadFromSourceView(uri, position)
+	if ctx.Err() != nil {
+		return nil, token.NoPos, ctx.Err()
+	}
+	return pkg, pos, err
 }
 
 func (h *LangHandler) loadFromSourceView(uri source.URI, position lsp.Position) (*packages.Package, token.Pos, error) {

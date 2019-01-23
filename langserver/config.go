@@ -16,8 +16,8 @@ type Config struct {
 
 	// EnableGlobalCache enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.
 	//
-	// Defaults to false if not specified
-	EnableGlobalCache bool
+	// Defaults to "always" if not specified
+	GlobalCacheStyle string
 
 	// DiagnosticsEnabled enables handling of diagnostics
 	//
@@ -66,8 +66,8 @@ func (c Config) Apply(o *InitializationOptions) Config {
 		c.DiagnosticsStyle = *o.DiagnosticsStyle
 	}
 
-	if o.EnableGlobalCache != nil {
-		c.EnableGlobalCache = *o.EnableGlobalCache
+	if o.GlobalCacheStyle != nil {
+		c.GlobalCacheStyle = *o.GlobalCacheStyle
 	}
 
 	if o.FormatStyle != nil {

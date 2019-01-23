@@ -66,32 +66,41 @@ func (p *Project) notify(err error) {
 }
 
 // Init init project
-func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View, golistDuration int) error {
+func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View, golistDuration int, globalCacheStyle string) error {
 	packages.DebugCache = false
 	packages.ParseFileTrace = false
 	packages.GolistTrace = false
 
-	start := time.Now()
 	p.conn = conn
 	p.rootDir = util.LowerDriver(root)
 	p.vendorDir = filepath.Join(p.rootDir, vendor)
 	p.view = view
 	p.view.getLoadDir = p.getLoadDir
 
+	start := time.Now()
+	defer func() {
+		elapsedTime := time.Since(start) / time.Second
+		p.NotifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds, cache: %t, go module: %t.",
+			p.rootDir, elapsedTime, p.cached, len(p.modules) > 0))
+	}()
+
+    if globalCacheStyle == "none" {
+        p.view.Config.Cache = nil
+        return nil
+    }
+
 	err := p.createBuiltin()
 	if err != nil {
 		return err
 	}
 
+    if globalCacheStyle == "always" {
+        return nil
+    }
+
 	err = p.createProject()
 	p.notify(err)
-
-	elapsedTime := time.Since(start) / time.Second
 	packages.StartMonitor(time.Duration(golistDuration) * time.Second)
-
-	p.NotifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds, cached: %t, go module: %t.",
-		p.rootDir, elapsedTime, p.cached, len(p.modules) > 0))
-
 	go p.fsnotify()
 	return nil
 }

@@ -3,15 +3,15 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/token"
-	"golang.org/x/tools/go/packages"
 	"log"
 	"path"
 	"sort"
 	"strings"
 	"sync"
+
+	"golang.org/x/tools/go/packages"
 
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/saibing/bingo/pkg/lsp"
@@ -277,14 +277,10 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 	var astFile *ast.File
 	var err error
 
-	uri := source.FromDocumentURI(params.TextDocument.URI)
-	if uriHasPrefix(params.TextDocument.URI, h.init.RootURI) &&
-		(!h.DefaultConfig.EnableGlobalCache || h.overlay.view.HasParsed(uri)) {
+	pkg, astFile, err = h.loadAstFromGlobalCache(params.TextDocument.URI)
+	if pkg == nil || astFile == nil {
 		pkg, astFile, err = h.loadAstFromSourceView(params.TextDocument.URI)
-	} else {
-		pkg, astFile, err = h.loadAstFromGlobalCache(params.TextDocument.URI)
 	}
-
 	if err != nil {
 		return nil, err
 	}

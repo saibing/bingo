@@ -235,6 +235,10 @@ func CallExpr(fset *token.FileSet, nodes []ast.Node) *ast.CallExpr {
 }
 
 func SearchImportPackage(root *packages.Package, path string) *packages.Package {
+    if root == nil {
+        return nil
+    }
+
 	var p *packages.Package
 
 	found := func(pkg *packages.Package) bool {
@@ -249,6 +253,10 @@ func SearchImportPackage(root *packages.Package, path string) *packages.Package 
 
 // FindObject find object
 func FindObject(pkg *packages.Package, o types.Object) types.Object {
+    if pkg == nil {
+        return nil
+    }
+
 	for _, def := range pkg.TypesInfo.Defs {
 		if def == nil {
 			continue

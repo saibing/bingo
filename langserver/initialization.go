@@ -22,7 +22,7 @@ type InitializationOptions struct {
 	// EnableGlobalCache enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.
 	//
 	// Defaults to false if not specified
-	EnableGlobalCache *bool `json:"enableGlobalCache"`
+	GlobalCacheStyle *string`json:"globalCacheStyle"`
 
 	// FormatStyle format style
 	//

@@ -305,7 +305,7 @@ func initServer(rootDir string) {
 	fmt.Printf("root uri is %s\n", root)
 	cfg := NewDefaultConfig()
 	cfg.DisableFuncSnippet = false
-	cfg.EnableGlobalCache = false
+	cfg.GlobalCacheStyle = "always"
 
 	h = &LangHandler{
 		DefaultConfig: cfg,
