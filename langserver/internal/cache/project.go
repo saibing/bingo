@@ -94,7 +94,7 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 		return err
 	}
 
-    if globalCacheStyle == "always" {
+    if globalCacheStyle != "always" {
         return nil
     }
 
