@@ -21,8 +21,8 @@ func TestFormatting(t *testing.T) {
 
 	t.Run("basic", func(t *testing.T) {
 		test(t, "basic/a.go", map[string]string{
-				"0:0-1:0": "package p\n\nfunc A() { A() }\n",
-			})
+			"0:0-1:0": "package p\n\nfunc A() { A() }\n",
+		})
 	})
 }
 

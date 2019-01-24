@@ -38,4 +38,3 @@ func invokeGo(ctx context.Context, dir string, args ...string) (*bytes.Buffer, e
 
 	return stdout, nil
 }
-

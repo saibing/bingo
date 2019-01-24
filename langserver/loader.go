@@ -116,4 +116,3 @@ func (h *LangHandler) loadAstFromGlobalCache(fileURI lsp.DocumentURI) (*packages
 func (h *LangHandler) load(uri lsp.DocumentURI) *packages.Package {
 	return h.project.GetFromURI(uri)
 }
-

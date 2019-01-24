@@ -149,4 +149,3 @@ func (m *module) buildCache() ([]*packages.Package, error) {
 
 	return packages.Load(cfg, pattern)
 }
-

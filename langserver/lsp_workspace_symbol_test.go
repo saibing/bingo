@@ -197,4 +197,3 @@ func callWorkspaceSymbols(ctx context.Context, c *jsonrpc2.Conn, params lspext.W
 	}
 	return syms, nil
 }
-

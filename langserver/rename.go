@@ -43,4 +43,3 @@ func (h *LangHandler) handleRename(ctx context.Context, conn jsonrpc2.JSONRPC2,
 	}
 	return result, nil
 }
-

@@ -505,4 +505,3 @@ func makePath(elem ...string) string {
 	path := filepath.Join(elem...)
 	return util.LowerDriver(filepath.ToSlash(path))
 }
-

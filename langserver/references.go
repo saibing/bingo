@@ -15,11 +15,11 @@ import (
 )
 
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
-	locs, err := h.doHandleTextDocumentReferences(ctx, conn, req,params)
+	locs, err := h.doHandleTextDocumentReferences(ctx, conn, req, params)
 	if err != nil {
 		// fix https://github.com/saibing/bingo/issues/32
 		params.Position.Character--
-		locs, err = h.doHandleTextDocumentReferences(ctx, conn, req,params)
+		locs, err = h.doHandleTextDocumentReferences(ctx, conn, req, params)
 	}
 	return locs, err
 }
@@ -192,4 +192,3 @@ func sameObj(x, y types.Object) bool {
 	}
 	return false
 }
-

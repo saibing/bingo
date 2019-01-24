@@ -17,7 +17,7 @@ import (
 func TestDocumentSymbol(t *testing.T) {
 	test := func(t *testing.T, data map[string][]string) {
 		for k, v := range data {
-			testDocumentSymbol(t, &documentSymbolTestCase{input:k, output:v})
+			testDocumentSymbol(t, &documentSymbolTestCase{input: k, output: v})
 		}
 	}
 
@@ -155,4 +155,3 @@ func callSymbols(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI) ([]
 	}
 	return syms, nil
 }
-

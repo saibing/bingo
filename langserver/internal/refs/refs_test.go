@@ -26,7 +26,7 @@ func testConfig(fs *token.FileSet, pkgName string, files []*ast.File) *Config {
 		Importer:                 importer.Default(),
 		FakeImportC:              true,
 		DisableUnusedImportCheck: true,
-		Error: func(error) {},
+		Error:                    func(error) {},
 	}
 	pkg, err := cfg.Check(pkgName, fs, files, &info)
 	if err != nil {

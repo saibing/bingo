@@ -32,7 +32,6 @@ func TestReferences(t *testing.T) {
 		test(t, "builtin/a.go:1:26", []string{"builtin/a.go:1:23"})
 	})
 
-
 	t.Run("xtest", func(t *testing.T) {
 		test(t, "xtest/a.go:1:16", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})
 		test(t, "xtest/x_test.go:1:88", []string{"xtest/a.go:1:16", "xtest/a_test.go:1:20", "xtest/x_test.go:1:88"})
@@ -54,7 +53,7 @@ func TestReferences(t *testing.T) {
 	})
 
 	t.Run("go module", func(t *testing.T) {
-		test(t, "gomodule/a.go:1:57", []string{"gomodule/a.go:1:57", "gomodule/a.go:1:72", githubModule + "/d.go:1:19",  githubModule + "/d.go:1:35"})
+		test(t, "gomodule/a.go:1:57", []string{"gomodule/a.go:1:57", "gomodule/a.go:1:72", githubModule + "/d.go:1:19", githubModule + "/d.go:1:35"})
 	})
 
 	t.Run("unexpected paths", func(t *testing.T) {

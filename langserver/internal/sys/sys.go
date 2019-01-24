@@ -7,4 +7,3 @@ const windowsOS = "windows"
 func IsWindows() bool {
 	return runtime.GOOS == windowsOS
 }
-
