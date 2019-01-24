@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path/filepath"
 	"sync"
 
 	"github.com/saibing/bingo/langserver/internal/source"
@@ -26,18 +27,18 @@ type View struct {
 	files       map[source.URI]*File
 	tempOverlay map[string][]byte
 	muFile      sync.Mutex
-	getLoadDir  getLoadDirFunc
 }
 
 // NewView create a new view
 func NewView() *View {
 	return &View{
 		Config: &packages.Config{
-			Mode:    packages.LoadAllSyntax,
-			Fset:    token.NewFileSet(),
-			Tests:   true,
-			Overlay: make(map[string][]byte),
-			Cache:   packages.NewCache(),
+			Mode:      packages.LoadAllSyntax,
+			Fset:      token.NewFileSet(),
+			Tests:     true,
+			Overlay:   make(map[string][]byte),
+			Cache:     packages.NewCache(),
+			ListCache: packages.NewListCache(false),
 		},
 		files:       make(map[source.URI]*File),
 		tempOverlay: make(map[string][]byte),
@@ -84,7 +85,8 @@ func (v *View) parse(uri source.URI) error {
 	if err != nil {
 		return err
 	}
-	v.Config.Dir = v.getLoadDir(path)
+
+	v.Config.Dir = filepath.Dir(path)
 	v.Config.ParseFile = v.parseFile
 	pkgs, err := packages.Load(v.Config, fmt.Sprintf("file=%s", path))
 	if len(pkgs) == 0 {

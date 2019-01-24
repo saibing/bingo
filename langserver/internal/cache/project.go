@@ -36,21 +36,30 @@ type FindPackageFunc func(project *Project, importPath string) (*packages.Packag
 
 // Project project struct
 type Project struct {
-	conn      jsonrpc2.JSONRPC2
-	view      *View
-	rootDir   string
-	vendorDir string
-	goroot    string
-	modules   []*module
-	gopath    *gopath
-	bulitin   *gopath
-	cached    bool
-	watched   int
+	conn          jsonrpc2.JSONRPC2
+	view          *View
+	rootDir       string
+	vendorDir     string
+	goroot        string
+	modules       []*module
+	gopath        *gopath
+	bulitin       *gopath
+	cached        bool
+	watched       int
+	lastBuildTime time.Time
 }
 
 // NewProject new project
-func NewProject() *Project {
-	return &Project{goroot: getGoRoot()}
+func NewProject(conn jsonrpc2.JSONRPC2, rootDir string, view *View) *Project {
+	p := &Project{
+		conn:    conn,
+		view:    view,
+		rootDir: util.LowerDriver(rootDir),
+		goroot:  getGoRoot(),
+	}
+
+	p.vendorDir = filepath.Join(p.rootDir, vendor)
+	return p
 }
 
 func getGoRoot() string {
@@ -66,16 +75,9 @@ func (p *Project) notify(err error) {
 }
 
 // Init init project
-func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string, view *View, golistDuration int, globalCacheStyle string) error {
+func (p *Project) Init(ctx context.Context, golistDuration int, globalCacheStyle string) error {
 	packages.DebugCache = false
 	packages.ParseFileTrace = false
-	packages.GolistTrace = false
-
-	p.conn = conn
-	p.rootDir = util.LowerDriver(root)
-	p.vendorDir = filepath.Join(p.rootDir, vendor)
-	p.view = view
-	p.view.getLoadDir = p.getLoadDir
 
 	start := time.Now()
 	defer func() {
@@ -86,6 +88,7 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 
 	if globalCacheStyle == "none" {
 		p.view.Config.Cache = nil
+		p.view.Config.ListCache = nil
 		return nil
 	}
 
@@ -100,9 +103,25 @@ func (p *Project) Init(ctx context.Context, conn jsonrpc2.JSONRPC2, root string,
 
 	err = p.createProject()
 	p.notify(err)
-	packages.StartMonitor(time.Duration(golistDuration) * time.Second)
+	p.goListMonitor(time.Duration(golistDuration) * time.Second)
+	p.lastBuildTime = time.Now()
+
 	go p.fsnotify()
 	return nil
+}
+
+// goListMonitor start go list cache
+func (p *Project) goListMonitor(interval time.Duration) {
+	if interval == 0 {
+		return
+	}
+	go func() {
+		tick := time.NewTicker(interval)
+		select {
+		case <-tick.C:
+			p.view.Config.ListCache.Refresh()
+		}
+	}()
 }
 
 func (p *Project) getImportPath() ([]string, string) {
@@ -338,11 +357,6 @@ func (p *Project) watch(rootDir string, watcher *fsnotify.Watcher) {
 		fullpath := filepath.Join(rootDir, fi.Name())
 		if fi.IsDir() {
 			p.watch(fullpath, watcher)
-		} else {
-			// if p.needWatch(fi.Name()) {
-			// 	err = watcher.Add(fullpath)
-			// 	p.notify(err)
-			// }
 		}
 	}
 }
@@ -365,53 +379,35 @@ func (p *Project) GetFromPkgPath(pkgPath string) *packages.Package {
 	return p.view.Config.Cache.Get(pkgPath)
 }
 
-func (p *Project) getLoadDir(filename string) string {
-	if len(p.modules) == 1 {
-		return p.modules[0].rootDir
-	}
-
-	for _, m := range p.modules {
-		if strings.HasPrefix(filename, m.rootDir) {
-			return m.rootDir
-		}
-	}
-
-	for _, m := range p.modules {
-		for k := range m.moduleMap {
-			if strings.HasPrefix(filename, k) {
-				return k
-			}
-		}
-	}
-
-	return p.rootDir
-}
-
 func (p *Project) rebuildCache(eventName string) {
 	if p.needRebuild(eventName) {
 		p.NotifyLog("fsnotify " + eventName)
-		packages.CleanListCache()
+		p.view.Config.ListCache.Clean()
 		p.rebuildGopapthCache(eventName)
 		p.rebuildModuleCache(eventName)
+		p.lastBuildTime = time.Now()
 	}
 }
 
 func (p *Project) needRebuild(eventName string) bool {
+	interval := time.Now().Sub(p.lastBuildTime)
+	if interval < 60*time.Second {
+		return false
+	}
+
 	if strings.HasSuffix(eventName, gomod) {
 		return true
 	}
 
-	return false
+	if !strings.HasSuffix(eventName, goext) {
+		return false
+	}
 
-	// if !strings.HasSuffix(eventName, goext) {
-	// 	return false
-	// }
+	p.view.mu.Lock()
+	defer p.view.mu.Unlock()
 
-	// p.view.mu.Lock()
-	// defer p.view.mu.Unlock()
-
-	// uri := source.ToURI(util.LowerDriver(eventName))
-	// return p.view.files[uri] == nil
+	uri := source.ToURI(util.LowerDriver(eventName))
+	return p.view.files[uri] == nil
 }
 
 func (p *Project) rebuildGopapthCache(eventName string) {
