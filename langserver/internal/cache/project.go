@@ -361,13 +361,6 @@ func (p *Project) watch(rootDir string, watcher *fsnotify.Watcher) {
 	}
 }
 
-func (p *Project) needWatch(filename string) bool {
-	if strings.HasSuffix(filename, goext) {
-		return true
-	}
-	return filename == gomod
-}
-
 // GetFromURI get package from document uri.
 func (p *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	filename, _ := source.FromDocumentURI(uri).Filename()
@@ -380,7 +373,9 @@ func (p *Project) GetFromPkgPath(pkgPath string) *packages.Package {
 }
 
 func (p *Project) rebuildCache(eventName string) {
-	if p.needRebuild(eventName) {
+	rebuild := p.cleanChangeFile(eventName)
+
+	if p.isTimeout() && (rebuild || p.isGomodFile(eventName)) {
 		p.NotifyLog("fsnotify " + eventName)
 		p.view.Config.ListCache.Clean()
 		p.rebuildGopapthCache(eventName)
@@ -389,16 +384,7 @@ func (p *Project) rebuildCache(eventName string) {
 	}
 }
 
-func (p *Project) needRebuild(eventName string) bool {
-	interval := time.Now().Sub(p.lastBuildTime)
-	if interval < 60*time.Second {
-		return false
-	}
-
-	if strings.HasSuffix(eventName, gomod) {
-		return true
-	}
-
+func (p *Project) cleanChangeFile(eventName string) bool {
 	if !strings.HasSuffix(eventName, goext) {
 		return false
 	}
@@ -407,7 +393,25 @@ func (p *Project) needRebuild(eventName string) bool {
 	defer p.view.mu.Unlock()
 
 	uri := source.ToURI(util.LowerDriver(eventName))
-	return p.view.files[uri] == nil
+	f := p.view.files[uri]
+	if f == nil {
+		return true
+	}
+
+	if f.from == fromCache {
+		f.setContent(nil, fromOpen)
+		return true
+	}
+
+	return false
+}
+
+func (p *Project) isGomodFile(eventName string) bool {
+	return strings.HasSuffix(eventName, gomod)
+}
+
+func (p *Project) isTimeout() bool {
+	return time.Now().Sub(p.lastBuildTime) >= 60*time.Second
 }
 
 func (p *Project) rebuildGopapthCache(eventName string) {

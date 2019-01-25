@@ -15,11 +15,19 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+type fromType int
+
+const (
+	fromOpen  fromType = 0
+	fromCache fromType = 1
+)
+
 // File holds all the information we know about a file.
 type File struct {
 	URI     source.URI
 	view    *View
 	active  bool
+	from    fromType
 	content []byte
 	ast     *ast.File
 	token   *token.File
@@ -32,15 +40,16 @@ type File struct {
 func (f *File) SetContent(content []byte) {
 	f.view.mu.Lock()
 	defer f.view.mu.Unlock()
-	f.setContent(content)
+	f.setContent(content, fromOpen)
 }
 
-func (f *File) setContent(content []byte) {
+func (f *File) setContent(content []byte, from fromType) {
 	f.content = content
 	// the ast and token fields are invalid
 	f.ast = nil
 	f.token = nil
 	f.pkg = nil
+	f.from = from
 	// and we might need to update the overlay
 	switch {
 	case f.active && content == nil:
