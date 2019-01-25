@@ -114,9 +114,9 @@ func (v *View) parse(uri source.URI) error {
 			//log.Printf("parsed file %s\n", fURI)
 			f := v.getFile(fURI)
 			if f.content == nil {
-				f.setContent(v.tempOverlay[fToken.Name()])
-				delete(v.tempOverlay, fToken.Name())
+				f.setContent(v.tempOverlay[fToken.Name()], fromCache)
 			}
+			delete(v.tempOverlay, fToken.Name())
 			f.token = fToken
 			f.ast = fAST
 			f.pkg = pkg
