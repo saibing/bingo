@@ -10,6 +10,7 @@ import (
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"golang.org/x/tools/go/packages"
 )
 
 // isFileSystemRequest returns if this is an LSP method whose sole
@@ -114,6 +115,12 @@ func (h *overlay) didSave(ctx context.Context, param *lsp.DidSaveTextDocumentPar
 
 	sourceURI := source.FromDocumentURI(param.TextDocument.URI)
 	f := h.view.GetFile(sourceURI)
+	data, _ := f.Read()
+	pkg, _ := f.GetPackage()
+	if pkg != nil {
+		pkg.Errors = []packages.Error{}
+	}
+	f.SetContent(data)
 	h.diagnosetics(ctx, f)
 }
 
