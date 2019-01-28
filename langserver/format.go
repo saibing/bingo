@@ -102,6 +102,7 @@ func goimports(v *cache.View, uri lsp.DocumentURI, localPrefix string) ([]lsp.Te
 		return nil, err
 	}
 
+	unformatted = bytes.Replace(unformatted, []byte("\r\n"), []byte("\n"), -1)
 	if bytes.Equal(unformatted, formatted) {
 		return nil, nil
 	}
