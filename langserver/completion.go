@@ -8,11 +8,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
-	"sort"
-	"strings"
 )
 
 func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.CompletionParams) (*lsp.CompletionList, error) {
@@ -149,7 +150,6 @@ func labelToProtocolSnippets(label string, kind source.CompletionItemKind, inser
 		r := strings.NewReplacer(
 			`\`, `\\`,
 			`}`, `\}`,
-			`{`, `\{`,
 			`$`, `\$`,
 		)
 		b := bytes.NewBufferString(trimmed)
