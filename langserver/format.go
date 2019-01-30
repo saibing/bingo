@@ -56,6 +56,7 @@ func formatRange(ctx context.Context, v *cache.View, uri lsp.DocumentURI, rng *l
 
 	if len(edits) == 1 && rng == nil {
 		content, _ := f.Read()
+		content = bytes.Replace(content, []byte("\r\n"), []byte("\n"), -1)
 		unformatted := string(content)
 		formatted := edits[0].NewText
 		if unformatted == formatted {
@@ -96,13 +97,14 @@ func goimports(v *cache.View, uri lsp.DocumentURI, localPrefix string) ([]lsp.Te
 	f := v.GetFile(sourceURI)
 	unformatted, _ := f.Read()
 
+	unformatted = bytes.Replace(unformatted, []byte("\r\n"), []byte("\n"), -1)
+
 	filename, _ := sourceURI.Filename()
 	formatted, err := imports.Process(filename, unformatted, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	unformatted = bytes.Replace(unformatted, []byte("\r\n"), []byte("\n"), -1)
 	if bytes.Equal(unformatted, formatted) {
 		return nil, nil
 	}
