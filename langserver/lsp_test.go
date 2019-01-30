@@ -20,7 +20,7 @@ import (
 
 	"github.com/saibing/bingo/langserver/internal/util"
 
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 
 	_ "net/http/pprof"

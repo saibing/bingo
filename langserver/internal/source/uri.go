@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/sys"
 	"github.com/saibing/bingo/langserver/internal/util"
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"net/url"
 	"path/filepath"
 	"runtime"

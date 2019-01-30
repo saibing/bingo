@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/goast"
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
 	"go/token"

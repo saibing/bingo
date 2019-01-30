@@ -7,7 +7,7 @@ package langserver
 import (
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/source"
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"go/token"
 	"strconv"
 	"strings"

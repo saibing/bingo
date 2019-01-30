@@ -17,7 +17,7 @@ import (
 	"golang.org/x/tools/go/packages"
 
 	"github.com/saibing/bingo/langserver/internal/util"
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

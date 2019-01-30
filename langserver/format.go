@@ -11,7 +11,7 @@ import (
 	"context"
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/source"
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"go/token"
 	"golang.org/x/tools/imports"

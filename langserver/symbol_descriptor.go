@@ -1,8 +1,8 @@
 package langserver
 
 import (
-	"github.com/saibing/bingo/pkg/lsp"
-	"github.com/saibing/bingo/pkg/lspext"
+	"github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/go-lsp/lspext"
 )
 
 // This file contains lspext but redefined to suit go-langserver

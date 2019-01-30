@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 )
 
 func trimFilePrefix(s string) string {

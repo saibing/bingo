@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/saibing/bingo/langserver/internal/source"
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -61,7 +61,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 		if !strings.HasPrefix(candidate.Label, prefix) {
 			continue
 		}
-		insertText, triggerSignatureHelp := labelToProtocolSnippets(candidate.Label, candidate.Kind, insertTextFormat, signatureHelpEnabled)
+		insertText, _ := labelToProtocolSnippets(candidate.Label, candidate.Kind, insertTextFormat, signatureHelpEnabled)
 		//if strings.HasPrefix(insertText, prefix) {
 		//	insertText = insertText[len(prefix):]
 		//}
@@ -82,11 +82,11 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 			SortText: fmt.Sprintf("%05d", i),
 		}
 		// If we are completing a function, we should trigger signature help if possible.
-		if triggerSignatureHelp && signatureHelpEnabled {
-			item.Command = &lsp.Command{
-				Command: "editor.action.triggerParameterHints",
-			}
-		}
+		//if triggerSignatureHelp && signatureHelpEnabled {
+		//	item.Command = &lsp.Command{
+		//		Command: "editor.action.triggerParameterHints",
+		//	}
+		//}
 		items = append(items, item)
 	}
 	return items

@@ -3,7 +3,7 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/pkg/lspext"
+	"github.com/sourcegraph/go-lsp/lspext"
 	"log"
 	"path/filepath"
 	"reflect"
@@ -12,7 +12,7 @@ import (
 
 	"github.com/saibing/bingo/langserver/internal/util"
 
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"math"
 	"path/filepath"
 	"strings"
@@ -14,7 +14,7 @@ import (
 	"golang.org/x/tools/go/packages"
 
 	"github.com/saibing/bingo/langserver/internal/refs"
-	"github.com/saibing/bingo/pkg/lspext"
+	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

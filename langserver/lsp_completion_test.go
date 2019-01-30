@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 
 	"github.com/saibing/bingo/langserver/internal/util"

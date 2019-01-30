@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"github.com/saibing/bingo/langserver/internal/cache"
-	"github.com/saibing/bingo/pkg/lsp"
-	"github.com/saibing/bingo/pkg/lspext"
+	"github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 
 	"github.com/saibing/bingo/langserver/internal/util"

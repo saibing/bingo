@@ -9,7 +9,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"io/ioutil"
 
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 )
 
 func rangeForNode(fset *token.FileSet, node ast.Node) lsp.Range {

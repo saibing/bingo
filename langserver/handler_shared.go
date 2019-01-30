@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
-	"github.com/saibing/bingo/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"golang.org/x/tools/go/packages"
 	"strings"
 )

@@ -142,6 +142,8 @@ github.com/shurcooL/webdavfs v0.0.0-20170829043945-18c3829fa133/go.mod h1:hKmq5k
 github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3 h1:sAARUcYbwxnebBeWHzKX2MeyXtzy25TEglCTz9BhueY=
 github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3/go.mod h1:AIBPxLCkKUFc2ZkjCXzs/Kk9OUhQLw/Zicdd0Rhqz2U=
 github.com/sourcegraph/annotate v0.0.0-20160123013949-f4cad6c6324d/go.mod h1:UdhH50NIW0fCiwBSr0co2m7BnFLdv4fQTgdqdJTHFeE=
+github.com/sourcegraph/go-lsp v0.0.0-20181119182933-0c7d621186c1 h1:O1d7nVzpGmP5pGAZBSlp9TSpjNwwI0xThxhPd9oVJuU=
+github.com/sourcegraph/go-lsp v0.0.0-20181119182933-0c7d621186c1/go.mod h1:tpps84QRlOVVLYk5QpKYX8Tr289D1v/UTWDLqeguiqM=
 github.com/sourcegraph/jsonrpc2 v0.0.0-20180831160525-549eb959f029 h1:86fjxPjv7RGdGho8ShBSEDZQPERPNnZbny8fJ0FcOGo=
 github.com/sourcegraph/jsonrpc2 v0.0.0-20180831160525-549eb959f029/go.mod h1:eESpbCslcLDs8j2D7IEdGVgul7xuk9odqDTaor30IUU=
 github.com/sourcegraph/syntaxhighlight v0.0.0-20170531221838-bd320f5d308e/go.mod h1:HuIsMU8RRBOtsCgI77wP899iHVBQpCmg4ErYMZB+2IA=
