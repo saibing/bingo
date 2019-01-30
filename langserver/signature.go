@@ -2,6 +2,8 @@ package langserver
 
 import (
 	"context"
+	"fmt"
+	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/sourcegraph/go-lsp"
@@ -9,7 +11,15 @@ import (
 )
 
 func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.SignatureHelp, error) {
-	f := h.overlay.view.GetFile(source.FromDocumentURI(params.TextDocument.URI))
+	fileURI := params.TextDocument.URI
+	if !util.IsURI(fileURI) {
+		return nil, &jsonrpc2.Error{
+			Code:    jsonrpc2.CodeInvalidParams,
+			Message: fmt.Sprintf("%s not yet supported for out-of-workspace URI", fileURI),
+		}
+	}
+
+	f := h.overlay.view.GetFile(source.FromDocumentURI(fileURI))
 	tok, err := f.GetToken()
 	if err != nil {
 		return nil, err

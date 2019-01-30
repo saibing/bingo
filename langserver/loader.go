@@ -3,6 +3,7 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
 	"go/token"
 	"strings"
@@ -23,6 +24,13 @@ func uriHasPrefix(s, prefix lsp.DocumentURI) bool {
 }
 
 func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
+	if !util.IsURI(fileURI) {
+		return nil, token.NoPos, &jsonrpc2.Error{
+			Code:    jsonrpc2.CodeInvalidParams,
+			Message: fmt.Sprintf("%s not yet supported for out-of-workspace URI", fileURI),
+		}
+	}
+
 	pkg, pos, _ := h.loadFromGlobalCache(ctx, fileURI, position)
 	if pkg != nil {
 		return pkg, pos, nil
