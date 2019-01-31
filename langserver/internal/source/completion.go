@@ -7,9 +7,11 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"log"
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/packages"
 )
 
 type CompletionItem struct {
@@ -60,6 +62,8 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 		return nil, "", fmt.Errorf("cannot find node enclosing position")
 	}
 
+	var pkgIdent string
+	cache := f.GetCache()
 	// If the position is not an identifier but immediately follows
 	// an identifier or selector period (as is common when
 	// requesting a completion), use the path to the preceding node.
@@ -68,6 +72,10 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 			switch p[0].(type) {
 			case *ast.Ident, *ast.SelectorExpr:
 				path = p // use preceding ident/selector
+			default:
+				contents, _ := f.Read()
+				token, _ := f.GetToken()
+				pkgIdent = offsetForIdent(contents, token.Position(pos))
 			}
 		}
 	}
@@ -108,8 +116,29 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 		return items
 	}
 
+	if pkgIdent != "" {
+		l := len(pkgIdent)
+		if pkgIdent[l-1] == '.' {
+			pkgIdent = pkgIdent[:l-1]
+			visit := func(p *packages.Package) error {
+				if p.Name == pkgIdent && p != pkg {
+					scope := p.Types.Scope()
+					for _, name := range scope.Names() {
+						items = found(scope.Lookup(name), stdScore, items)
+					}
+				}
+				return nil
+			}
+
+			f.GetCache().Walk(visit, []string{})
+			if len(items) > 0 {
+				return items, prefix, nil
+			}
+		}
+	}
+
 	// The position is within a composite literal.
-	if items, prefix, ok := complit(path, pos, pkg.Types, pkg.TypesInfo, found); ok {
+	if items, prefix, ok := complit(path, pos, pkg.Types, pkg.TypesInfo, found, pkgIdent, cache); ok {
 		return items, prefix, nil
 	}
 	switch n := path[0].(type) {
@@ -119,7 +148,7 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 
 		// Is this the Sel part of a selector?
 		if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
-			items, err = selector(sel, pos, pkg.TypesInfo, found)
+			items, err = selector(sel, pos, pkg.TypesInfo, found, cache)
 			return items, prefix, err
 		}
 		// reject defining identifiers
@@ -136,22 +165,22 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 			}
 		}
 
-		items = append(items, lexical(path, pos, pkg.Types, pkg.TypesInfo, found)...)
+		items = append(items, lexical(path, pos, pkg.Types, pkg.TypesInfo, found, pkgIdent, cache)...)
 
 	// The function name hasn't been typed yet, but the parens are there:
 	//   recv.‸(arg)
 	case *ast.TypeAssertExpr:
 		// Create a fake selector expression.
-		items, err = selector(&ast.SelectorExpr{X: n.X}, pos, pkg.TypesInfo, found)
+		items, err = selector(&ast.SelectorExpr{X: n.X}, pos, pkg.TypesInfo, found, cache)
 		return items, prefix, err
 
 	case *ast.SelectorExpr:
-		items, err = selector(n, pos, pkg.TypesInfo, found)
+		items, err = selector(n, pos, pkg.TypesInfo, found, cache)
 		return items, prefix, err
 
 	default:
 		// fallback to lexical completions
-		return lexical(path, pos, pkg.Types, pkg.TypesInfo, found), "", nil
+		return lexical(path, pos, pkg.Types, pkg.TypesInfo, found, pkgIdent, cache), pkgIdent, nil
 	}
 	return items, prefix, nil
 }
@@ -159,7 +188,7 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 // selector finds completions for
 // the specified selector expression.
 // TODO(rstambler): Set the prefix filter correctly for selectors.
-func selector(sel *ast.SelectorExpr, pos token.Pos, info *types.Info, found finder) (items []CompletionItem, err error) {
+func selector(sel *ast.SelectorExpr, pos token.Pos, info *types.Info, found finder, cache *packages.PackageCache) (items []CompletionItem, err error) {
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkgname, ok := info.Uses[id].(*types.PkgName); ok {
@@ -170,6 +199,23 @@ func selector(sel *ast.SelectorExpr, pos token.Pos, info *types.Info, found find
 			for _, name := range scope.Names() {
 				items = found(scope.Lookup(name), stdScore, items)
 			}
+			return items, nil
+		}
+
+		_, ok := info.Types[sel.X]
+		if !ok {
+			f := func(p *packages.Package) error {
+				if p.Name == id.Name {
+					scope := p.Types.Scope()
+					for _, name := range scope.Names() {
+						items = found(scope.Lookup(name), stdScore, items)
+					}
+				}
+
+				return nil
+			}
+
+			cache.Walk(f, []string{})
 			return items, nil
 		}
 	}
@@ -203,7 +249,7 @@ func selector(sel *ast.SelectorExpr, pos token.Pos, info *types.Info, found find
 }
 
 // lexical finds completions in the lexical environment.
-func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder) (items []CompletionItem) {
+func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder, prefix string, cache *packages.PackageCache) (items []CompletionItem) {
 	var scopes []*types.Scope // scopes[i], where i<len(path), is the possibly nil Scope of path[i].
 	for _, n := range path {
 		switch node := n.(type) {
@@ -252,6 +298,45 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 			items = found(obj, score, items)
 		}
 	}
+
+	skip := map[string]bool{
+		pkg.Name(): true,
+	}
+	for _, ip := range pkg.Imports() {
+		skip[ip.Name()] = true
+	}
+
+	visit := func(prefix string) {
+		f := func(p *packages.Package) error {
+			if skip[p.Name] {
+				return nil
+			}
+
+			if !strings.HasPrefix(p.Name, prefix) {
+				return nil
+			}
+
+			item := CompletionItem{
+				Label:  p.Name,
+				Detail: p.PkgPath,
+				Kind:   PackageCompletionItem,
+				Score:  stdScore,
+			}
+			items = append(items, item)
+			return nil
+		}
+
+		cache.Walk(f, []string{})
+	}
+
+	if prefix != "" {
+		visit(prefix)
+		return items
+	}
+
+	if id, ok := path[0].(*ast.Ident); ok {
+		visit(id.Name)
+	}
 	return items
 }
 
@@ -269,9 +354,9 @@ func inComment(pos token.Pos, commentGroups []*ast.CommentGroup) bool {
 
 // complit finds completions for field names inside a composite literal.
 // It reports whether the node was handled as part of a composite literal.
-func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder) (items []CompletionItem, prefix string, ok bool) {
+func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder, pkgIdent string, cache *packages.PackageCache) (items []CompletionItem, prefix string, ok bool) {
 	var lit *ast.CompositeLit
-
+	prefix = pkgIdent
 	// First, determine if the pos is within a composite literal.
 	switch n := path[0].(type) {
 	case *ast.CompositeLit:
@@ -370,7 +455,7 @@ func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 			// Add lexical completions if the user hasn't typed a key value expression
 			// and if the struct fields are defined in the same package as the user is in.
 			if !hasKeys && structPkg == pkg {
-				items = append(items, lexical(path, pos, pkg, info, found)...)
+				items = append(items, lexical(path, pos, pkg, info, found, prefix, cache)...)
 			}
 			return items, prefix, true
 		}
@@ -754,4 +839,54 @@ var builtinDetails = map[string]itemDetails{
 		label:  "recover()",
 		detail: "interface{}",
 	},
+}
+
+func offsetForIdent(contents []byte, p token.Position) string {
+	p.Line--
+	p.Column--
+
+	line := 0
+	col := 0
+
+	offset := 0
+	size := 0
+	s := string(contents)
+	for i, b := range s {
+		if line == p.Line && col == p.Column {
+			break
+		}
+		if (line == p.Line && col > p.Column) || line > p.Line {
+			log.Printf("character %d is beyond line %d boundary", p.Column, p.Line)
+			return ""
+		}
+		size = len(string(b))
+		offset = i + size
+		if b == '\n' {
+			line++
+			col = 0
+		} else {
+			col++
+		}
+	}
+
+	if line == p.Line && col == p.Column {
+		prefix := contents[:offset]
+		i := offset - 1
+		for ; i > 0; i-- {
+			c := prefix[i]
+			if c == ' ' || c == '\t' || c == '\n' {
+				break
+			}
+		}
+		result := string(contents[i+1 : offset])
+		return result
+	}
+
+	if line == 0 {
+		log.Printf("character %d is beyond first line boundary", p.Column)
+		return ""
+	}
+
+	log.Printf("file only has %d lines", line+1)
+	return ""
 }

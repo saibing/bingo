@@ -20,6 +20,9 @@ type File interface {
 	GetFileSet() (*token.FileSet, error)
 	GetPackage() (*packages.Package, error)
 	GetToken() (*token.File, error)
+	GetCache() *packages.PackageCache
+
+	Read() ([]byte, error)
 }
 
 // Range represents a start and end position.
@@ -37,3 +40,4 @@ type TextEdit struct {
 	Range   Range
 	NewText string
 }
+

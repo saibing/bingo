@@ -142,3 +142,10 @@ func (f *File) read() ([]byte, error) {
 	f.content = content
 	return f.content, nil
 }
+
+// GetCache get package cache
+func (f *File) GetCache() *packages.PackageCache {
+	f.view.mu.Lock()
+	defer f.view.mu.Unlock()
+	return f.view.Config.Cache
+}
