@@ -130,7 +130,7 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 				return nil
 			}
 
-			f.GetCache().Walk(visit, []string{})
+			cache.Walk(visit, []string{})
 			if len(items) > 0 {
 				return items, prefix, nil
 			}
