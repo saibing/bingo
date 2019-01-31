@@ -50,7 +50,7 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packa
 		}
 	}
 	if callExpr == nil || callExpr.Fun == nil {
-		return nil, fmt.Errorf("cannot find an enclosing function")
+		return nil, nil
 	}
 
 	// Get the type information for the function corresponding to the call expression.
