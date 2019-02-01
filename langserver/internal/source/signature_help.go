@@ -98,21 +98,26 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packa
 		})
 	}
 	// Determine the query position relative to the number of parameters in the function.
-	var activeParam int
-	var start, end token.Pos
+	//var activeParam int
+	//var start, end token.Pos
+	activeParam := len(callExpr.Args)
 	for i, expr := range callExpr.Args {
-		if start == token.NoPos {
-			start = expr.Pos()
-		}
-		end = expr.End()
-		if i < len(callExpr.Args)-1 {
-			end = callExpr.Args[i+1].Pos() - 1 // comma
-		}
-		if start <= pos && pos <= end {
+		if expr.End() >= pos {
+			activeParam = i
 			break
 		}
-		activeParam++
-		start = expr.Pos() + 1 // to account for commas
+		// if start == token.NoPos {
+		// 	start = expr.Pos()
+		// }
+		// end = expr.End()
+		// if i < len(callExpr.Args)-1 {
+		// 	end = callExpr.Args[i+1].Pos() - 1 // comma
+		// }
+		// if start <= pos && pos <= end {
+		// 	break
+		// }
+		// activeParam++
+		// start = expr.Pos() + 1 // to account for commas
 	}
 	// Label for function, qualified by package name.
 	label := obj.Name()
