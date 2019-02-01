@@ -299,19 +299,8 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 		}
 	}
 
-	skip := map[string]bool{
-		pkg.Name(): true,
-	}
-	for _, ip := range pkg.Imports() {
-		skip[ip.Name()] = true
-	}
-
 	visit := func(prefix string) {
 		f := func(p *packages.Package) error {
-			if skip[p.Name] {
-				return nil
-			}
-
 			if !strings.HasPrefix(p.Name, prefix) {
 				return nil
 			}
