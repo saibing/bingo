@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"github.com/saibing/bingo/langserver/internal/source"
-
 	"golang.org/x/tools/go/packages"
 )
 
@@ -33,12 +32,10 @@ type View struct {
 func NewView() *View {
 	return &View{
 		Config: &packages.Config{
-			Mode:      packages.LoadAllSyntax,
-			Fset:      token.NewFileSet(),
-			Tests:     true,
-			Overlay:   make(map[string][]byte),
-			Cache:     packages.NewCache(),
-			ListCache: packages.NewListCache(false),
+			Mode:    packages.LoadAllSyntax,
+			Fset:    token.NewFileSet(),
+			Tests:   true,
+			Overlay: make(map[string][]byte),
 		},
 		files:       make(map[source.URI]*File),
 		tempOverlay: make(map[string][]byte),

@@ -15,7 +15,7 @@ import (
 	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/sourcegraph/go-lsp"
+	lsp "github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"golang.org/x/tools/go/packages"
 )
@@ -87,11 +87,10 @@ func (p *Project) Init(ctx context.Context, golistDuration int, globalCacheStyle
 	}()
 
 	if globalCacheStyle == "none" {
-		p.view.Config.Cache = nil
-		p.view.Config.ListCache = nil
 		return nil
 	}
 
+	p.view.Config.Cache = packages.NewCache()
 	err := p.createBuiltin()
 	if err != nil {
 		return err
@@ -103,7 +102,10 @@ func (p *Project) Init(ctx context.Context, golistDuration int, globalCacheStyle
 
 	err = p.createProject()
 	p.notify(err)
-	p.goListMonitor(time.Duration(golistDuration) * time.Second)
+	if golistDuration > 0 {
+		p.view.Config.ListCache = packages.NewListCache(false)
+		p.goListMonitor(time.Duration(golistDuration) * time.Second)
+	}
 	p.lastBuildTime = time.Now()
 
 	go p.fsnotify()
