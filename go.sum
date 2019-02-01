@@ -59,6 +59,8 @@ github.com/prometheus/procfs v0.0.0-20180725123919-05ee40e3a273/go.mod h1:c3At6R
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/saibing/tools v1.7.3 h1:dHugLCyP6CrrkwdVyQ7MkXVV7M65EQOc0Q0J+mE5ssw=
 github.com/saibing/tools v1.7.3/go.mod h1:2E28tbYQsxocF7a2xIzvELOQ/NhNaHJy64A9Q/G3K+o=
+github.com/saibing/tools v1.8.0 h1:igNL6szOmTEev4/mFT9dLGsPfCVB6ZigSYwbW2fjebg=
+github.com/saibing/tools v1.8.0/go.mod h1:2E28tbYQsxocF7a2xIzvELOQ/NhNaHJy64A9Q/G3K+o=
 github.com/sergi/go-diff v1.0.0/go.mod h1:0CfEIISq7TuYL3j771MWULgwwjU+GofnZX9QAmXWZgo=
 github.com/shurcooL/component v0.0.0-20170202220835-f88ec8f54cc4/go.mod h1:XhFIlyj5a1fBNx5aJTbKoIq0mNaPvOagO+HjB3EtxrY=
 github.com/shurcooL/events v0.0.0-20181021180414-410e4ca65f48/go.mod h1:5u70Mqkb5O5cxEA8nxTsgrgLehJeAw6Oc4Ab1c/P1HM=

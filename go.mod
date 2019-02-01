@@ -15,4 +15,4 @@ require (
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
 )
 
-replace golang.org/x/tools => github.com/saibing/tools v1.7.3
+replace golang.org/x/tools => github.com/saibing/tools v1.8.0
