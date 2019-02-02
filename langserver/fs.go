@@ -10,7 +10,6 @@ import (
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
-	"golang.org/x/tools/go/packages"
 )
 
 // isFileSystemRequest returns if this is an LSP method whose sole
