@@ -115,12 +115,6 @@ func (h *overlay) didSave(ctx context.Context, param *lsp.DidSaveTextDocumentPar
 
 	sourceURI := source.FromDocumentURI(param.TextDocument.URI)
 	f := h.view.GetFile(sourceURI)
-	data, _ := f.Read()
-	pkg, _ := f.GetPackage()
-	if pkg != nil {
-		pkg.Errors = []packages.Error{}
-	}
-	f.SetContent(data)
 	h.diagnosetics(ctx, f)
 }
 
