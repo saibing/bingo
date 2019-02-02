@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -308,7 +307,7 @@ func (p *Project) fsnotify() {
 		p.notify(err)
 		return
 	}
-	log.Println(fsevents.EventIDForDeviceBeforeTime(dev, time.Now()))
+	fsevents.EventIDForDeviceBeforeTime(dev, time.Now())
 
 	es := &fsevents.EventStream{
 		Paths:   []string{p.rootDir},
