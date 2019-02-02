@@ -23,11 +23,12 @@ import (
 )
 
 const (
-	goext       = ".go"
-	gomod       = "go.mod"
-	vendor      = "vendor"
-	gopathEnv   = "GOPATH"
-	go111module = "GO111MODULE"
+	goext           = ".go"
+	gomod           = "go.mod"
+	vendor          = "vendor"
+	gopathEnv       = "GOPATH"
+	go111module     = "GO111MODULE"
+	emacsLockPrefix = ".#"
 )
 
 type path2Package map[string]*packages.Package
@@ -390,6 +391,9 @@ func (p *Project) rebuildCache(eventName string) {
 
 func (p *Project) cleanChangeFile(eventName string) bool {
 	if !strings.HasSuffix(eventName, goext) {
+		return false
+	}
+	if strings.HasPrefix(eventName, emacsLockPrefix) {
 		return false
 	}
 

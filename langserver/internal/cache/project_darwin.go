@@ -21,11 +21,12 @@ import (
 )
 
 const (
-	goext       = ".go"
-	gomod       = "go.mod"
-	vendor      = "vendor"
-	gopathEnv   = "GOPATH"
-	go111module = "GO111MODULE"
+	goext           = ".go"
+	gomod           = "go.mod"
+	vendor          = "vendor"
+	gopathEnv       = "GOPATH"
+	go111module     = "GO111MODULE"
+	emacsLockPrefix = ".#"
 )
 
 type path2Package map[string]*packages.Package
@@ -307,7 +308,6 @@ func (p *Project) fsnotify() {
 		p.notify(err)
 		return
 	}
-	fsevents.EventIDForDeviceBeforeTime(dev, time.Now())
 
 	es := &fsevents.EventStream{
 		Paths:   []string{p.rootDir},
@@ -331,14 +331,12 @@ func (p *Project) fsnotify() {
 				}
 
 				for _, event := range events {
-					if event.Flags&fsevents.ItemCreated != 0 ||
+					if event.Flags&fsevents.ItemIsFile != 0 &&
+						event.Flags&fsevents.ItemCreated != 0 ||
 						event.Flags&fsevents.ItemModified != 0 ||
 						event.Flags&fsevents.ItemRemoved != 0 ||
 						event.Flags&fsevents.ItemRenamed != 0 {
-						if p.isExclude(event.Path) {
-							continue
-						}
-						p.rebuildCache(event.Path)
+						p.rebuildCache("/" + event.Path)
 					}
 				}
 			}
@@ -371,6 +369,9 @@ func (p *Project) rebuildCache(eventName string) {
 
 func (p *Project) cleanChangeFile(eventName string) bool {
 	if !strings.HasSuffix(eventName, goext) {
+		return false
+	}
+	if strings.HasPrefix(filepath.Base(eventName), emacsLockPrefix) {
 		return false
 	}
 
