@@ -1,11 +1,10 @@
-// +build !darwin
-
 package cache
 
 import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,7 +15,7 @@ import (
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 
-	"github.com/fsnotify/fsnotify"
+	"github.com/fsnotify/fsevents"
 	lsp "github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"golang.org/x/tools/go/packages"
@@ -49,6 +48,7 @@ type Project struct {
 	cached        bool
 	watched       int
 	lastBuildTime time.Time
+	context       context.Context
 }
 
 // NewProject new project
@@ -87,6 +87,7 @@ func (p *Project) Init(ctx context.Context, golistDuration int, globalCacheStyle
 		p.NotifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds, cache: %t, go module: %t.",
 			p.rootDir, elapsedTime, p.cached, len(p.modules) > 0))
 	}()
+	p.context = ctx
 
 	if globalCacheStyle == "none" {
 		return nil
@@ -302,67 +303,48 @@ func (p *Project) fsnotify() {
 		return
 	}
 
-	watcher, err := fsnotify.NewWatcher()
+	dev, err := fsevents.DeviceForPath(p.rootDir)
 	if err != nil {
 		p.notify(err)
 		return
 	}
+	log.Println(fsevents.EventIDForDeviceBeforeTime(dev, time.Now()))
 
-	p.watched = 0
-
-	p.watch(p.rootDir, watcher)
-
-	p.NotifyLog(fmt.Sprintf("fsnotify watch dir number: %d", p.watched))
+	es := &fsevents.EventStream{
+		Paths:   []string{p.rootDir},
+		Latency: 500 * time.Millisecond,
+		Device:  dev,
+		Flags:   fsevents.FileEvents | fsevents.WatchRoot}
+	es.Start()
 
 	go func() {
 		defer func() {
-			_ = watcher.Close()
+			es.Stop()
 		}()
 
 		for {
 			select {
-			case event, ok := <-watcher.Events:
+			case <-p.context.Done():
+				return
+			case events, ok := <-es.Events:
 				if !ok {
 					return
 				}
 
-				if event.Op&fsnotify.Write == fsnotify.Write {
-					p.rebuildCache(event.Name)
+				for _, event := range events {
+					if event.Flags&fsevents.ItemCreated != 0 ||
+						event.Flags&fsevents.ItemModified != 0 ||
+						event.Flags&fsevents.ItemRemoved != 0 ||
+						event.Flags&fsevents.ItemRenamed != 0 {
+						if p.isExclude(event.Path) {
+							continue
+						}
+						p.rebuildCache(event.Path)
+					}
 				}
-			case err, ok := <-watcher.Errors:
-				if !ok {
-					return
-				}
-				p.NotifyError(fmt.Sprintf("receive an fsNotify error: %s", err))
 			}
 		}
 	}()
-}
-
-func (p *Project) watch(rootDir string, watcher *fsnotify.Watcher) {
-	err := watcher.Add(rootDir)
-	p.notify(err)
-	if err == nil {
-		p.watched++
-	}
-	//p.NotifyLog(fmt.Sprintf("watch %s", rootDir))
-
-	files, err := ioutil.ReadDir(rootDir)
-	if err != nil {
-		p.notify(err)
-		return
-	}
-
-	for _, fi := range files {
-		if p.isExclude(fi.Name()) {
-			continue
-		}
-
-		fullpath := filepath.Join(rootDir, fi.Name())
-		if fi.IsDir() {
-			p.watch(fullpath, watcher)
-		}
-	}
 }
 
 // GetFromURI get package from document uri.
@@ -415,7 +397,7 @@ func (p *Project) isGomodFile(eventName string) bool {
 }
 
 func (p *Project) isTimeout() bool {
-	return time.Now().Sub(p.lastBuildTime) >= 60*time.Second
+	return time.Since(p.lastBuildTime) >= 60*time.Second
 }
 
 func (p *Project) rebuildGopapthCache(eventName string) {
