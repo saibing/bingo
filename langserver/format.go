@@ -142,10 +142,10 @@ func computeTextEdits(unformatted string, formatted string) []lsp.TextEdit {
 			edits = append(edits, lsp.TextEdit{
 				Range: lsp.Range{
 					Start: lsp.Position{
-						Line: op.I1,
+						Line: op.I1-1,
 					},
 					End: lsp.Position{
-						Line: op.I2,
+						Line: op.I2-1,
 					},
 				},
 			})
