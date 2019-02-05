@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/saibing/bingo/langserver/internal/cache"
-	"github.com/sourcegraph/go-lsp"
+	lsp "github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 
@@ -83,7 +83,7 @@ func (h *LangHandler) doInit(ctx context.Context, conn *jsonrpc2.Conn, init *Ini
 	h.init = init
 	h.cancel = &cancel{}
 
-	h.overlay = newOverlay(conn, DiagnosticsStyleEnum(h.DefaultConfig.DiagnosticsStyle))
+	h.overlay = newOverlay(conn, DiagnosticsStyleEnum(h.DefaultConfig.DiagnosticsStyle), h.config.BuildTags)
 	h.project = cache.NewProject(conn, h.FilePath(init.Root()), h.overlay.view)
 	if err := h.project.Init(ctx, h.DefaultConfig.GolistDuration, h.DefaultConfig.GlobalCacheStyle); err != nil {
 		return err

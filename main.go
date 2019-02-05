@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/saibing/bingo/langserver"
@@ -35,6 +36,7 @@ var (
 	formatStyle          = flag.String("format-style", "goimports", "which format style is used to format documents. Supported: gofmt and goimports. Can be overridden by InitializationOptions.")
 	golistDuration       = flag.Int("golist-duration", 0, "the interval of refresh the go list cache, unit: second, 0 means that does not use go list cache. Can be overridden by InitializationOptions.")
 	enhanceSignatureHelp = flag.Bool("enhance-signature-help", false, "enhance signature help with return result. Can be overridden by InitializationOptions.")
+	buildTags            = flag.String("build-tags", "", "build tags, separated by spaces.")
 )
 
 // version is the version field we report back. If you are releasing a new version:
@@ -66,6 +68,7 @@ func main() {
 	cfg.FormatStyle = *formatStyle
 	cfg.GolistDuration = *golistDuration
 	cfg.EnhanceSignatureHelp = *enhanceSignatureHelp
+	cfg.BuildTags = strings.Split(*buildTags, " ")
 
 	if *maxparallelism > 0 {
 		cfg.MaxParallelism = *maxparallelism

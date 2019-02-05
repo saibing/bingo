@@ -10,6 +10,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/saibing/bingo/langserver/internal/source"
@@ -29,13 +30,14 @@ type View struct {
 }
 
 // NewView create a new view
-func NewView() *View {
+func NewView(buildTags []string) *View {
 	return &View{
 		Config: &packages.Config{
-			Mode:    packages.LoadAllSyntax,
-			Fset:    token.NewFileSet(),
-			Tests:   true,
-			Overlay: make(map[string][]byte),
+			Mode:       packages.LoadAllSyntax,
+			Fset:       token.NewFileSet(),
+			Tests:      true,
+			Overlay:    make(map[string][]byte),
+			BuildFlags: []string{fmt.Sprintf("-tags='%s'", strings.Join(buildTags, " "))},
 		},
 		files:       make(map[source.URI]*File),
 		tempOverlay: make(map[string][]byte),

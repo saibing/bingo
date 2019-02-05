@@ -8,7 +8,7 @@ import (
 
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/source"
-	"github.com/sourcegraph/go-lsp"
+	lsp "github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -72,8 +72,8 @@ type overlay struct {
 	diagnosticsStyle DiagnosticsStyleEnum
 }
 
-func newOverlay(conn *jsonrpc2.Conn, diagnosticsStyle DiagnosticsStyleEnum) *overlay {
-	return &overlay{conn: conn, view: cache.NewView(), diagnosticsStyle: diagnosticsStyle}
+func newOverlay(conn *jsonrpc2.Conn, diagnosticsStyle DiagnosticsStyleEnum, buildTags []string) *overlay {
+	return &overlay{conn: conn, view: cache.NewView(buildTags), diagnosticsStyle: diagnosticsStyle}
 }
 
 func (h *overlay) didOpen(ctx context.Context, params *lsp.DidOpenTextDocumentParams) {
