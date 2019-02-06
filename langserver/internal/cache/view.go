@@ -9,7 +9,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"path/filepath"
 	"sync"
 
 	"github.com/saibing/bingo/langserver/internal/source"
@@ -83,7 +82,6 @@ func (v *View) parse(uri source.URI) error {
 		return err
 	}
 
-	v.Config.Dir = filepath.Dir(path)
 	v.Config.ParseFile = v.parseFile
 	pkgs, err := packages.Load(v.Config, fmt.Sprintf("file=%s", path))
 	if len(pkgs) == 0 {
