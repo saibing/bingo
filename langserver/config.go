@@ -51,6 +51,11 @@ type Config struct {
 	//
 	// Defaults to false
 	EnhanceSignatureHelp bool
+
+	// BuildTags controls build tag constraints and will be passed to build flags.
+	//
+	// Defaults to empty
+	BuildTags []string
 }
 
 // Apply sets the corresponding field in c for each non-nil field in o.
