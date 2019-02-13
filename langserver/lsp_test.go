@@ -334,7 +334,7 @@ func initServer(rootDir string) {
 func TestMain(m *testing.M) {
 	flag.Parse()
 
-	exported = packagestest.Export2("bingo", packagestest.Modules, testdata)
+	exported = packagestest.Export("bingo", packagestest.Modules, testdata)
 	defer exported.Cleanup()
 
 	defer func() {
