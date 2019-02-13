@@ -7,17 +7,12 @@
 package langserver
 
 import (
-	"bytes"
 	"context"
-	"github.com/saibing/bingo/langserver/internal/cache"
+	"go/token"
+
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
-	"go/token"
-	"golang.org/x/tools/imports"
-	"strings"
-
-	"github.com/pmezard/go-difflib/difflib"
 )
 
 const (
@@ -25,19 +20,23 @@ const (
 )
 
 func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentFormattingParams) ([]lsp.TextEdit, error) {
-	if h.DefaultConfig.FormatStyle == goimportsStyle {
-		return goimports(h.overlay.view, params.TextDocument.URI, h.config.GoimportsLocalPrefix)
-	}
-	return formatRange(ctx, h.overlay.view, params.TextDocument.URI, nil)
+	return formatRange(ctx, h.overlay.view, params.TextDocument.URI, nil, h.DefaultConfig.FormatStyle == goimportsStyle)
 }
 
 func (h *LangHandler) handleTextDocumentRangeFormatting(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentRangeFormattingParams) ([]lsp.TextEdit, error) {
-	return formatRange(ctx, h.overlay.view, params.TextDocument.URI, &params.Range)
+	return formatRange(ctx, h.overlay.view, params.TextDocument.URI, &params.Range, h.DefaultConfig.FormatStyle == goimportsStyle)
 }
 
 // formatRange formats a document with a given range.
-func formatRange(ctx context.Context, v *cache.View, uri lsp.DocumentURI, rng *lsp.Range) ([]lsp.TextEdit, error) {
-	f := v.GetFile(source.FromDocumentURI(uri))
+func formatRange(ctx context.Context, v source.View, uri lsp.DocumentURI, rng *lsp.Range, imports bool) ([]lsp.TextEdit, error) {
+	sourceURI, err := fromProtocolURI(uri)
+	if err != nil {
+		return nil, err
+	}
+	f, err := v.GetFile(ctx, sourceURI)
+	if err != nil {
+		return nil, err
+	}
 	tok, err := f.GetToken()
 	if err != nil {
 		return nil, err
@@ -49,33 +48,42 @@ func formatRange(ctx context.Context, v *cache.View, uri lsp.DocumentURI, rng *l
 	} else {
 		r = fromProtocolRange(tok, *rng)
 	}
-	edits, err := source.Format(ctx, f, r)
+	content, err := f.Read()
 	if err != nil {
 		return nil, err
 	}
 
-	if len(edits) == 1 && rng == nil {
-		content, _ := f.Read()
-		content = bytes.Replace(content, []byte("\r\n"), []byte("\n"), -1)
-		unformatted := string(content)
-		formatted := edits[0].NewText
-		if unformatted == formatted {
-			return nil, nil
-		}
-		return computeTextEdits(unformatted, formatted), nil
+	var edits []source.TextEdit
+	if imports {
+		edits, err = source.Imports(ctx, tok, content, r)
+	} else {
+		edits, err = source.Format(ctx, f, r)
 	}
-
-	return toProtocolEdits(tok, edits), nil
+	if err != nil {
+		return nil, err
+	}
+	return toProtocolEdits(tok, content, edits), nil
 }
 
-func toProtocolEdits(f *token.File, edits []source.TextEdit) []lsp.TextEdit {
+func toProtocolEdits(tok *token.File, content []byte, edits []source.TextEdit) []lsp.TextEdit {
 	if edits == nil {
 		return nil
 	}
+	// When a file ends with an empty line, the newline character is counted
+	// as part of the previous line. This causes the formatter to insert
+	// another unnecessary newline on each formatting. We handle this case by
+	// checking if the file already ends with a newline character.
+	hasExtraNewline := content[len(content)-1] == '\n'
 	result := make([]lsp.TextEdit, len(edits))
 	for i, edit := range edits {
+		rng := toProtocolRange(tok, edit.Range)
+		// If the edit ends at the end of the file, add the extra line.
+		if hasExtraNewline && tok.Offset(edit.Range.End) == len(content) {
+			rng.End.Line++
+			rng.End.Character = 0
+		}
 		result[i] = lsp.TextEdit{
-			Range:   toProtocolRange(f, edit.Range),
+			Range:   rng,
 			NewText: edit.NewText,
 		}
 	}
@@ -88,81 +96,4 @@ func toProtocolRange(f *token.File, r source.Range) lsp.Range {
 		Start: toProtocolPosition(f, r.Start),
 		End:   toProtocolPosition(f, r.End),
 	}
-}
-
-func goimports(v *cache.View, uri lsp.DocumentURI, localPrefix string) ([]lsp.TextEdit, error) {
-	imports.LocalPrefix = localPrefix
-
-	sourceURI := source.FromDocumentURI(uri)
-	f := v.GetFile(sourceURI)
-	unformatted, _ := f.Read()
-
-	unformatted = bytes.Replace(unformatted, []byte("\r\n"), []byte("\n"), -1)
-
-	filename, _ := sourceURI.Filename()
-	formatted, err := imports.Process(filename, unformatted, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if bytes.Equal(unformatted, formatted) {
-		return nil, nil
-	}
-
-	return computeTextEdits(string(unformatted), string(formatted)), nil
-}
-
-// computeTextEdits computes text edits that are required to
-// change the `unformatted` to the `formatted` text.
-func computeTextEdits(unformatted string, formatted string) []lsp.TextEdit {
-
-	// LSP wants a list of TextEdits. We use difflib to compute a
-	// non-naive TextEdit. Originally we returned an edit which deleted
-	// everything followed by inserting everything. This leads to a poor
-	// experience in vscode.
-	unformattedLines := strings.Split(unformatted, "\n")
-	formattedLines := strings.Split(formatted, "\n")
-	m := difflib.NewMatcher(unformattedLines, formattedLines)
-	var edits []lsp.TextEdit
-	for _, op := range m.GetOpCodes() {
-		switch op.Tag {
-		case 'r': // 'r' (replace):  a[i1:i2] should be replaced by b[j1:j2]
-			edits = append(edits, lsp.TextEdit{
-				Range: lsp.Range{
-					Start: lsp.Position{
-						Line: op.I1,
-					},
-					End: lsp.Position{
-						Line: op.I2,
-					},
-				},
-				NewText: strings.Join(formattedLines[op.J1:op.J2], "\n") + "\n",
-			})
-		case 'd': // 'd' (delete):   a[i1:i2] should be deleted, j1==j2 in this case.
-			edits = append(edits, lsp.TextEdit{
-				Range: lsp.Range{
-					Start: lsp.Position{
-						Line: op.I1,
-					},
-					End: lsp.Position{
-						Line: op.I2,
-					},
-				},
-			})
-		case 'i': // 'i' (insert):   b[j1:j2] should be inserted at a[i1:i1], i1==i2 in this case.
-			edits = append(edits, lsp.TextEdit{
-				Range: lsp.Range{
-					Start: lsp.Position{
-						Line: op.I1,
-					},
-					End: lsp.Position{
-						Line: op.I1,
-					},
-				},
-				NewText: strings.Join(formattedLines[op.J1:op.J2], "\n") + "\n",
-			})
-		}
-	}
-
-	return edits
 }

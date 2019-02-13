@@ -5,10 +5,22 @@
 package langserver
 
 import (
+	"go/token"
+	"net/url"
+
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/sourcegraph/go-lsp"
-	"go/token"
 )
+
+// fromProtocolURI converts a protocol.DocumentURI to a source.URI.
+// TODO(rstambler): Add logic here to support Windows.
+func fromProtocolURI(uri lsp.DocumentURI) (source.URI, error) {
+	unescaped, err := url.PathUnescape(string(uri))
+	if err != nil {
+		return "", err
+	}
+	return source.URI(unescaped), nil
+}
 
 // fromProtocolRange converts a protocol range to a source range.
 // It uses fromProtocolPosition to convert the start and end positions, which

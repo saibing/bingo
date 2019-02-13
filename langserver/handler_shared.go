@@ -2,11 +2,12 @@ package langserver
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/sourcegraph/go-lsp"
 	"golang.org/x/tools/go/packages"
-	"strings"
 )
 
 // HandlerShared contains data structures that a build server and its

@@ -31,8 +31,6 @@ const (
 	emacsLockPrefix = ".#"
 )
 
-type path2Package map[string]*packages.Package
-
 // FindPackageFunc matches the signature of loader.Config.FindPackage, except
 // also takes a context.Context.
 type FindPackageFunc func(project *Project, importPath string) (*packages.Package, error)
@@ -50,6 +48,7 @@ type Project struct {
 	cached        bool
 	watched       int
 	lastBuildTime time.Time
+	cache         *PackageCache
 }
 
 // NewProject new project
@@ -79,9 +78,6 @@ func (p *Project) notify(err error) {
 
 // Init init project
 func (p *Project) Init(ctx context.Context, golistDuration int, globalCacheStyle string) error {
-	packages.DebugCache = false
-	packages.ParseFileTrace = false
-
 	start := time.Now()
 	defer func() {
 		elapsedTime := time.Since(start) / time.Second
@@ -93,7 +89,7 @@ func (p *Project) Init(ctx context.Context, golistDuration int, globalCacheStyle
 		return nil
 	}
 
-	p.view.Config.Cache = packages.NewCache()
+	p.cache = NewCache()
 	err := p.createBuiltin()
 	if err != nil {
 		return err
@@ -105,28 +101,10 @@ func (p *Project) Init(ctx context.Context, golistDuration int, globalCacheStyle
 
 	err = p.createProject()
 	p.notify(err)
-	if golistDuration > 0 {
-		p.view.Config.ListCache = packages.NewListCache(false)
-		p.goListMonitor(time.Duration(golistDuration) * time.Second)
-	}
 	p.lastBuildTime = time.Now()
 
 	go p.fsnotify()
 	return nil
-}
-
-// goListMonitor start go list cache
-func (p *Project) goListMonitor(interval time.Duration) {
-	if interval == 0 {
-		return
-	}
-	go func() {
-		tick := time.NewTicker(interval)
-		select {
-		case <-tick.C:
-			p.view.Config.ListCache.Refresh()
-		}
-	}()
 }
 
 func (p *Project) getImportPath() ([]string, string) {
@@ -369,56 +347,36 @@ func (p *Project) watch(rootDir string, watcher *fsnotify.Watcher) {
 // GetFromURI get package from document uri.
 func (p *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	filename, _ := source.FromDocumentURI(uri).Filename()
-	return p.view.Config.Cache.GetByURI(filename)
+	return p.cache.GetByURI(filename)
 }
 
 // GetFromPkgPath get package from package import path.
 func (p *Project) GetFromPkgPath(pkgPath string) *packages.Package {
-	return p.view.Config.Cache.Get(pkgPath)
+	return p.cache.Get(pkgPath)
 }
 
 func (p *Project) rebuildCache(eventName string) {
-	rebuild := p.cleanChangeFile(eventName)
-
-	if p.isTimeout() && (rebuild || p.isGomodFile(eventName)) {
+	if p.needRebuild(eventName) {
 		p.NotifyLog("fsnotify " + eventName)
-		p.view.Config.ListCache.Clean()
 		p.rebuildGopapthCache(eventName)
 		p.rebuildModuleCache(eventName)
 		p.lastBuildTime = time.Now()
 	}
 }
 
-func (p *Project) cleanChangeFile(eventName string) bool {
-	if !strings.HasSuffix(eventName, goext) {
-		return false
+func (p *Project) needRebuild(eventName string) bool {
+	if strings.HasSuffix(eventName, gomod) {
+		return true
 	}
+
 	if strings.HasPrefix(eventName, emacsLockPrefix) {
 		return false
 	}
 
-	p.view.mu.Lock()
-	defer p.view.mu.Unlock()
-
-	uri := source.ToURI(util.LowerDriver(eventName))
-	f := p.view.files[uri]
-	if f == nil {
-		return true
+	if !strings.HasSuffix(eventName, goext) {
+		return false
 	}
 
-	if f.from == fromCache {
-		f.setContent(nil, fromOpen)
-		return true
-	}
-
-	return false
-}
-
-func (p *Project) isGomodFile(eventName string) bool {
-	return strings.HasSuffix(eventName, gomod)
-}
-
-func (p *Project) isTimeout() bool {
 	return time.Now().Sub(p.lastBuildTime) >= 60*time.Second
 }
 
@@ -470,7 +428,7 @@ func (p *Project) NotifyLog(message string) {
 }
 
 // Search serach package cache
-func (p *Project) Search(walkFunc packages.WalkFunc) error {
+func (p *Project) Search(walkFunc source.WalkFunc) error {
 	var ranks []string
 	for _, module := range p.modules {
 		if module.mainModulePath == "." || module.mainModulePath == "" {
@@ -479,5 +437,32 @@ func (p *Project) Search(walkFunc packages.WalkFunc) error {
 		ranks = append(ranks, module.mainModulePath)
 	}
 
-	return p.view.Config.Cache.Walk(walkFunc, ranks)
+	return p.cache.Walk(walkFunc, ranks)
+}
+
+func (p *Project) setCache(pkgs []*packages.Package) {
+	seen := map[string]bool{}
+	for _, pkg := range pkgs {
+		p.setOnePackage(pkg, seen)
+	}
+}
+
+func (p *Project) setOnePackage(pkg *packages.Package, seen map[string]bool) {
+	if pkg == nil {
+		return
+	}
+
+	if seen[pkg.ID] {
+		return
+	}
+
+	p.cache.put(pkg)
+
+	for _, ip := range pkg.Imports {
+		p.setOnePackage(ip, seen)
+	}
+}
+
+func (p *Project) Cache() *PackageCache {
+	return p.cache
 }

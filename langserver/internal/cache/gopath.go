@@ -38,17 +38,18 @@ func (p *gopath) doInit() error {
 }
 
 func (p *gopath) rebuildCache() (bool, error) {
-	_, err := p.buildCache()
+	err := p.buildCache()
 	return err == nil, err
 }
 
-func (p *gopath) buildCache() ([]*packages.Package, error) {
+func (p *gopath) buildCache() error {
 	p.project.view.mu.Lock()
 	defer p.project.view.mu.Unlock()
 
 	cfg := p.project.view.Config
 	cfg.Dir = p.rootDir
 	cfg.ParseFile = nil
+	cfg.Mode = packages.LoadAllSyntax
 
 	var pattern string
 	if p.underGoroot {
@@ -57,5 +58,11 @@ func (p *gopath) buildCache() ([]*packages.Package, error) {
 		pattern = p.importPath + "/..."
 	}
 
-	return packages.Load(cfg, pattern)
+	pkgs, err := packages.Load(&cfg, pattern)
+	if err != nil {
+		return err
+	}
+
+	p.project.setCache(pkgs)
+	return nil
 }

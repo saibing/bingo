@@ -8,9 +8,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/util"
 	"sort"
 	"strings"
+
+	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/sourcegraph/go-lsp"
@@ -31,7 +32,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		return nil, err
 	}
 	pos := fromProtocolPosition(tok, params.Position)
-	items, prefix, err := source.Completion(ctx, f, pos)
+	items, prefix, err := source.Completion(ctx, f, pos, h.project.Cache())
 	if err != nil {
 		return nil, err
 	}

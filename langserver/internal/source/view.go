@@ -5,11 +5,22 @@
 package source
 
 import (
+	"context"
 	"go/ast"
 	"go/token"
 
 	"golang.org/x/tools/go/packages"
 )
+
+// View abstracts the underlying architecture of the package using the source
+// package. The view provides access to files and their contents, so the source
+// package does not directly access the file system.
+type View interface {
+	GetFile(ctx context.Context, uri URI) (File, error)
+	SetContent(ctx context.Context, uri URI, content []byte) (View, error)
+	GetAnalysisCache() *AnalysisCache
+	FileSet() *token.FileSet
+}
 
 // File represents a Go source file that has been type-checked. It is the input
 // to most of the exported functions in this package, as it wraps up the
@@ -20,8 +31,6 @@ type File interface {
 	GetFileSet() (*token.FileSet, error)
 	GetPackage() (*packages.Package, error)
 	GetToken() (*token.File, error)
-	GetCache() *packages.PackageCache
-
 	Read() ([]byte, error)
 }
 
@@ -40,4 +49,3 @@ type TextEdit struct {
 	Range   Range
 	NewText string
 }
-

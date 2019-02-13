@@ -123,7 +123,7 @@ func (m *module) rebuildCache() (bool, error) {
 		return false, nil
 	}
 
-	_, err = m.buildCache()
+	err = m.buildCache()
 	return err == nil, err
 }
 
@@ -138,14 +138,21 @@ func (m *module) hasChanged(moduleMap map[string]moduleInfo) bool {
 	return false
 }
 
-func (m *module) buildCache() ([]*packages.Package, error) {
+func (m *module) buildCache() error {
 	m.project.view.mu.Lock()
 	defer m.project.view.mu.Unlock()
 
 	cfg := m.project.view.Config
 	cfg.Dir = m.rootDir
 	cfg.ParseFile = nil
+	cfg.Mode = packages.LoadAllSyntax
 	pattern := cfg.Dir + "/..."
 
-	return packages.Load(cfg, pattern)
+	pkgs, err := packages.Load(&cfg, pattern)
+	if err != nil {
+		return err
+	}
+
+	m.project.setCache(pkgs)
+	return nil
 }

@@ -48,7 +48,7 @@ type finder func(types.Object, float64, []CompletionItem) []CompletionItem
 // identifier and can be used by the client to score the quality of the
 // completion. For instance, some clients may tolerate imperfect matches as
 // valid completion results, since users may make typos.
-func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionItem, prefix string, err error) {
+func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items []CompletionItem, prefix string, err error) {
 	file, err := f.GetAST()
 	if err != nil {
 		return nil, "", err
@@ -63,7 +63,6 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 	}
 
 	var pkgIdent string
-	cache := f.GetCache()
 	// If the position is not an identifier but immediately follows
 	// an identifier or selector period (as is common when
 	// requesting a completion), use the path to the preceding node.
@@ -188,7 +187,7 @@ func Completion(ctx context.Context, f File, pos token.Pos) (items []CompletionI
 // selector finds completions for
 // the specified selector expression.
 // TODO(rstambler): Set the prefix filter correctly for selectors.
-func selector(sel *ast.SelectorExpr, pos token.Pos, info *types.Info, found finder, cache *packages.PackageCache) (items []CompletionItem, err error) {
+func selector(sel *ast.SelectorExpr, pos token.Pos, info *types.Info, found finder, cache Cache) (items []CompletionItem, err error) {
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkgname, ok := info.Uses[id].(*types.PkgName); ok {
@@ -249,7 +248,7 @@ func selector(sel *ast.SelectorExpr, pos token.Pos, info *types.Info, found find
 }
 
 // lexical finds completions in the lexical environment.
-func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder, prefix string, cache *packages.PackageCache) (items []CompletionItem) {
+func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder, prefix string, cache Cache) (items []CompletionItem) {
 	var scopes []*types.Scope // scopes[i], where i<len(path), is the possibly nil Scope of path[i].
 	for _, n := range path {
 		switch node := n.(type) {
@@ -343,7 +342,7 @@ func inComment(pos token.Pos, commentGroups []*ast.CommentGroup) bool {
 
 // complit finds completions for field names inside a composite literal.
 // It reports whether the node was handled as part of a composite literal.
-func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder, pkgIdent string, cache *packages.PackageCache) (items []CompletionItem, prefix string, ok bool) {
+func complit(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder, pkgIdent string, cache Cache) (items []CompletionItem, prefix string, ok bool) {
 	var lit *ast.CompositeLit
 	prefix = pkgIdent
 	// First, determine if the pos is within a composite literal.
