@@ -1,6 +1,7 @@
 module github.com/saibing/bingo
 
 require (
+	github.com/fsnotify/fsevents v0.1.1
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gorilla/websocket v1.4.0 // indirect
