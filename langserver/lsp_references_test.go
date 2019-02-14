@@ -17,6 +17,8 @@ import (
 )
 
 func TestReferences(t *testing.T) {
+	setup(t)
+
 	test := func(t *testing.T, input string, output []string) {
 		testReferences(t, &referencesTestCase{input: input, output: output})
 	}

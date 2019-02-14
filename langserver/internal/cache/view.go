@@ -18,8 +18,8 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/tools/go/packages"
 	"github.com/saibing/bingo/langserver/internal/source"
+	"golang.org/x/tools/go/packages"
 )
 
 type View struct {

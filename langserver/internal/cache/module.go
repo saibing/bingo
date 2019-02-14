@@ -40,8 +40,7 @@ func (m *module) init() (err error) {
 		return err
 	}
 
-	_, err = m.buildCache()
-	return err
+	return m.buildCache()
 }
 
 func (m *module) doInit() error {

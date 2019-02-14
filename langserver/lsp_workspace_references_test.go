@@ -24,6 +24,8 @@ func matchDir(path string) string {
 }
 
 func TestWorkspaceReferences(t *testing.T) {
+	setup(t)
+
 	test := func(t *testing.T, data map[*lspext.WorkspaceReferencesParams][]string) {
 		for k, v := range data {
 			testWorkspaceReferences(t, &workspaceReferencesTestCase{input: k, output: v})

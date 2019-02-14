@@ -3,6 +3,7 @@ package langserver
 import (
 	"context"
 	"fmt"
+
 	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/saibing/bingo/langserver/internal/source"
@@ -19,7 +20,10 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 		}
 	}
 
-	f := h.overlay.view.GetFile(source.FromDocumentURI(fileURI))
+	f, err := h.overlay.view.GetFile(ctx, source.FromDocumentURI(fileURI))
+	if err != nil {
+		return nil, err
+	}
 	tok, err := f.GetToken()
 	if err != nil {
 		return nil, err

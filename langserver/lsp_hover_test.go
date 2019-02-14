@@ -15,6 +15,8 @@ import (
 )
 
 func TestHover(t *testing.T) {
+	setup(t)
+
 	test := func(t *testing.T, input string, output string) {
 		testHover(t, &hoverTestCase{input: input, output: output})
 	}

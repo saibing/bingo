@@ -29,8 +29,7 @@ func (p *gopath) init() (err error) {
 		return err
 	}
 
-	_, err = p.buildCache()
-	return err
+	return p.buildCache()
 }
 
 func (p *gopath) doInit() error {

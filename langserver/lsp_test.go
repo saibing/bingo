@@ -333,21 +333,30 @@ func initServer(rootDir string) {
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-
-	exported = packagestest.Export("bingo", packagestest.Modules, testdata)
-	defer exported.Cleanup()
-
-	defer func() {
-		if conn != nil {
-			if err := conn.Close(); err != nil {
-				log.Fatal("conn.Close", err)
-			}
-		}
-	}()
-
-	initServer(exported.Config.Dir)
+	defer tearDown()
 	code := m.Run()
 	os.Exit(code)
+}
+
+func setup(t *testing.T) {
+	if exported != nil {
+		return
+	}
+
+	exported = packagestest.Export(t, packagestest.Modules, testdata)
+	initServer(exported.Config.Dir)
+}
+
+func tearDown() {
+	if exported != nil {
+		exported.Cleanup()
+	}
+
+	if conn != nil {
+		if err := conn.Close(); err != nil {
+			log.Fatal("conn.Close", err)
+		}
+	}
 }
 
 func startLanguageServer(h jsonrpc2.Handler) (addr string, done func()) {

@@ -3,9 +3,6 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/sourcegraph/go-lsp"
-	"github.com/sourcegraph/go-lsp/lspext"
-	"github.com/sourcegraph/jsonrpc2"
 	"log"
 	"path/filepath"
 	"reflect"
@@ -13,10 +10,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/go-lsp/lspext"
+	"github.com/sourcegraph/jsonrpc2"
+
 	"github.com/saibing/bingo/langserver/internal/util"
 )
 
 func TestImplementations(t *testing.T) {
+	setup(t)
+
 	test := func(t *testing.T, input string, output []string) {
 		testImplementations(t, &implementationsTestCase{input: input, output: output})
 	}

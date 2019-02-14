@@ -15,6 +15,8 @@ import (
 )
 
 func TestCompletion(t *testing.T) {
+	setup(t)
+
 	test := func(t *testing.T, input string, output string) {
 		testCompletion(t, &completionTestCase{input: input, output: output})
 	}

@@ -3,18 +3,21 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/sourcegraph/go-lsp"
-	"github.com/sourcegraph/jsonrpc2"
 	"log"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/jsonrpc2"
+
 	"github.com/saibing/bingo/langserver/internal/util"
 )
 
 func TestDocumentSymbol(t *testing.T) {
+	setup(t)
+
 	test := func(t *testing.T, data map[string][]string) {
 		for k, v := range data {
 			testDocumentSymbol(t, &documentSymbolTestCase{input: k, output: v})

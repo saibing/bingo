@@ -26,7 +26,10 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 			Message: fmt.Sprintf("%s not yet supported for out-of-workspace URI", fileURI),
 		}
 	}
-	f := h.overlay.view.GetFile(source.FromDocumentURI(fileURI))
+	f, err := h.overlay.view.GetFile(ctx, source.FromDocumentURI(fileURI))
+	if err != nil {
+		return nil, err
+	}
 	tok, err := f.GetToken()
 	if err != nil {
 		return nil, err

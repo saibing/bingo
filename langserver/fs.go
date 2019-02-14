@@ -5,11 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go/token"
+	"log"
 
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/source"
 	lsp "github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"golang.org/x/tools/go/packages"
 )
 
 // isFileSystemRequest returns if this is an LSP method whose sole
@@ -73,7 +76,14 @@ type overlay struct {
 }
 
 func newOverlay(conn *jsonrpc2.Conn, diagnosticsStyle DiagnosticsStyleEnum, buildTags []string) *overlay {
-	return &overlay{conn: conn, view: cache.NewView(buildTags), diagnosticsStyle: diagnosticsStyle}
+	cfg := &packages.Config{
+		Fset:       token.NewFileSet(),
+		Tests:      true,
+		Mode:       packages.LoadImports,
+		BuildFlags: buildTags,
+	}
+	view := cache.NewView(cfg)
+	return &overlay{conn: conn, view: view, diagnosticsStyle: diagnosticsStyle}
 }
 
 func (h *overlay) didOpen(ctx context.Context, params *lsp.DidOpenTextDocumentParams) {
@@ -85,7 +95,7 @@ func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocume
 		return &jsonrpc2.Error{Code: jsonrpc2.CodeMethodNotFound, Message: "no content changes provided"}
 	}
 
-	contents, found := h.get(params.TextDocument.URI)
+	contents, found := h.get(ctx, params.TextDocument.URI)
 	if !found {
 		return fmt.Errorf("received textDocument/didChange for unknown file %q", params.TextDocument.URI)
 	}
@@ -104,7 +114,8 @@ func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocume
 }
 
 func (h *overlay) didClose(ctx context.Context, params *lsp.DidCloseTextDocumentParams) {
-	h.view.GetFile(source.FromDocumentURI(params.TextDocument.URI)).SetContent(nil)
+	uri := source.FromDocumentURI(params.TextDocument.URI)
+	h.view.SetContent(ctx, uri, nil)
 }
 
 func (h *overlay) didSave(ctx context.Context, param *lsp.DidSaveTextDocumentParams) {
@@ -113,12 +124,19 @@ func (h *overlay) didSave(ctx context.Context, param *lsp.DidSaveTextDocumentPar
 	}
 
 	sourceURI := source.FromDocumentURI(param.TextDocument.URI)
-	f := h.view.GetFile(sourceURI)
+	f, err := h.view.GetFile(ctx, sourceURI)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
 	h.diagnosetics(ctx, f)
 }
 
-func (h *overlay) get(uri lsp.DocumentURI) ([]byte, bool) {
-	file := h.view.GetFile(source.FromDocumentURI(uri))
+func (h *overlay) get(ctx context.Context, uri lsp.DocumentURI) ([]byte, bool) {
+	file, err := h.view.GetFile(ctx, source.FromDocumentURI(uri))
+	if err != nil {
+		return nil, false
+	}
 	if file != nil {
 		contents, err := file.Read()
 		return contents, err == nil
@@ -128,9 +146,11 @@ func (h *overlay) get(uri lsp.DocumentURI) ([]byte, bool) {
 
 func (h *overlay) cacheFile(ctx context.Context, uri lsp.DocumentURI, text []byte) {
 	sourceURI := source.FromDocumentURI(uri)
-	f := h.view.GetFile(sourceURI)
-	f.SetContent(text)
-
+	h.view.SetContent(ctx, sourceURI, text)
+	f, err := h.view.GetFile(ctx, sourceURI)
+	if err != nil {
+		return
+	}
 	if h.diagnosticsStyle != instantDiagnostics {
 		return
 	}

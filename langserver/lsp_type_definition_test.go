@@ -3,17 +3,20 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/util"
-	"github.com/sourcegraph/go-lsp"
-	"github.com/sourcegraph/jsonrpc2"
 	"log"
 	"path"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/saibing/bingo/langserver/internal/util"
+	"github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/jsonrpc2"
 )
 
 func TestTypeDefinition(t *testing.T) {
+	setup(t)
+
 	test := func(t *testing.T, input string, output string) {
 		testTypeDefinition(t, &definitionTestCase{input: input, output: output})
 	}

@@ -3,17 +3,20 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/sourcegraph/go-lsp"
-	"github.com/sourcegraph/jsonrpc2"
 	"log"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/jsonrpc2"
+
 	"github.com/saibing/bingo/langserver/internal/util"
 )
 
 func TestSignature(t *testing.T) {
+	setup(t)
+
 	test := func(t *testing.T, data map[string]string) {
 		for k, v := range data {
 			testSignature(t, &signatureTestCase{input: k, output: v})

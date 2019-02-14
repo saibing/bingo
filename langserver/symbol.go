@@ -287,7 +287,7 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 
 	pkg, astFile, err = h.loadAstFromGlobalCache(fileURI)
 	if pkg == nil || astFile == nil {
-		pkg, astFile, err = h.loadAstFromSourceView(fileURI)
+		pkg, astFile, err = h.loadAstFromSourceView(ctx, fileURI)
 	}
 	if err != nil {
 		return nil, err

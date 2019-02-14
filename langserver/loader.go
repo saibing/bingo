@@ -3,10 +3,11 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
 	"go/token"
 	"strings"
+
+	"github.com/sourcegraph/jsonrpc2"
 
 	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/source"
@@ -37,15 +38,18 @@ func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, po
 	}
 
 	uri := source.FromDocumentURI(fileURI)
-	pkg, pos, err := h.loadFromSourceView(uri, position)
+	pkg, pos, err := h.loadFromSourceView(ctx, uri, position)
 	if ctx.Err() != nil {
 		return nil, token.NoPos, ctx.Err()
 	}
 	return pkg, pos, err
 }
 
-func (h *LangHandler) loadFromSourceView(uri source.URI, position lsp.Position) (*packages.Package, token.Pos, error) {
-	f := h.overlay.view.GetFile(uri)
+func (h *LangHandler) loadFromSourceView(ctx context.Context, uri source.URI, position lsp.Position) (*packages.Package, token.Pos, error) {
+	f, err := h.overlay.view.GetFile(ctx, uri)
+	if err != nil {
+		return nil, token.NoPos, err
+	}
 	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, token.NoPos, err
@@ -66,10 +70,13 @@ func (h *LangHandler) loadFromSourceView(uri source.URI, position lsp.Position) 
 	return pkg, pos, nil
 }
 
-func (h *LangHandler) loadAstFromSourceView(fileURI lsp.DocumentURI) (*packages.Package, *ast.File, error) {
+func (h *LangHandler) loadAstFromSourceView(ctx context.Context, fileURI lsp.DocumentURI) (*packages.Package, *ast.File, error) {
 	uri := source.FromDocumentURI(fileURI)
 
-	f := h.overlay.view.GetFile(uri)
+	f, err := h.overlay.view.GetFile(ctx, uri)
+	if err != nil {
+		return nil, nil, err
+	}
 	pkg, err := f.GetPackage()
 	if err != nil {
 		return nil, nil, err

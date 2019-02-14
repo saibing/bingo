@@ -17,6 +17,8 @@ import (
 )
 
 func TestDefinition(t *testing.T) {
+	setup(t)
+
 	test := func(t *testing.T, input string, output string) {
 		testDefinition(t, &definitionTestCase{input: input, output: output})
 	}

@@ -3,12 +3,13 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/sourcegraph/go-lsp/lspext"
 	"log"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/sourcegraph/go-lsp/lspext"
 
 	"github.com/saibing/bingo/langserver/internal/util"
 
@@ -20,6 +21,8 @@ const exportedOnUnexported = "exported_on_unexported"
 const gorootnoexport = "gorootnoexport"
 
 func TestWorkspaceSymbol(t *testing.T) {
+	setup(t)
+
 	test := func(t *testing.T, data map[*lspext.WorkspaceSymbolParams][]string) {
 		for k, v := range data {
 			testWorkspaceSymbol(t, &workspaceSymbolTestCase{input: k, output: v})

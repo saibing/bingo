@@ -3,18 +3,21 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/util"
-	"github.com/sourcegraph/go-lsp"
-	"github.com/sourcegraph/go-lsp/lspext"
-	"github.com/sourcegraph/jsonrpc2"
 	"log"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/saibing/bingo/langserver/internal/util"
+	"github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/go-lsp/lspext"
+	"github.com/sourcegraph/jsonrpc2"
 )
 
 func TestXDefinition(t *testing.T) {
+	setup(t)
+
 	test := func(t *testing.T, input string, output string) {
 		testXDefinition(t, &definitionTestCase{input: input, output: output})
 	}

@@ -201,7 +201,7 @@ func (c *PackageCache) Walk(walkFunc source.WalkFunc, ranks []string) error {
 	return c.walk(idList, walkFunc)
 }
 
-func (c *PackageCache) walk(idList []string, walkFunc WalkFunc) error {
+func (c *PackageCache) walk(idList []string, walkFunc source.WalkFunc) error {
 	for _, id := range idList {
 		pkg := c.get(id)
 		if err := walkFunc(pkg); err != nil {
