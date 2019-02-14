@@ -90,9 +90,10 @@ func (p *Project) Init(ctx context.Context, golistDuration int, globalCacheStyle
 	}
 
 	p.cache = NewCache()
+	p.NotifyInfo("create builtin package")
 	err := p.createBuiltin()
 	if err != nil {
-		return err
+		p.notify(err)
 	}
 
 	if globalCacheStyle != "always" {
@@ -139,6 +140,7 @@ func (p *Project) createProject() error {
 	value := os.Getenv(go111module)
 
 	if value == "on" {
+		p.NotifyInfo("GO111MODULE=on, module mode")
 		gomodList := p.findGoModFiles()
 		return p.createGoModule(gomodList)
 	}
@@ -151,6 +153,7 @@ func (p *Project) createProject() error {
 	paths, importPath := p.getImportPath()
 	p.NotifyLog(fmt.Sprintf("GOPATH: %v, import path: %s", paths, importPath))
 	if (value == "" || value == "auto") && importPath == "" {
+		p.NotifyInfo("GO111MODULE=auto, module mode")
 		gomodList := p.findGoModFiles()
 		return p.createGoModule(gomodList)
 	}
@@ -166,6 +169,7 @@ func (p *Project) createProject() error {
 		return fmt.Errorf("%s is not correct root dir of project.", p.rootDir)
 	}
 
+	p.NotifyInfo("GOPATH mode")
 	return p.createGoPath(importPath, false)
 }
 
