@@ -143,7 +143,6 @@ func (m *module) buildCache() error {
 
 	cfg := m.project.view.Config
 	cfg.Dir = m.rootDir
-	cfg.ParseFile = nil
 	cfg.Mode = packages.LoadAllSyntax
 	pattern := cfg.Dir + "/..."
 

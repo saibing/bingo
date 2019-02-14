@@ -47,7 +47,6 @@ func (p *gopath) buildCache() error {
 
 	cfg := p.project.view.Config
 	cfg.Dir = p.rootDir
-	cfg.ParseFile = nil
 	cfg.Mode = packages.LoadAllSyntax
 
 	var pattern string

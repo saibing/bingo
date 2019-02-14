@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/token"
+	"go/ast"
+	"go/parser"
 	"log"
 
 	"github.com/saibing/bingo/langserver/internal/cache"
@@ -75,11 +77,17 @@ type overlay struct {
 	diagnosticsStyle DiagnosticsStyleEnum
 }
 
-func newOverlay(conn *jsonrpc2.Conn, diagnosticsStyle DiagnosticsStyleEnum, buildTags []string) *overlay {
+func newOverlay(ctx context.Context, conn *jsonrpc2.Conn, rootPath string, diagnosticsStyle DiagnosticsStyleEnum, buildTags []string) *overlay {
 	cfg := &packages.Config{
-		Fset:       token.NewFileSet(),
-		Tests:      true,
-		Mode:       packages.LoadImports,
+		Context: ctx,
+		Dir:     rootPath,
+		Mode:    packages.LoadImports,
+		Fset:    token.NewFileSet(),
+		Overlay: make(map[string][]byte),
+		ParseFile: func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+			return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
+		},
+		Tests: true,
 		BuildFlags: buildTags,
 	}
 	view := cache.NewView(cfg)

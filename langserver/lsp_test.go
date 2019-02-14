@@ -300,7 +300,37 @@ var (
 	gomoduleDir  = filepath.Join(gopathDir, githubModule)
 )
 
+func TestMain(m *testing.M) {
+	flag.Parse()
+	code := m.Run()
+	tearDown()
+	os.Exit(code)
+}
+
+func setup(t *testing.T) {
+	if exported != nil {
+		return
+	}
+
+	exported = packagestest.Export(t, packagestest.Modules, testdata)
+	initServer(exported.Config.Dir)
+}
+
+func tearDown() {
+	if exported != nil {
+		fmt.Printf("clean up module project %s\n", exported.Config.Dir)
+		exported.Cleanup()
+	}
+
+	if conn != nil {
+		if err := conn.Close(); err != nil {
+			log.Fatal("conn.Close", err)
+		}
+	}
+}
+
 func initServer(rootDir string) {
+	os.Chdir(rootDir)
 	root := util.PathToURI(filepath.ToSlash(rootDir))
 	fmt.Printf("root uri is %s\n", root)
 	cfg := NewDefaultConfig()
@@ -328,34 +358,6 @@ func initServer(rootDir string) {
 		RootImportPath: rootImportPath,
 	}, nil); err != nil {
 		log.Fatal("conn.Call", err)
-	}
-}
-
-func TestMain(m *testing.M) {
-	flag.Parse()
-	defer tearDown()
-	code := m.Run()
-	os.Exit(code)
-}
-
-func setup(t *testing.T) {
-	if exported != nil {
-		return
-	}
-
-	exported = packagestest.Export(t, packagestest.Modules, testdata)
-	initServer(exported.Config.Dir)
-}
-
-func tearDown() {
-	if exported != nil {
-		exported.Cleanup()
-	}
-
-	if conn != nil {
-		if err := conn.Close(); err != nil {
-			log.Fatal("conn.Close", err)
-		}
 	}
 }
 
