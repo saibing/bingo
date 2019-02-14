@@ -9,6 +9,8 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -78,12 +80,25 @@ func (v *View) getFile(uri source.URI) *File {
 	return f
 }
 
+func isFileInsideGomod(path string) bool {
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		gopath = filepath.Join(os.Getenv("HOME"), "go")
+	}
+	gomodpath := filepath.Join(gopath, "pkg", "mod")
+
+	return strings.HasPrefix(path, gomodpath)
+}
+
 func (v *View) parse(uri source.URI) error {
 	path, err := uri.Filename()
 	if err != nil {
 		return err
 	}
 
+	if !isFileInsideGomod(path) {
+		v.Config.Dir = filepath.Dir(path)
+	}
 	v.Config.ParseFile = v.parseFile
 	pkgs, err := packages.Load(v.Config, fmt.Sprintf("file=%s", path))
 	if len(pkgs) == 0 {
