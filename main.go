@@ -34,6 +34,7 @@ var (
 	disableFuncSnippet   = flag.Bool("disable-func-snippet", false, "disable argument snippets on func completion. Can be overridden by InitializationOptions.")
 	globalCacheStyle     = flag.String("cache-style", "always", "set global cache style: none, on-demand, always. Can be overridden by InitializationOptions.")
 	formatStyle          = flag.String("format-style", "goimports", "which format style is used to format documents. Supported: gofmt and goimports. Can be overridden by InitializationOptions.")
+	goimportsPrefix      = flag.String("goimports-prefix", "", "set '--local' flag for the goimports invocation. Can be overridden by InitializationOptions.")
 	golistDuration       = flag.Int("golist-duration", 0, "the interval of refresh the go list cache, unit: second, 0 means that does not use go list cache. Can be overridden by InitializationOptions.")
 	enhanceSignatureHelp = flag.Bool("enhance-signature-help", false, "enhance signature help with return result. Can be overridden by InitializationOptions.")
 	buildTags            = flag.String("build-tags", "", "build tags, separated by spaces.")
@@ -66,6 +67,7 @@ func main() {
 	cfg.DiagnosticsStyle = *diagnosticsStyle
 	cfg.GlobalCacheStyle = *globalCacheStyle
 	cfg.FormatStyle = *formatStyle
+	cfg.GoimportsLocalPrefix = *goimportsPrefix
 	cfg.GolistDuration = *golistDuration
 	cfg.EnhanceSignatureHelp = *enhanceSignatureHelp
 	cfg.BuildTags = strings.Split(*buildTags, " ")
