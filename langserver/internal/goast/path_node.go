@@ -2,13 +2,14 @@ package goast
 
 import (
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/util"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"reflect"
+
+	"github.com/saibing/bingo/langserver/internal/util"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
-	"reflect"
 )
 
 // PathEnclosingInterval returns the PackageInfo and ast.Node that
@@ -24,7 +25,7 @@ func PathEnclosingInterval(root *packages.Package, start, end token.Pos) (path [
 		return path != nil && len(path) != 0
 	}
 
-	visitPackage(root, found)
+	visit(root, found)
 	return
 }
 
@@ -147,25 +148,13 @@ func GetObjectPathNode(pkg *packages.Package, o types.Object) (nodes []ast.Node,
 	return
 }
 
-func visitPackage(root *packages.Package, f func(*packages.Package) bool) bool {
-	seen := map[string]bool{}
-	return visit(root, f, seen, 0)
-}
-
-func visit(root *packages.Package, found func(*packages.Package) bool, seen map[string]bool, level int) bool {
-	if level >= 2 || seen[root.PkgPath] {
-		return false
-	}
-	seen[root.PkgPath] = true
-
+func visit(root *packages.Package, found func(*packages.Package) bool) bool {
 	if found(root) {
 		return true
 	}
 
-	level++
-
-	for _, importPkg := range root.Imports {
-		if visit(importPkg, found, seen, level) {
+	for _, ip := range root.Imports {
+		if found(ip) {
 			return true
 		}
 	}
@@ -186,7 +175,7 @@ func GetSyntaxFile(pkg *packages.Package, filename string) *ast.File {
 		return false
 	}
 
-	visitPackage(pkg, found)
+	visit(pkg, found)
 
 	return file
 }
@@ -203,7 +192,7 @@ func FindIdentObject(pkg *packages.Package, ident *ast.Ident) types.Object {
 		return o != nil
 	}
 
-	visitPackage(pkg, found)
+	visit(pkg, found)
 	return o
 }
 
@@ -219,7 +208,7 @@ func FindIdentType(pkg *packages.Package, ident *ast.Ident) types.Type {
 		return t != nil
 	}
 
-	visitPackage(pkg, found)
+	visit(pkg, found)
 	return t
 }
 
@@ -246,7 +235,7 @@ func SearchImportPackage(root *packages.Package, path string) *packages.Package 
 		return p != nil
 	}
 
-	visitPackage(root, found)
+	visit(root, found)
 
 	return p
 }

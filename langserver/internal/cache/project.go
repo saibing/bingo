@@ -451,7 +451,7 @@ func (p *Project) setCache(pkgs []*packages.Package) {
 }
 
 func (p *Project) setOnePackage(pkg *packages.Package, seen map[string]bool) {
-	if pkg == nil {
+	if pkg == nil || len(pkg.Syntax) == 0 {
 		return
 	}
 
