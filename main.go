@@ -68,7 +68,10 @@ func main() {
 	cfg.FormatStyle = *formatStyle
 	cfg.GolistDuration = *golistDuration
 	cfg.EnhanceSignatureHelp = *enhanceSignatureHelp
-	cfg.BuildTags = strings.Split(*buildTags, " ")
+
+	if *buildTags != "" {
+		cfg.BuildTags = strings.Split(*buildTags, " ")
+	}
 
 	if *maxparallelism > 0 {
 		cfg.MaxParallelism = *maxparallelism
