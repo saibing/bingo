@@ -144,6 +144,16 @@ func (c *PackageCache) Get(pkgPath string) *packages.Package {
 	return pkg
 }
 
+func (c *PackageCache) Put(pkg *packages.Package) {
+	if c == nil {
+		return
+	}
+
+	c.Lock()
+	defer c.Unlock()
+	c.put(pkg)
+}
+
 // GetByURI get package by filename from global cache
 func (c *PackageCache) GetByURI(filename string) *packages.Package {
 	if c == nil {

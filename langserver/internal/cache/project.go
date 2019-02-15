@@ -48,7 +48,6 @@ type Project struct {
 	cached        bool
 	watched       int
 	lastBuildTime time.Time
-	cache         *PackageCache
 }
 
 // NewProject new project
@@ -89,7 +88,7 @@ func (p *Project) Init(ctx context.Context, golistDuration int, globalCacheStyle
 		return nil
 	}
 
-	p.cache = NewCache()
+	p.view.cache = NewCache()
 	err := p.createBuiltin()
 	if err != nil {
 		p.notify(err)
@@ -350,12 +349,12 @@ func (p *Project) watch(rootDir string, watcher *fsnotify.Watcher) {
 // GetFromURI get package from document uri.
 func (p *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	filename, _ := source.FromDocumentURI(uri).Filename()
-	return p.cache.GetByURI(filename)
+	return p.view.cache.GetByURI(filename)
 }
 
 // GetFromPkgPath get package from package import path.
 func (p *Project) GetFromPkgPath(pkgPath string) *packages.Package {
-	return p.cache.Get(pkgPath)
+	return p.view.cache.Get(pkgPath)
 }
 
 func (p *Project) rebuildCache(eventName string) {
@@ -440,7 +439,7 @@ func (p *Project) Search(walkFunc source.WalkFunc) error {
 		ranks = append(ranks, module.mainModulePath)
 	}
 
-	return p.cache.Walk(walkFunc, ranks)
+	return p.view.cache.Walk(walkFunc, ranks)
 }
 
 func (p *Project) setCache(pkgs []*packages.Package) {
@@ -460,7 +459,7 @@ func (p *Project) setOnePackage(pkg *packages.Package, seen map[string]bool) {
 	}
 	seen[pkg.ID] = true
 
-	p.cache.put(pkg)
+	p.view.cache.put(pkg)
 
 	for _, ip := range pkg.Imports {
 		p.setOnePackage(ip, seen)
@@ -468,5 +467,5 @@ func (p *Project) setOnePackage(pkg *packages.Package, seen map[string]bool) {
 }
 
 func (p *Project) Cache() *PackageCache {
-	return p.cache
+	return p.view.cache
 }

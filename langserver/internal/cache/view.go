@@ -18,8 +18,8 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/tools/go/packages"
 	"github.com/saibing/bingo/langserver/internal/source"
+	"golang.org/x/tools/go/packages"
 )
 
 type View struct {
@@ -30,6 +30,7 @@ type View struct {
 	files map[source.URI]*File
 
 	analysisCache *source.AnalysisCache
+	cache         *PackageCache
 }
 
 // NewView creates a new View, given a root path and go/packages configuration.
@@ -198,6 +199,7 @@ func (imp *importer) Import(path string) (*types.Package, error) {
 	if path == imp.topLevelPkgPath {
 		return nil, fmt.Errorf("import cycle: [%v]", path)
 	}
+
 	imp.mu.Lock()
 	e, ok := imp.entries[path]
 	if ok {
@@ -220,6 +222,11 @@ func (imp *importer) Import(path string) (*types.Package, error) {
 }
 
 func (imp *importer) importPackage(pkgPath string) (*types.Package, error) {
+	pkg := imp.v.cache.Get(pkgPath)
+	if pkg != nil && pkgPath != imp.topLevelPkgPath {
+		return pkg.Types, nil
+	}
+
 	imp.mu.Lock()
 	pkg, ok := imp.packages[pkgPath]
 	imp.mu.Unlock()
@@ -250,6 +257,8 @@ func (imp *importer) importPackage(pkgPath string) (*types.Package, error) {
 	}
 	check := types.NewChecker(cfg, imp.v.Config.Fset, pkg.Types, pkg.TypesInfo)
 	check.Files(pkg.Syntax)
+
+	imp.v.cache.Put(pkg)
 
 	return pkg.Types, nil
 }
