@@ -59,7 +59,7 @@ which format style is used to format documents. Supported: gofmt and goimports
 #### --diagnostics-style &lt;style&gt;
 which diagnostics style is used to diagnostics current document. Supported: none, instant, onsave.
 
-####  --cache-style
+####  --cache-style &lt;style&gt;
 set global cache style: none, on-demand, always.
 
 ## Language Client
