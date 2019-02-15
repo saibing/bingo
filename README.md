@@ -115,7 +115,3 @@ let g:LanguageClient_serverCommands = {
 * [go-langserver](https://github.com/sourcegraph/go-langserver)
 * [gopls](https://github.com/golang/tools/blob/master/cmd/gopls/main.go)
 
----
-
-## Usage
-Please reference bingo's [wiki](https://github.com/saibing/bingo/wiki).
