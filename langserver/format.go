@@ -37,10 +37,7 @@ func formatRange(ctx context.Context, v source.View, uri lsp.DocumentURI, rng *l
 	if err != nil {
 		return nil, err
 	}
-	tok, err := f.GetToken()
-	if err != nil {
-		return nil, err
-	}
+	tok := f.GetToken()
 	var r source.Range
 	if rng == nil {
 		r.Start = tok.Pos(0)
@@ -48,27 +45,25 @@ func formatRange(ctx context.Context, v source.View, uri lsp.DocumentURI, rng *l
 	} else {
 		r = fromProtocolRange(tok, *rng)
 	}
-	content, err := f.Read()
-	if err != nil {
-		return nil, err
-	}
 
 	var edits []source.TextEdit
 	if imports {
-		edits, err = source.Imports(ctx, tok, content, r)
+		edits, err = source.Imports(ctx, f, r)
 	} else {
 		edits, err = source.Format(ctx, f, r)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return toProtocolEdits(tok, content, edits), nil
+	return toProtocolEdits(f, edits), nil
 }
 
-func toProtocolEdits(tok *token.File, content []byte, edits []source.TextEdit) []lsp.TextEdit {
+func toProtocolEdits(f source.File, edits []source.TextEdit) []lsp.TextEdit {
 	if edits == nil {
 		return nil
 	}
+	tok := f.GetToken()
+	content := f.GetContent()
 	// When a file ends with an empty line, the newline character is counted
 	// as part of the previous line. This causes the formatter to insert
 	// another unnecessary newline on each formatting. We handle this case by

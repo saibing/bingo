@@ -146,7 +146,7 @@ func (h *overlay) get(ctx context.Context, uri lsp.DocumentURI) ([]byte, bool) {
 		return nil, false
 	}
 	if file != nil {
-		contents, err := file.Read()
+		contents := file.GetContent()
 		return contents, err == nil
 	}
 	return nil, false

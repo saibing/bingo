@@ -28,14 +28,8 @@ type ParameterInformation struct {
 }
 
 func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packages.Package, enhance bool) (*SignatureInformation, error) {
-	fAST, err := f.GetAST()
-	if err != nil {
-		return nil, err
-	}
-	pkg, err := f.GetPackage()
-	if err != nil {
-		return nil, err
-	}
+	fAST := f.GetAST()
+	pkg := f.GetPackage()
 
 	// Find a call expression surrounding the query position.
 	var callExpr *ast.CallExpr

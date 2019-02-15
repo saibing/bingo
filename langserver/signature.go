@@ -24,10 +24,7 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	if err != nil {
 		return nil, err
 	}
-	tok, err := f.GetToken()
-	if err != nil {
-		return nil, err
-	}
+	tok := f.GetToken()
 	pos := fromProtocolPosition(tok, params.Position)
 	info, err := source.SignatureHelp(ctx, f, pos, h.project.GetBuiltinPackage(), h.DefaultConfig.EnhanceSignatureHelp)
 	if err != nil {

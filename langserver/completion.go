@@ -30,10 +30,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 	if err != nil {
 		return nil, err
 	}
-	tok, err := f.GetToken()
-	if err != nil {
-		return nil, err
-	}
+	tok := f.GetToken()
 	pos := fromProtocolPosition(tok, params.Position)
 	items, prefix, err := source.Completion(ctx, f, pos, h.project.Cache())
 	if err != nil {

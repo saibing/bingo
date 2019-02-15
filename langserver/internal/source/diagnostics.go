@@ -19,10 +19,8 @@ type Diagnostic struct {
 }
 
 func Diagnostics(ctx context.Context, f File) (map[string][]Diagnostic, error) {
-	pkg, err := f.GetPackage()
-	if err != nil {
-		return nil, err
-	}
+	pkg := f.GetPackage()
+
 	// Prepare the reports we will send for this package.
 	reports := make(map[string][]Diagnostic)
 	for _, filename := range pkg.GoFiles {

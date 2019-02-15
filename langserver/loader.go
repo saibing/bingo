@@ -50,18 +50,11 @@ func (h *LangHandler) loadFromSourceView(ctx context.Context, uri source.URI, po
 	if err != nil {
 		return nil, token.NoPos, err
 	}
-	pkg, err := f.GetPackage()
-	if err != nil {
-		return nil, token.NoPos, err
-	}
+	pkg := f.GetPackage()
 	if pkg == nil {
 		return nil, token.NoPos, fmt.Errorf("package is null for file %s", uri)
 	}
-	tok, err := f.GetToken()
-	if err != nil {
-		return nil, token.NoPos, err
-	}
-
+	tok := f.GetToken()
 	if tok == nil {
 		return nil, token.NoPos, fmt.Errorf("token file is null for file %s", uri)
 	}
@@ -77,20 +70,12 @@ func (h *LangHandler) loadAstFromSourceView(ctx context.Context, fileURI lsp.Doc
 	if err != nil {
 		return nil, nil, err
 	}
-	pkg, err := f.GetPackage()
-	if err != nil {
-		return nil, nil, err
-	}
-
+	pkg := f.GetPackage()
 	if pkg == nil {
 		return nil, nil, fmt.Errorf("package is null for file %s", uri)
 	}
 
-	astFile, err := f.GetAST()
-	if err != nil {
-		return nil, nil, err
-	}
-
+	astFile := f.GetAST()
 	if astFile == nil {
 		return nil, nil, fmt.Errorf("ast file is null for file %s", uri)
 	}

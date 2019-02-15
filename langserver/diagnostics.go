@@ -18,11 +18,7 @@ import (
 // NOTICE: Code adapted from https://github.com/golang/tools/blob/master/internal/lsp/diagnostics.go.
 
 func diagnostics(f source.File) (map[string][]lsp.Diagnostic, error) {
-	pkg, err := f.GetPackage()
-	if err != nil {
-		return nil, err
-	}
-
+	pkg := f.GetPackage()
 	if pkg == nil {
 		return nil, fmt.Errorf("package is null for file")
 	}
