@@ -111,7 +111,4 @@ let g:LanguageClient_serverCommands = {
 
 > gopls is an official language server,  and it is currently in early development.
 
-## Similar projects
-* [go-langserver](https://github.com/sourcegraph/go-langserver)
-* [gopls](https://github.com/golang/tools/blob/master/cmd/gopls/main.go)
 
