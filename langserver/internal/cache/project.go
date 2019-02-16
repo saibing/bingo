@@ -28,6 +28,32 @@ const (
 	emacsLockPrefix = ".#"
 )
 
+var (
+	goroot  = getGoRoot()
+	gopaths = getGoPaths()
+)
+
+func getGoRoot() string {
+	root := runtime.GOROOT()
+	root = filepath.ToSlash(filepath.Join(root, "src"))
+	return util.LowerDriver(root)
+}
+
+func getGoPaths() []string {
+	gopath := os.Getenv(gopathEnv)
+	if gopath == "" {
+		gopath = filepath.Join(os.Getenv("HOME"), "go")
+	}
+
+	paths := strings.Split(gopath, string(os.PathListSeparator))
+	return paths
+}
+
+func isFileInsideGomod(path string) bool {
+	gomodpath := filepath.Join(gopaths[0], "pkg", "mod")
+	return strings.HasPrefix(path, gomodpath)
+}
+
 // FindPackageFunc matches the signature of loader.Config.FindPackage, except
 // also takes a context.Context.
 type FindPackageFunc func(project *Project, importPath string) (*packages.Package, error)
@@ -39,7 +65,6 @@ type Project struct {
 	view          *View
 	rootDir       string
 	vendorDir     string
-	goroot        string
 	modules       []*module
 	gopath        *gopath
 	cached        bool
@@ -52,17 +77,10 @@ func NewProject(conn jsonrpc2.JSONRPC2, rootDir string, view *View) *Project {
 		conn:    conn,
 		view:    view,
 		rootDir: util.LowerDriver(rootDir),
-		goroot:  getGoRoot(),
 	}
 
 	p.vendorDir = filepath.Join(p.rootDir, vendor)
 	return p
-}
-
-func getGoRoot() string {
-	root := runtime.GOROOT()
-	root = filepath.ToSlash(filepath.Join(root, "src"))
-	return util.LowerDriver(root)
 }
 
 func (p *Project) notify(err error) {
@@ -112,26 +130,20 @@ func (p *Project) fsnotify() {
 	go subject.notify()
 }
 
-func (p *Project) getImportPath() ([]string, string) {
-	gopath := os.Getenv(gopathEnv)
-	if gopath == "" {
-		gopath = filepath.Join(os.Getenv("HOME"), "go")
-	}
-
-	paths := strings.Split(gopath, string(os.PathListSeparator))
-	for _, path := range paths {
+func (p *Project) getImportPath() string {
+	for _, path := range gopaths {
 		path = util.LowerDriver(filepath.ToSlash(path))
 		srcDir := filepath.Join(path, "src")
 		if strings.HasPrefix(p.rootDir, srcDir) && p.rootDir != srcDir {
-			return paths, filepath.ToSlash(p.rootDir[len(srcDir)+1:])
+			return filepath.ToSlash(p.rootDir[len(srcDir)+1:])
 		}
 	}
 
-	return paths, ""
+	return ""
 }
 
 func (p *Project) isUnderGoroot() bool {
-	return strings.HasPrefix(p.rootDir, p.goroot)
+	return strings.HasPrefix(p.rootDir, goroot)
 }
 
 var siteLenMap = map[string]int{
@@ -150,12 +162,12 @@ func (p *Project) createProject() error {
 	}
 
 	if p.isUnderGoroot() {
-		p.notifyLog(fmt.Sprintf("%s under go root dir %s", p.rootDir, p.goroot))
+		p.notifyLog(fmt.Sprintf("%s under go root dir %s", p.rootDir, goroot))
 		return p.createGoPath("", true)
 	}
 
-	paths, importPath := p.getImportPath()
-	p.notifyLog(fmt.Sprintf("GOPATH: %v, import path: %s", paths, importPath))
+	importPath := p.getImportPath()
+	p.notifyLog(fmt.Sprintf("GOPATH: %v, import path: %s", gopaths, importPath))
 	if (value == "" || value == "auto") && importPath == "" {
 		p.notifyLog("GO111MODULE=auto, module mode")
 		gomodList := p.findGoModFiles()
@@ -163,7 +175,7 @@ func (p *Project) createProject() error {
 	}
 
 	if importPath == "" {
-		return fmt.Errorf("%s is out of GOPATH workspace %v", p.rootDir, paths)
+		return fmt.Errorf("%s is out of GOPATH workspace %v", p.rootDir, gopaths)
 	}
 
 	dirs := strings.Split(importPath, "/")
@@ -222,7 +234,7 @@ func (p *Project) createBuiltin() error {
 		}()
 	}
 
-	bulitin := newGopath(p, filepath.ToSlash(filepath.Join(p.goroot, BuiltinPkg)), "", true)
+	bulitin := newGopath(p, filepath.ToSlash(filepath.Join(goroot, BuiltinPkg)), "", true)
 	return bulitin.init()
 }
 

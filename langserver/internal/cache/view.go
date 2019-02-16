@@ -115,6 +115,7 @@ func (v *View) parse(uri source.URI) error {
 	if err != nil {
 		return err
 	}
+	v.Config.Dir = filepath.Dir(path)
 	pkgs, err := packages.Load(&v.Config, fmt.Sprintf("file=%s", path))
 	if len(pkgs) == 0 {
 		if err == nil {
