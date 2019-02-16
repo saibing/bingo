@@ -469,3 +469,26 @@ func (p *Project) setOnePackage(pkg *packages.Package, seen map[string]bool) {
 func (p *Project) Cache() *PackageCache {
 	return p.view.cache
 }
+
+
+func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*packages.Package, source.File, error) {
+	uri := source.FromDocumentURI(fileURI)
+
+	p.view.mu.Lock()
+	f := p.view.files[uri]
+	p.view.mu.Unlock()
+
+	if f == nil {
+		pkg := p.GetFromURI(fileURI)
+		if pkg != nil {
+			return pkg, nil, nil
+		}
+	}
+	
+	pkg := f.GetPackage()
+	if pkg == nil {
+		return nil, nil, fmt.Errorf("package is null for file %s", uri)
+	}
+
+	return pkg, f, nil
+}

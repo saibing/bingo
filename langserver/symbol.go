@@ -273,22 +273,7 @@ func toSym(name string, pkg *packages.Package, container string, recv string, ki
 // handleTextDocumentSymbol handles `textDocument/documentSymbol` requests for
 // the Go language server.
 func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
-	fileURI := params.TextDocument.URI
-	if !util.IsURI(fileURI) {
-		return nil, &jsonrpc2.Error{
-			Code:    jsonrpc2.CodeInvalidParams,
-			Message: fmt.Sprintf("%s not yet supported for out-of-workspace URI", fileURI),
-		}
-	}
-
-	var pkg *packages.Package
-	var astFile *ast.File
-	var err error
-
-	pkg, astFile, err = h.loadAstFromGlobalCache(fileURI)
-	if pkg == nil || astFile == nil {
-		pkg, astFile, err = h.loadAstFromSourceView(ctx, fileURI)
-	}
+	pkg, astFile, err := h.loadPackageAndAst(ctx, params.TextDocument.URI)
 	if err != nil {
 		return nil, err
 	}

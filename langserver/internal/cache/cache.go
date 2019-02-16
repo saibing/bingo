@@ -23,11 +23,8 @@ type PackageCache struct {
 	fileMap file2Package
 }
 
-// DebugCache trace package cache
-var DebugCache = false
-
-// ParseFileTrace trace file parse
-var ParseFileTrace = false
+// debugCache trace package cache
+var debugCache = false
 
 // NewCache new a package cache
 func NewCache() *PackageCache {
@@ -39,7 +36,7 @@ func (c *PackageCache) put(pkg *packages.Package) {
 		return
 	}
 
-	if DebugCache {
+	if debugCache {
 		log.Printf("cache %s = %p\n", pkg.ID, pkg)
 	}
 
@@ -59,7 +56,7 @@ func (c *PackageCache) get(id string) *packages.Package {
 
 	pkg := c.idMap[id]
 
-	if DebugCache {
+	if debugCache {
 		log.Printf("get %s = %p\n", id, pkg)
 	}
 	return pkg
@@ -70,7 +67,7 @@ func (c *PackageCache) delete(id string) {
 		return
 	}
 
-	if DebugCache {
+	if debugCache {
 		log.Printf("delete %s %p\n", id, c.idMap[id])
 	}
 
@@ -221,4 +218,3 @@ func (c *PackageCache) walk(idList []string, walkFunc source.WalkFunc) error {
 
 	return nil
 }
-
