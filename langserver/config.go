@@ -42,11 +42,6 @@ type Config struct {
 	// Defaults to half of your CPU cores if not specified.
 	MaxParallelism int
 
-	// GolistDuration controls the interval of go list cache's refresh
-	//
-	// Defaults to 30s
-	GolistDuration int
-
 	// EnhanceSignatureHelp enhance the signature help with return result.
 	//
 	// Defaults to false
@@ -89,10 +84,6 @@ func (c Config) Apply(o *InitializationOptions) Config {
 
 	if o.MaxParallelism != nil {
 		c.MaxParallelism = *o.MaxParallelism
-	}
-
-	if o.GolistDuration != nil {
-		c.GolistDuration = *o.GolistDuration
 	}
 
 	return c

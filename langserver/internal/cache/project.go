@@ -90,7 +90,7 @@ func (p *Project) notify(err error) {
 }
 
 // Init init project
-func (p *Project) Init(ctx context.Context, golistDuration int, globalCacheStyle string) error {
+func (p *Project) Init(ctx context.Context, globalCacheStyle string) error {
 	p.context = ctx
 	start := time.Now()
 	defer func() {

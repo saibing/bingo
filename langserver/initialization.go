@@ -40,9 +40,6 @@ type InitializationOptions struct {
 
 	// MaxParallelism is an optional version of Config.MaxParallelism
 	MaxParallelism *int `json:"maxParallelism"`
-
-	// GolistDuration is an optional version of Config.GolistDuration
-	GolistDuration *int `json:"golistDuration"`
 }
 
 type InitializeParams struct {
