@@ -1,5 +1,3 @@
-// +build !darwin
-
 package cache
 
 import (
@@ -483,6 +481,10 @@ func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*pack
 		if pkg != nil {
 			return pkg, nil, nil
 		}
+
+		p.view.mu.Lock()
+		f = p.view.getFile(uri)
+		p.view.mu.Unlock()
 	}
 	
 	pkg := f.GetPackage()
