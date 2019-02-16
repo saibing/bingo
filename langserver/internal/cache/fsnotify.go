@@ -18,7 +18,7 @@ type fsSubject struct {
 func (s *fsSubject) notify() {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		s.observer.notifyError(err.Error())
+		s.observer.notifyLog(err.Error())
 		return
 	}
 
@@ -45,7 +45,7 @@ func (s *fsSubject) notify() {
 				if !ok {
 					return
 				}
-				s.observer.notifyError(fmt.Sprintf("receive an fsNotify error: %s", err))
+				s.observer.notifyLog(fmt.Sprintf("receive an fsNotify error: %s", err))
 			}
 		}
 	}()
@@ -54,7 +54,7 @@ func (s *fsSubject) notify() {
 func (s *fsSubject) watch(rootDir string, watcher *fsnotify.Watcher) {
 	err := watcher.Add(rootDir)
 	if err != nil {
-		s.observer.notifyError(err.Error())
+		s.observer.notifyLog(err.Error())
 	}
 
 	if err == nil {
@@ -64,7 +64,7 @@ func (s *fsSubject) watch(rootDir string, watcher *fsnotify.Watcher) {
 
 	files, err := ioutil.ReadDir(rootDir)
 	if err != nil {
-		s.observer.notifyError(err.Error())
+		s.observer.notifyLog(err.Error())
 		return
 	}
 

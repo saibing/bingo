@@ -15,7 +15,7 @@ type fsSubject struct {
 func (o *fsSubject) notify() {
 	dev, err := fsevents.DeviceForPath(o.observer.root())
 	if err != nil {
-		o.observer.notifyError(err.Error())
+		o.observer.notifyLog(err.Error())
 		return
 	}
 
