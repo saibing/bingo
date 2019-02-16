@@ -43,7 +43,6 @@ type Project struct {
 	modules       []*module
 	gopath        *gopath
 	cached        bool
-	watched       int
 	lastBuildTime time.Time
 }
 
