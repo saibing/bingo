@@ -3,8 +3,7 @@
 bingo is a [Go](https://golang.org) language server that speaks
 [Language Server Protocol](https://github.com/Microsoft/language-server-protocol).
 
-This project was largely inspired by [go-langserver](https://github.com/sourcegraph/go-langserver),
-but bingo more simpler, more faster, more smarter!
+This project was largely inspired by [go-langserver](https://github.com/sourcegraph/go-langserver).
 
 ## Supported Features
 ### Feature
@@ -42,9 +41,6 @@ If you live in China and may not be able to download golang.org/x/ dependency mo
 ```bash
  export GOPROXY=https://athens.azurefd.net/
 ```
-
-### Usage
-How to use bingo with language client? Please reference [Language Client](https://github.com/saibing/bingo/wiki/Language-Client)
 
 ## Configuration
 ### bingo's flag
