@@ -221,18 +221,36 @@ func (imp *importer) Import(path string) (*types.Package, error) {
 	return e.pkg, e.err
 }
 
-func (imp *importer) importPackage(pkgPath string) (*types.Package, error) {
-	pkg := imp.v.cache.Get(pkgPath)
-	if pkg != nil && pkgPath != imp.topLevelPkgPath {
-		return pkg.Types, nil
+func (imp *importer) cloneFromCache(pkg *packages.Package) bool {
+	if pkg.PkgPath == imp.topLevelPkgPath {
+		return false
 	}
 
+	clone := imp.v.cache.Get(pkg.PkgPath)
+	if clone == nil {
+		return false
+	}
+
+	if len(pkg.CompiledGoFiles) != len(clone.CompiledGoFiles) {
+		return false
+	}
+
+	*pkg = *clone
+	return true
+}
+
+func (imp *importer) importPackage(pkgPath string) (*types.Package, error) {
 	imp.mu.Lock()
 	pkg, ok := imp.packages[pkgPath]
 	imp.mu.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("no metadata for %v", pkgPath)
 	}
+
+	if imp.cloneFromCache(pkg) {
+		return pkg.Types, nil
+	}
+
 	pkg.Fset = imp.v.Config.Fset
 	appendError := func(err error) {
 		imp.appendPkgError(pkg, err)
