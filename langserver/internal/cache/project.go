@@ -14,7 +14,6 @@ import (
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 
-	"github.com/fsnotify/fsnotify"
 	lsp "github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"golang.org/x/tools/go/packages"
@@ -35,6 +34,7 @@ type FindPackageFunc func(project *Project, importPath string) (*packages.Packag
 
 // Project project struct
 type Project struct {
+	context       context.Context
 	conn          jsonrpc2.JSONRPC2
 	view          *View
 	rootDir       string
@@ -42,7 +42,6 @@ type Project struct {
 	goroot        string
 	modules       []*module
 	gopath        *gopath
-	bulitin       *gopath
 	cached        bool
 	watched       int
 	lastBuildTime time.Time
@@ -69,16 +68,17 @@ func getGoRoot() string {
 
 func (p *Project) notify(err error) {
 	if err != nil {
-		p.NotifyLog(fmt.Sprintf("notify: %s\n", err))
+		p.notifyLog(fmt.Sprintf("notify: %s\n", err))
 	}
 }
 
 // Init init project
 func (p *Project) Init(ctx context.Context, golistDuration int, globalCacheStyle string) error {
+	p.context = ctx
 	start := time.Now()
 	defer func() {
 		elapsedTime := time.Since(start) / time.Second
-		p.NotifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds, cache: %t, go module: %t.",
+		p.notifyInfo(fmt.Sprintf("load %s successfully! elapsed time: %d seconds, cache: %t, go module: %t.",
 			p.rootDir, elapsedTime, p.cached, len(p.modules) > 0))
 	}()
 
@@ -100,8 +100,17 @@ func (p *Project) Init(ctx context.Context, golistDuration int, globalCacheStyle
 	p.notify(err)
 	p.lastBuildTime = time.Now()
 
-	go p.fsnotify()
+	p.fsnotify()
 	return nil
+}
+
+func (p *Project) fsnotify() {
+	if !p.cached {
+		return
+	}
+
+	subject := newSubject(p)
+	go subject.notify()
 }
 
 func (p *Project) getImportPath() ([]string, string) {
@@ -136,20 +145,20 @@ func (p *Project) createProject() error {
 	value := os.Getenv(go111module)
 
 	if value == "on" {
-		p.NotifyLog("GO111MODULE=on, module mode")
+		p.notifyLog("GO111MODULE=on, module mode")
 		gomodList := p.findGoModFiles()
 		return p.createGoModule(gomodList)
 	}
 
 	if p.isUnderGoroot() {
-		p.NotifyLog(fmt.Sprintf("%s under go root dir %s", p.rootDir, p.goroot))
+		p.notifyLog(fmt.Sprintf("%s under go root dir %s", p.rootDir, p.goroot))
 		return p.createGoPath("", true)
 	}
 
 	paths, importPath := p.getImportPath()
-	p.NotifyLog(fmt.Sprintf("GOPATH: %v, import path: %s", paths, importPath))
+	p.notifyLog(fmt.Sprintf("GOPATH: %v, import path: %s", paths, importPath))
 	if (value == "" || value == "auto") && importPath == "" {
-		p.NotifyLog("GO111MODULE=auto, module mode")
+		p.notifyLog("GO111MODULE=auto, module mode")
 		gomodList := p.findGoModFiles()
 		return p.createGoModule(gomodList)
 	}
@@ -165,7 +174,7 @@ func (p *Project) createProject() error {
 		return fmt.Errorf("%s is not correct root dir of project.", p.rootDir)
 	}
 
-	p.NotifyLog("GOPATH mode")
+	p.notifyLog("GOPATH mode")
 	return p.createGoPath(importPath, false)
 }
 
@@ -214,8 +223,8 @@ func (p *Project) createBuiltin() error {
 		}()
 	}
 
-	p.bulitin = newGopath(p, filepath.ToSlash(filepath.Join(p.goroot, BuiltinPkg)), "", true)
-	return p.bulitin.init()
+	bulitin := newGopath(p, filepath.ToSlash(filepath.Join(p.goroot, BuiltinPkg)), "", true)
+	return bulitin.init()
 }
 
 func (p *Project) findGoModFiles() []string {
@@ -224,7 +233,7 @@ func (p *Project) findGoModFiles() []string {
 		if name == gomod {
 			fullpath := filepath.Join(path, name)
 			gomodList = append(gomodList, fullpath)
-			p.NotifyLog(fullpath)
+			p.notifyLog(fullpath)
 		}
 	}
 
@@ -235,7 +244,7 @@ func (p *Project) findGoModFiles() []string {
 
 var defaultExcludeDir = []string{".git", ".svn", ".hg", ".vscode", ".idea", vendor}
 
-func (p *Project) isExclude(dir string) bool {
+func isExclude(dir string) bool {
 	for _, d := range defaultExcludeDir {
 		if d == dir {
 			return true
@@ -257,7 +266,7 @@ func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, strin
 	}
 
 	for _, fi := range files {
-		if p.isExclude(fi.Name()) {
+		if isExclude(fi.Name()) {
 			continue
 		}
 
@@ -276,74 +285,6 @@ func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, strin
 	return nil
 }
 
-func (p *Project) fsnotify() {
-	if !p.cached {
-		return
-	}
-
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		p.notify(err)
-		return
-	}
-
-	p.watched = 0
-
-	p.watch(p.rootDir, watcher)
-
-	p.NotifyLog(fmt.Sprintf("fsnotify watch dir number: %d", p.watched))
-
-	go func() {
-		defer func() {
-			_ = watcher.Close()
-		}()
-
-		for {
-			select {
-			case event, ok := <-watcher.Events:
-				if !ok {
-					return
-				}
-
-				if event.Op&fsnotify.Write == fsnotify.Write {
-					p.rebuildCache(event.Name)
-				}
-			case err, ok := <-watcher.Errors:
-				if !ok {
-					return
-				}
-				p.NotifyError(fmt.Sprintf("receive an fsNotify error: %s", err))
-			}
-		}
-	}()
-}
-
-func (p *Project) watch(rootDir string, watcher *fsnotify.Watcher) {
-	err := watcher.Add(rootDir)
-	p.notify(err)
-	if err == nil {
-		p.watched++
-	}
-	//p.NotifyLog(fmt.Sprintf("watch %s", rootDir))
-
-	files, err := ioutil.ReadDir(rootDir)
-	if err != nil {
-		p.notify(err)
-		return
-	}
-
-	for _, fi := range files {
-		if p.isExclude(fi.Name()) {
-			continue
-		}
-
-		fullpath := filepath.Join(rootDir, fi.Name())
-		if fi.IsDir() {
-			p.watch(fullpath, watcher)
-		}
-	}
-}
-
 // GetFromURI get package from document uri.
 func (p *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	filename, _ := source.FromDocumentURI(uri).Filename()
@@ -355,9 +296,9 @@ func (p *Project) GetFromPkgPath(pkgPath string) *packages.Package {
 	return p.view.cache.Get(pkgPath)
 }
 
-func (p *Project) rebuildCache(eventName string) {
+func (p *Project) update(eventName string) {
 	if p.needRebuild(eventName) {
-		p.NotifyLog("fsnotify " + eventName)
+		p.notifyLog("fsnotify " + eventName)
 		p.rebuildGopapthCache(eventName)
 		p.rebuildModuleCache(eventName)
 		p.lastBuildTime = time.Now()
@@ -399,12 +340,12 @@ func (p *Project) rebuildModuleCache(eventName string) {
 		if strings.HasPrefix(filepath.Dir(eventName), m.rootDir) {
 			rebuild, err := m.rebuildCache()
 			if err != nil {
-				p.NotifyError(err.Error())
+				p.notifyError(err.Error())
 				return
 			}
 
 			if rebuild {
-				p.NotifyInfo(fmt.Sprintf("rebuild module cache for %s changed", eventName))
+				p.notifyInfo(fmt.Sprintf("rebuild module cache for %s changed", eventName))
 			}
 
 			return
@@ -413,18 +354,26 @@ func (p *Project) rebuildModuleCache(eventName string) {
 }
 
 // NotifyError notify error to lsp client
-func (p *Project) NotifyError(message string) {
-	_ = p.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: message})
+func (p *Project) notifyError(message string) {
+	_ = p.conn.Notify(p.context, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.MTError, Message: message})
 }
 
 // NotifyInfo notify info to lsp client
-func (p *Project) NotifyInfo(message string) {
-	_ = p.conn.Notify(context.Background(), "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: message})
+func (p *Project) notifyInfo(message string) {
+	_ = p.conn.Notify(p.context, "window/showMessage", &lsp.ShowMessageParams{Type: lsp.Info, Message: message})
 }
 
 // NotifyLog notify log to lsp client
-func (p *Project) NotifyLog(message string) {
-	_ = p.conn.Notify(context.Background(), "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
+func (p *Project) notifyLog(message string) {
+	_ = p.conn.Notify(p.context, "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
+}
+
+func (p *Project) root() string {
+	return p.rootDir
+}
+
+func (p *Project) getContext() context.Context {
+	return p.context
 }
 
 // Search serach package cache
@@ -468,7 +417,6 @@ func (p *Project) Cache() *PackageCache {
 	return p.view.cache
 }
 
-
 func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*packages.Package, source.File, error) {
 	uri := source.FromDocumentURI(fileURI)
 
@@ -486,11 +434,15 @@ func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*pack
 		f = p.view.getFile(uri)
 		p.view.mu.Unlock()
 	}
-	
+
 	pkg := f.GetPackage()
 	if pkg == nil {
 		return nil, nil, fmt.Errorf("package is null for file %s", uri)
 	}
 
 	return pkg, f, nil
+}
+
+func newSubject(observer Observer) Subject {
+	return &fsSubject{observer: observer}
 }

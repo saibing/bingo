@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/types"
+
 	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/refs"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
-	"go/ast"
-	"go/types"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -151,13 +152,13 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 			if err != nil {
 				// TODO: tracing
 				//log.Println("refs.DefInfo:", err)
-				h.project.NotifyLog(fmt.Sprintf("refs.DelInfo: %s", err))
+				h.notifyLog(fmt.Sprintf("refs.DelInfo: %s", err))
 			} else {
 				l.Symbol = symDesc
 			}
 		} else {
 			// TODO: tracing
-			h.project.NotifyLog(fmt.Sprintf("refs.DelInfo: %s", err))
+			h.notifyLog(fmt.Sprintf("refs.DelInfo: %s", err))
 		}
 		locs = append(locs, l)
 	}

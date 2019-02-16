@@ -60,7 +60,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 
 		err := h.workspaceRefsFromPkg(ctx, conn, params, pkg, rootPath, &results)
 		if err != nil {
-			h.project.NotifyLog(fmt.Sprintf("workspaceRefsFromPkg: %v: %v", pkg, err))
+			h.notifyLog(fmt.Sprintf("workspaceRefsFromPkg: %v: %v", pkg, err))
 			//log.Printf("workspaceRefsFromPkg: %v: %v", pkg, err)
 		}
 		return err
@@ -107,7 +107,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 			// halt execution (hopefully, it is limited to a small subset of
 			// the data).
 			err := fmt.Errorf("workspaceRefsFromPkg: failed to import %v: %v", r.Def.ImportPath, err)
-			h.project.NotifyLog(err.Error())
+			h.notifyLog(err.Error())
 			//log.Println(err)
 			return
 		}
@@ -127,7 +127,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 		// it is a problem with the user's code, not our workspace reference
 		// finding code.
 		//log.Println(fmt.Sprintf("workspaceRefsFromPkg: workspace refs failed: %v: %v", pkg, refsErr))
-		h.project.NotifyLog(fmt.Sprintf("workspaceRefsFromPkg: workspace refs failed: %v: %v", pkg, refsErr))
+		h.notifyLog(fmt.Sprintf("workspaceRefsFromPkg: workspace refs failed: %v: %v", pkg, refsErr))
 	}
 	return nil
 }
