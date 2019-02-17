@@ -232,11 +232,16 @@ func (imp *importer) cloneFromCache(pkg *packages.Package) bool {
 		return false
 	}
 
-	if len(pkg.CompiledGoFiles) != len(clone.CompiledGoFiles) {
+	if len(pkg.CompiledGoFiles) != len(clone.Package().CompiledGoFiles) {
 		return false
 	}
 
-	*pkg = *clone
+	modTime := getPackageModTime(pkg)
+	if modTime.Sub(clone.ModTime()) != 0 {
+		return false
+	}
+
+	*pkg = *clone.Package()
 	return true
 }
 

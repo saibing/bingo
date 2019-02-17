@@ -68,6 +68,7 @@ type Project struct {
 	modules       []*module
 	gopath        *gopath
 	cached        bool
+	changedCount  int
 	lastBuildTime time.Time
 }
 
@@ -299,12 +300,14 @@ func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, strin
 // GetFromURI get package from document uri.
 func (p *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	filename, _ := source.FromDocumentURI(uri).Filename()
-	return p.view.cache.GetByURI(filename)
+	pkg := p.view.cache.GetByURI(filename)
+	return pkg.Package()
 }
 
 // GetFromPkgPath get package from package import path.
 func (p *Project) GetFromPkgPath(pkgPath string) *packages.Package {
-	return p.view.cache.Get(pkgPath)
+	pkg := p.view.cache.Get(pkgPath)
+	return pkg.Package()
 }
 
 func (p *Project) update(eventName string) {
@@ -335,6 +338,13 @@ func (p *Project) needRebuild(eventName string) bool {
 	p.view.mu.Unlock()
 	if f != nil {
 		return false
+	}
+
+	p.changedCount++
+
+	if p.changedCount > 20 {
+		p.changedCount = 0
+		return true
 	}
 
 	return time.Now().Sub(p.lastBuildTime) >= 60*time.Second

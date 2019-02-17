@@ -2,18 +2,53 @@ package cache
 
 import (
 	"log"
+	"os"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"golang.org/x/tools/go/packages"
 )
 
-type id2Package map[string]*packages.Package
-type file2Package map[string]*packages.Package
-type path2Package map[string]*packages.Package
+type Package struct {
+	pkg     *packages.Package
+	modTime time.Time
+}
+
+func (p *Package) Package() *packages.Package {
+	if p == nil {
+		return nil
+	}
+	return p.pkg
+}
+
+func (p *Package) ModTime() time.Time {
+	if p == nil {
+		return time.Time{}
+	}
+	return p.modTime
+}
+
+type id2Package map[string]*Package
+type file2Package map[string]*Package
+type path2Package map[string]*Package
+
+func getPackageModTime(pkg *packages.Package) time.Time {
+	if pkg == nil || len(pkg.CompiledGoFiles) == 0 {
+		return time.Time{}
+	}
+
+	dir := pkg.CompiledGoFiles[0]
+	fi, err := os.Stat(dir)
+	if err != nil {
+		return time.Time{}
+	}
+
+	return fi.ModTime()
+}
 
 // PackageCache package cache
 type PackageCache struct {
@@ -41,15 +76,16 @@ func (c *PackageCache) put(pkg *packages.Package) {
 	}
 
 	c.delete(pkg.ID)
-	c.idMap[pkg.ID] = pkg
-	c.pathMap[pkg.PkgPath] = pkg
+	p := &Package{pkg: pkg, modTime: getPackageModTime(pkg)}
+	c.idMap[pkg.ID] = p
+	c.pathMap[pkg.PkgPath] = p
 
 	for _, file := range pkg.CompiledGoFiles {
-		c.fileMap[util.LowerDriver(file)] = pkg
+		c.fileMap[util.LowerDriver(file)] = p
 	}
 }
 
-func (c *PackageCache) get(id string) *packages.Package {
+func (c *PackageCache) get(id string) *Package {
 	if c == nil {
 		return nil
 	}
@@ -71,15 +107,15 @@ func (c *PackageCache) delete(id string) {
 		log.Printf("delete %s %p\n", id, c.idMap[id])
 	}
 
-	pkg := c.idMap[id]
-	if pkg == nil {
+	p := c.idMap[id]
+	if p == nil {
 		return
 	}
 
 	delete(c.idMap, id)
-	delete(c.pathMap, pkg.PkgPath)
+	delete(c.pathMap, p.pkg.PkgPath)
 
-	for _, file := range pkg.CompiledGoFiles {
+	for _, file := range p.pkg.CompiledGoFiles {
 		delete(c.fileMap, util.LowerDriver(file))
 	}
 }
@@ -130,15 +166,15 @@ func (c *PackageCache) clean(idList []string) {
 }
 
 // Get get package by package import path from global cache
-func (c *PackageCache) Get(pkgPath string) *packages.Package {
+func (c *PackageCache) Get(pkgPath string) *Package {
 	if c == nil {
 		return nil
 	}
 
 	c.RLock()
-	pkg := c.pathMap[pkgPath]
+	p := c.pathMap[pkgPath]
 	c.RUnlock()
-	return pkg
+	return p
 }
 
 func (c *PackageCache) Put(pkg *packages.Package) {
@@ -152,14 +188,14 @@ func (c *PackageCache) Put(pkg *packages.Package) {
 }
 
 // GetByURI get package by filename from global cache
-func (c *PackageCache) GetByURI(filename string) *packages.Package {
+func (c *PackageCache) GetByURI(filename string) *Package {
 	if c == nil {
 		return nil
 	}
 	c.RLock()
-	pkg := c.fileMap[util.LowerDriver(filename)]
+	p := c.fileMap[util.LowerDriver(filename)]
 	c.RUnlock()
-	return pkg
+	return p
 }
 
 // Walk walk the global package cache
@@ -210,8 +246,8 @@ func (c *PackageCache) Walk(walkFunc source.WalkFunc, ranks []string) error {
 
 func (c *PackageCache) walk(idList []string, walkFunc source.WalkFunc) error {
 	for _, id := range idList {
-		pkg := c.get(id)
-		if err := walkFunc(pkg); err != nil {
+		p := c.get(id)
+		if err := walkFunc(p.pkg); err != nil {
 			return err
 		}
 	}
