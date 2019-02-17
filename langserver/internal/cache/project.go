@@ -329,6 +329,14 @@ func (p *Project) needRebuild(eventName string) bool {
 		return false
 	}
 
+	uri := source.ToURI(eventName)
+	p.view.mu.Lock()
+	f := p.view.files[uri]
+	p.view.mu.Unlock()
+	if f != nil {
+		return false
+	}
+
 	return time.Now().Sub(p.lastBuildTime) >= 60*time.Second
 }
 
@@ -426,6 +434,11 @@ func (p *Project) setOnePackage(pkg *packages.Package, seen map[string]bool) {
 
 func (p *Project) Cache() *PackageCache {
 	return p.view.cache
+}
+
+// SetCache just for go test case
+func (p *Project) SetCache(cache *PackageCache) {
+	p.view.cache = cache
 }
 
 func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*packages.Package, source.File, error) {

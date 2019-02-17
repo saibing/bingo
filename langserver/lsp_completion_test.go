@@ -17,6 +17,10 @@ import (
 func TestCompletion(t *testing.T) {
 	setup(t)
 
+	cache := h.project.Cache()
+	h.project.SetCache(nil)
+	defer h.project.SetCache(cache)
+
 	test := func(t *testing.T, input string, output string) {
 		testCompletion(t, &completionTestCase{input: input, output: output})
 	}
@@ -36,20 +40,20 @@ func TestCompletion(t *testing.T) {
 	})
 
 	t.Run("go root", func(t *testing.T) {
-		test(t, "goroot/a.go:1:21", "1:21-1:21 fmt module \"fmt\", x variable int, append(slice []T, elems ...T) function []T, bool typeParameter , byte typeParameter , cap(v []T) function int, close(c chan<- T) function , complex(real, imag float64) function complex128, complex128 typeParameter , complex64 typeParameter , copy(dst, src []T) function int, delete(m map[K]V, key K) function , error interface , false constant , float32 typeParameter , float64 typeParameter , imag(complex128) function float64, int typeParameter , int16 typeParameter , int32 typeParameter , int64 typeParameter , int8 typeParameter , iota constant , len(T) function int, make(t T, size ...int) function T, new(T) function *T, nil variable , panic(interface{}) function , print(args ...T) function , println(args ...T) function , real(complex128) function float64, recover() function interface{}, rune typeParameter , string typeParameter , true constant , uint typeParameter , uint16 typeParameter , uint32 typeParameter , uint64 typeParameter , uint8 typeParameter , uintptr typeParameter ")
+		test(t, "goroot/a.go:1:21", "")
 		test(t, "goroot/a.go:1:44", "1:38-1:44 Println(a ...interface{}) function n int, err error")
 	})
 
 	t.Run("go project workspace", func(t *testing.T) {
-		test(t, "goproject/b/b.go:1:87", "1:87-1:87 a module \"github.com/saibing/bingo/langserver/test/pkg/goproject/a\", append(slice []T, elems ...T) function []T, bool typeParameter , byte typeParameter , cap(v []T) function int, close(c chan<- T) function , complex(real, imag float64) function complex128, complex128 typeParameter , complex64 typeParameter , copy(dst, src []T) function int, delete(m map[K]V, key K) function , error interface , false constant , float32 typeParameter , float64 typeParameter , imag(complex128) function float64, int typeParameter , int16 typeParameter , int32 typeParameter , int64 typeParameter , int8 typeParameter , iota constant , len(T) function int, make(t T, size ...int) function T, new(T) function *T, nil variable , panic(interface{}) function , print(args ...T) function , println(args ...T) function , real(complex128) function float64, recover() function interface{}, rune typeParameter , string typeParameter , true constant , uint typeParameter , uint16 typeParameter , uint32 typeParameter , uint64 typeParameter , uint8 typeParameter , uintptr typeParameter ")
+		test(t, "goproject/b/b.go:1:87", "1:87-1:87 a module \"github.com/saibing/bingo/langserver/test/pkg/goproject/a\", append(slice []T, elems ...T) function []T, bool typeParameter , byte typeParameter , cap(v []T) function int, close(c chan<- T) function , complex(real float64, imag float64) function complex128, complex128 typeParameter , complex64 typeParameter , copy(dst []T, src []T) function int, delete(m map[K]V, key K) function , error interface , false constant , float32 typeParameter , float64 typeParameter , imag(complex128) function float64, int typeParameter , int16 typeParameter , int32 typeParameter , int64 typeParameter , int8 typeParameter , iota constant , len(T) function int, make(t T, size ...int) function T, new(T) function *T, nil variable , panic(interface{}) function , print(args ...T) function , println(args ...T) function , real(complex128) function float64, recover() function interface{}, rune typeParameter , string typeParameter , true constant , uint typeParameter , uint16 typeParameter , uint32 typeParameter , uint64 typeParameter , uint8 typeParameter , uintptr typeParameter ")
 		test(t, "goproject/b/b.go:1:89", "1:89-1:89 A() function ")
 	})
 
 	t.Run("go module dep", func(t *testing.T) {
-		test(t, "gomodule/a.go:1:40", "1:40-1:40 dep module \"github.com/saibing/dep\", append(slice []T, elems ...T) function []T, bool typeParameter , byte typeParameter , cap(v []T) function int, close(c chan<- T) function , complex(real, imag float64) function complex128, complex128 typeParameter , complex64 typeParameter , copy(dst, src []T) function int, delete(m map[K]V, key K) function , error interface , false constant , float32 typeParameter , float64 typeParameter , imag(complex128) function float64, int typeParameter , int16 typeParameter , int32 typeParameter , int64 typeParameter , int8 typeParameter , iota constant , len(T) function int, make(t T, size ...int) function T, new(T) function *T, nil variable , panic(interface{}) function , print(args ...T) function , println(args ...T) function , real(complex128) function float64, recover() function interface{}, rune typeParameter , string typeParameter , true constant , uint typeParameter , uint16 typeParameter , uint32 typeParameter , uint64 typeParameter , uint8 typeParameter , uintptr typeParameter ")
+		test(t, "gomodule/a.go:1:40", "")
 		test(t, "gomodule/a.go:1:57", "1:57-1:57 D() function ")
 
-		test(t, "gomodule/b.go:1:40", "1:40-1:40 subp module \"github.com/saibing/dep/subp\", append(slice []T, elems ...T) function []T, bool typeParameter , byte typeParameter , cap(v []T) function int, close(c chan<- T) function , complex(real, imag float64) function complex128, complex128 typeParameter , complex64 typeParameter , copy(dst, src []T) function int, delete(m map[K]V, key K) function , error interface , false constant , float32 typeParameter , float64 typeParameter , imag(complex128) function float64, int typeParameter , int16 typeParameter , int32 typeParameter , int64 typeParameter , int8 typeParameter , iota constant , len(T) function int, make(t T, size ...int) function T, new(T) function *T, nil variable , panic(interface{}) function , print(args ...T) function , println(args ...T) function , real(complex128) function float64, recover() function interface{}, rune typeParameter , string typeParameter , true constant , uint typeParameter , uint16 typeParameter , uint32 typeParameter , uint64 typeParameter , uint8 typeParameter , uintptr typeParameter ")
+		test(t, "gomodule/b.go:1:40", "")
 		test(t, "gomodule/b.go:1:63", "1:63-1:63 D() function ")
 
 		test(t, "gomodule/c.go:1:68", "1:68-1:68 D2 field int")
@@ -60,7 +64,7 @@ func TestCompletion(t *testing.T) {
 		test(t, "completion/a.go:7:7", "7:6-7:7 new(T) function *T, nil variable ")
 		test(t, "completion/a.go:12:11", "12:8-12:11 int typeParameter , int16 typeParameter , int32 typeParameter , int64 typeParameter , int8 typeParameter ")
 		test(t, "completion/b.go:1:44", "1:38-1:44 Println(a ...interface{}) function n int, err error")
-		test(t, "completion/c.go:8:11", "1:38-1:44 Println(a ...interface{}) function n int, err error")
+		test(t, "completion/c.go:8:11", "8:6-8:11 Print(a ...interface{}) function n int, err error, Printf(format string, a ...interface{}) function n int, err error, Println(a ...interface{}) function n int, err error")
 	})
 }
 
@@ -89,7 +93,7 @@ func doCompletionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 		t.Fatal(err)
 	}
 	if completion != want {
-		t.Fatalf("\ngot %q, \nwant %q", completion, want)
+		t.Fatalf("\ngot : %q, \nwant: %q", completion, want)
 	}
 }
 
