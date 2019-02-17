@@ -70,11 +70,11 @@ func computeTextEdits(rng Range, file File, formatted string) (edits []TextEdit)
 	f := strings.SplitAfter(formatted, "\n")
 	for _, op := range diff.Operations(u, f) {
 		start := lineStart(tok, op.I1+1)
-		if start == token.NoPos && op.I1 == len(u)-1 {
+		if start == token.NoPos && op.I1 == len(u) {
 			start = tok.Pos(tok.Size())
 		}
 		end := lineStart(tok, op.I2+1)
-		if end == token.NoPos && op.I2 == len(u)-1 {
+		if end == token.NoPos && op.I2 == len(u) {
 			end = tok.Pos(tok.Size())
 		}
 		switch op.Kind {
