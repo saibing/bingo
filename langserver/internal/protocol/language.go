@@ -12,15 +12,81 @@ import (
  * The set of kinds is open and client needs to announce the kinds it supports to the server during
  * initialization.
  */
- type CodeActionKind string
+type CodeActionKind string
 
- /**
+/**
+ * A set of predefined code action kinds
+ */
+const (
+	/**
+	 * Base kind for quickfix actions: 'quickfix'
+	 */
+	QuickFix CodeActionKind = "quickfix"
+
+	/**
+	 * Base kind for refactoring actions: 'refactor'
+	 */
+	Refactor CodeActionKind = "refactor"
+
+	/**
+	 * Base kind for refactoring extraction actions: 'refactor.extract'
+	 *
+	 * Example extract actions:
+	 *
+	 * - Extract method
+	 * - Extract function
+	 * - Extract variable
+	 * - Extract interface from class
+	 * - ...
+	 */
+	RefactorExtract CodeActionKind = "refactor.extract"
+
+	/**
+	 * Base kind for refactoring inline actions: 'refactor.inline'
+	 *
+	 * Example inline actions:
+	 *
+	 * - Inline function
+	 * - Inline variable
+	 * - Inline constant
+	 * - ...
+	 */
+	RefactorInline CodeActionKind = "refactor.inline"
+
+	/**
+	 * Base kind for refactoring rewrite actions: 'refactor.rewrite'
+	 *
+	 * Example rewrite actions:
+	 *
+	 * - Convert JavaScript function to class
+	 * - Add or remove parameter
+	 * - Encapsulate field
+	 * - Make method static
+	 * - Move method to base class
+	 * - ...
+	 */
+	RefactorRewrite CodeActionKind = "refactor.rewrite"
+
+	/**
+	 * Base kind for source actions: `source`
+	 *
+	 * Source code actions apply to the entire file.
+	 */
+	Source CodeActionKind = "source"
+
+	/**
+	 * Base kind for an organize imports source action: `source.organizeImports`
+	 */
+	SourceOrganizeImports CodeActionKind = "source.organizeImports"
+)
+
+/**
  * A code action represents a change that can be performed in code, e.g. to fix a problem or
  * to refactor code.
  *
  * A CodeAction must set either `edit` and/or a `command`. If both are supplied, the `edit` is applied first, then the `command` is executed.
  */
- type CodeAction struct {
+type CodeAction struct {
 
 	/**
 	 * A short, human-readable, title for this code action.
