@@ -165,7 +165,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 				TextDocumentSync: &lsp.TextDocumentSyncOptionsOrKind{
 					Kind: &kind,
 				},
-				CodeActionProvider:              true,
+				CodeActionProvider:              false,
 				CompletionProvider:              completionOp,
 				DefinitionProvider:              true,
 				TypeDefinitionProvider:          true,

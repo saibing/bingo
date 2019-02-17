@@ -131,6 +131,11 @@ func (p *Project) fsnotify() {
 	go subject.notify()
 }
 
+func (p *Project) Contain(fileURI lsp.DocumentURI) bool {
+	filePath, _ := source.FromDocumentURI(fileURI).Filename()
+	return strings.HasPrefix(filePath, p.rootDir)
+}
+
 func (p *Project) getImportPath() string {
 	for _, path := range gopaths {
 		path = util.LowerDriver(filepath.ToSlash(path))
