@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/saibing/bingo/langserver/internal/util"
-
 	"github.com/saibing/bingo/langserver/internal/protocol"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/sourcegraph/go-lsp"
@@ -15,11 +13,9 @@ import (
 func (h *LangHandler) handleCodeAction(ctx context.Context, conn jsonrpc2.JSONRPC2,
 	req *jsonrpc2.Request, params lsp.CodeActionParams) ([]protocol.CodeAction, error) {
 	fileURI := params.TextDocument.URI
-	if !util.IsURI(fileURI) {
-		return nil, &jsonrpc2.Error{
-			Code:    jsonrpc2.CodeInvalidParams,
-			Message: fmt.Sprintf("%s not yet supported for out-of-workspace URI", fileURI),
-		}
+
+	if err := checkFileURI(fileURI); err != nil {
+		return nil, err
 	}
 
 	if !h.project.Contain(fileURI) {

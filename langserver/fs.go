@@ -37,12 +37,21 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return err
 		}
+
+		if err := checkFileURI(params.TextDocument.URI); err != nil {
+			return err
+		}
+
 		overlay.didOpen(ctx, &params)
 		return nil
 
 	case "textDocument/didChange":
 		var params lsp.DidChangeTextDocumentParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return err
+		}
+		
+		if err := checkFileURI(params.TextDocument.URI); err != nil {
 			return err
 		}
 
@@ -53,6 +62,11 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return err
 		}
+
+		if err := checkFileURI(params.TextDocument.URI); err != nil {
+			return err
+		}
+
 		overlay.didClose(ctx, &params)
 		return nil
 
@@ -61,6 +75,11 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return err
 		}
+
+		if err := checkFileURI(params.TextDocument.URI); err != nil {
+			return err
+		}
+		
 		overlay.didSave(ctx, &params)
 		return nil
 

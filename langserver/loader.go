@@ -15,14 +15,23 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
-	pos := token.NoPos
-
+func checkFileURI(fileURI lsp.DocumentURI) error {
 	if !util.IsURI(fileURI) {
-		return nil, pos, &jsonrpc2.Error{
+		err := &jsonrpc2.Error{
 			Code:    jsonrpc2.CodeInvalidParams,
 			Message: fmt.Sprintf("%s not yet supported for out-of-workspace URI", fileURI),
 		}
+		return err
+	}
+
+	return nil
+}
+
+func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
+	pos := token.NoPos
+
+	if err := checkFileURI(fileURI); err != nil {
+		return nil, pos, err
 	}
 
 	pkg, f, err := h.project.TypeCheck(ctx, fileURI)
@@ -61,11 +70,8 @@ func (h *LangHandler) getPosFromPkg(pkg *packages.Package, fileURI lsp.DocumentU
 }
 
 func (h *LangHandler) loadPackageAndAst(ctx context.Context, fileURI lsp.DocumentURI) (*packages.Package, *ast.File, error) {
-	if !util.IsURI(fileURI) {
-		return nil, nil, &jsonrpc2.Error{
-			Code:    jsonrpc2.CodeInvalidParams,
-			Message: fmt.Sprintf("%s not yet supported for out-of-workspace URI", fileURI),
-		}
+	if err := checkFileURI(fileURI); err != nil {
+		return nil, nil, err
 	}
 
 	pkg, f, err := h.project.TypeCheck(ctx, fileURI)
