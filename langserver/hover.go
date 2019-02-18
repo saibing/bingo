@@ -347,7 +347,7 @@ func packageForFile(pkgs map[string]*ast.Package, filename string) (string, *ast
 			}
 		}
 	}
-	return "", nil, fmt.Errorf("failed to find %q in packages %q", filename, pkgs)
+	return "", nil, fmt.Errorf("failed to find %s in packages %v", filename, pkgs)
 }
 
 // inRange tells if x is in the range of a-b inclusive.
