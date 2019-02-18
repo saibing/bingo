@@ -49,6 +49,16 @@ type foundNode struct {
 }
 
 func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]symbolLocationInformation, error) {
+	symbols, err := h.doHandleXDefinition(ctx, conn, req, params)
+	if err != nil {
+		params.Position.Character--
+		symbols, err = h.doHandleXDefinition(ctx, conn, req, params)
+	}
+
+	return symbols, err
+}
+
+func (h *LangHandler) doHandleXDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]symbolLocationInformation, error) {
 	pkg, pos, err := h.typeCheck(ctx, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
