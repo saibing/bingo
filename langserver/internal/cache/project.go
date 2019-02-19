@@ -463,15 +463,17 @@ func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*pack
 	f := p.view.files[uri]
 	p.view.mu.Unlock()
 
-	if f == nil {
+	if f == nil || f.pkg == nil {
 		pkg := p.GetFromURI(fileURI)
 		if pkg != nil {
 			return pkg, nil, nil
 		}
 
-		p.view.mu.Lock()
-		f = p.view.getFile(uri)
-		p.view.mu.Unlock()
+		if f == nil {
+			p.view.mu.Lock()
+			f = p.view.getFile(uri)
+			p.view.mu.Unlock()
+		}
 	}
 
 	pkg := f.GetPackage()
