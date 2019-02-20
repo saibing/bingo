@@ -155,7 +155,6 @@ func labelToProtocolSnippets(label string, kind source.CompletionItemKind, inser
 		r := strings.NewReplacer(
 			`\`, `\\`,
 			`}`, `\}`,
-			`{`, `\{`,
 			`$`, `\$`,
 		)
 		b := bytes.NewBufferString(trimmed)
