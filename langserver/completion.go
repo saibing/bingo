@@ -37,12 +37,16 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		return nil, ctx.Err()
 	}
 
+	useSnippets := h.clientSupportsSnippets() && !h.config.DisableFuncSnippet
 	result := &lsp.CompletionList{
 		IsIncomplete: false,
-		Items:        toProtocolCompletionItems(items, prefix, params.Position, !h.config.DisableFuncSnippet, false),
+		Items:        toProtocolCompletionItems(items, prefix, params.Position, useSnippets, false),
 	}
-
 	return result, nil
+}
+
+func (h *LangHandler) clientSupportsSnippets() bool {
+	return h.init != nil && h.init.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport
 }
 
 func getLspRange(pos lsp.Position, rangeLen int) lsp.Range {
