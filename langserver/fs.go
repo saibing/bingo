@@ -96,7 +96,7 @@ type overlay struct {
 	diagnosticsStyle DiagnosticsStyleEnum
 }
 
-func newOverlay(ctx context.Context, conn *jsonrpc2.Conn, rootPath string, diagnosticsStyle DiagnosticsStyleEnum, buildTags []string) *overlay {
+func newOverlay(ctx context.Context, conn *jsonrpc2.Conn, rootPath string, diagnosticsStyle DiagnosticsStyleEnum, buildFlags []string) *overlay {
 	cfg := &packages.Config{
 		Context: ctx,
 		Dir:     rootPath,
@@ -106,8 +106,8 @@ func newOverlay(ctx context.Context, conn *jsonrpc2.Conn, rootPath string, diagn
 		ParseFile: func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
 			return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
 		},
-		Tests: true,
-		BuildFlags: buildTags,
+		Tests:      true,
+		BuildFlags: buildFlags,
 	}
 	view := cache.NewView(cfg)
 	return &overlay{conn: conn, view: view, diagnosticsStyle: diagnosticsStyle}
