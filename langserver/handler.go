@@ -87,7 +87,11 @@ func (h *LangHandler) doInit(ctx context.Context, conn *jsonrpc2.Conn, init *Ini
 	h.cancel = &cancel{}
 
 	rootPath := h.FilePath(init.Root())
-	h.overlay = newOverlay(ctx, conn, rootPath, DiagnosticsStyleEnum(h.DefaultConfig.DiagnosticsStyle), h.config.BuildTags)
+	buildFlags := []string{}
+	if len(h.config.BuildTags) > 0 {
+		buildFlags = append(buildFlags, append([]string{"-tags"}, h.config.BuildTags...)...)
+	}
+	h.overlay = newOverlay(ctx, conn, rootPath, DiagnosticsStyleEnum(h.DefaultConfig.DiagnosticsStyle), buildFlags)
 	h.project = cache.NewProject(conn, rootPath, h.overlay.view)
 	if err := h.project.Init(ctx, h.DefaultConfig.GlobalCacheStyle); err != nil {
 		return err
