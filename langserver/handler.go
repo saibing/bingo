@@ -91,8 +91,8 @@ func (h *LangHandler) doInit(ctx context.Context, conn *jsonrpc2.Conn, init *Ini
 	if len(h.config.BuildTags) > 0 {
 		buildFlags = append(buildFlags, append([]string{"-tags"}, h.config.BuildTags...)...)
 	}
-	h.overlay = newOverlay(ctx, conn, rootPath, DiagnosticsStyleEnum(h.DefaultConfig.DiagnosticsStyle), buildFlags)
-	h.project = cache.NewProject(conn, rootPath, h.overlay.view)
+	h.project = cache.NewProject(ctx, conn, rootPath, buildFlags)
+	h.overlay = newOverlay(conn, h.project, DiagnosticsStyleEnum(h.DefaultConfig.DiagnosticsStyle))
 	if err := h.project.Init(ctx, h.DefaultConfig.GlobalCacheStyle); err != nil {
 		return err
 	}
@@ -167,7 +167,8 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		return lsp.InitializeResult{
 			Capabilities: lsp.ServerCapabilities{
 				TextDocumentSync: &lsp.TextDocumentSyncOptionsOrKind{
-					Kind: &kind,
+					Kind:    &kind,
+					Options: &lsp.TextDocumentSyncOptions{OpenClose: true},
 				},
 				CodeActionProvider:              false,
 				CompletionProvider:              completionOp,

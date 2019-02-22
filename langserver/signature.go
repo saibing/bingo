@@ -14,7 +14,7 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 		return nil, err
 	}
 
-	f, err := h.overlay.view.GetFile(ctx, source.FromDocumentURI(fileURI))
+	f, err := h.View().GetFile(ctx, source.FromDocumentURI(fileURI))
 	if err != nil {
 		return nil, err
 	}

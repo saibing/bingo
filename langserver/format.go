@@ -20,11 +20,11 @@ const (
 )
 
 func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentFormattingParams) ([]lsp.TextEdit, error) {
-	return formatRange(ctx, h.overlay.view, params.TextDocument.URI, nil, h.DefaultConfig.FormatStyle == goimportsStyle)
+	return formatRange(ctx, h.View(), params.TextDocument.URI, nil, h.DefaultConfig.FormatStyle == goimportsStyle)
 }
 
 func (h *LangHandler) handleTextDocumentRangeFormatting(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentRangeFormattingParams) ([]lsp.TextEdit, error) {
-	return formatRange(ctx, h.overlay.view, params.TextDocument.URI, &params.Range, h.DefaultConfig.FormatStyle == goimportsStyle)
+	return formatRange(ctx, h.View(), params.TextDocument.URI, &params.Range, h.DefaultConfig.FormatStyle == goimportsStyle)
 }
 
 // formatRange formats a document with a given range.

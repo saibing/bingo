@@ -3,12 +3,16 @@ package cache
 import (
 	"context"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/saibing/bingo/langserver/internal/source"
@@ -62,6 +66,7 @@ type FindPackageFunc func(project *Project, importPath string) (*packages.Packag
 type Project struct {
 	context       context.Context
 	conn          jsonrpc2.JSONRPC2
+	viewMu        sync.Mutex
 	view          *View
 	rootDir       string
 	vendorDir     string
@@ -73,15 +78,39 @@ type Project struct {
 }
 
 // NewProject new project
-func NewProject(conn jsonrpc2.JSONRPC2, rootDir string, view *View) *Project {
+func NewProject(ctx context.Context, conn jsonrpc2.JSONRPC2, rootPath string, buildFlags []string) *Project {
+	cfg := &packages.Config{
+		Context: ctx,
+		Dir:     rootPath,
+		Mode:    packages.LoadImports,
+		Fset:    token.NewFileSet(),
+		Overlay: make(map[string][]byte),
+		ParseFile: func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+			return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
+		},
+		Tests:      true,
+		BuildFlags: buildFlags,
+	}
+	view := NewView(cfg)
+
 	p := &Project{
 		conn:    conn,
 		view:    view,
-		rootDir: util.LowerDriver(rootDir),
+		rootDir: util.LowerDriver(rootPath),
 	}
 
 	p.vendorDir = filepath.Join(p.rootDir, vendor)
 	return p
+}
+
+func (p *Project) View() source.View {
+	return p.view
+}
+
+func (p *Project) SetView(view source.View) {
+	p.viewMu.Lock()
+	p.view = view.(*View)
+	p.viewMu.Unlock()
 }
 
 func (p *Project) notify(err error) {

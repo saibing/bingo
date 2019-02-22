@@ -22,7 +22,7 @@ func (h *LangHandler) handleCodeAction(ctx context.Context, conn jsonrpc2.JSONRP
 		return []protocol.CodeAction{}, nil
 	}
 
-	edits, err := organizeImports(ctx, h.overlay.view, fileURI)
+	edits, err := organizeImports(ctx, h.View(), fileURI)
 	if err != nil {
 		return nil, err
 	}

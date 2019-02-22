@@ -22,7 +22,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		return nil, nil
 	}
 
-	f, err := h.overlay.view.GetFile(ctx, source.FromDocumentURI(fileURI))
+	f, err := h.View().GetFile(ctx, source.FromDocumentURI(fileURI))
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].Score > candidates[j].Score
 	})
-    items := []lsp.CompletionItem{}
+	items := []lsp.CompletionItem{}
 	for i, candidate := range candidates {
 		// Matching against the label.
 		if !strings.HasPrefix(candidate.Label, prefix) {

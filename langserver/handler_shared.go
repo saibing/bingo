@@ -1,11 +1,12 @@
 package langserver
 
 import (
+	"context"
 	"fmt"
 	"strings"
-	"context"
 
 	"github.com/saibing/bingo/langserver/internal/cache"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/sourcegraph/go-lsp"
 	"golang.org/x/tools/go/packages"
@@ -39,6 +40,9 @@ func (p *HandlerShared) notifyLog(message string) {
 	_ = p.overlay.conn.Notify(context.Background(), "window/logMessage", &lsp.LogMessageParams{Type: lsp.Info, Message: message})
 }
 
+func (p *HandlerShared) View() source.View {
+	return p.overlay.view()
+}
 
 func (h *HandlerShared) getFindPackageFunc() cache.FindPackageFunc {
 	return defaultFindPackageFunc
