@@ -74,7 +74,7 @@ func (v *View) SetContent(ctx context.Context, uri source.URI, content []byte) (
 		}
 	}
 
-	f := v.getFile(uri)
+	f := newView.getFile(uri)
 	f.content = content
 
 	// Resetting the contents invalidates the ast, token, and pkg fields.
