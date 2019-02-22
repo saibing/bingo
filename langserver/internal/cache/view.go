@@ -374,23 +374,23 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 			if fAST != nil {
 				parsed[i], errors[i] = fAST, nil
 			} else {
-			// ParseFile may return both an AST and an error.
-			var src []byte
-			for f, contents := range imp.v.Config.Overlay {
-				if sameFile(f, filename) {
-					src = contents
+				// ParseFile may return both an AST and an error.
+				var src []byte
+				for f, contents := range imp.v.Config.Overlay {
+					if sameFile(f, filename) {
+						src = contents
+					}
+					}
+				var err error
+				if src == nil {
+					src, err = ioutil.ReadFile(filename)
 				}
-			}
-			var err error
-			if src == nil {
-				src, err = ioutil.ReadFile(filename)
-			}
-			if err != nil {
-				parsed[i], errors[i] = nil, err
-			} else {
-				parsed[i], errors[i] = imp.v.Config.ParseFile(imp.v.Config.Fset, filename, src)
-			}
-		}
+				if err != nil {
+					parsed[i], errors[i] = nil, err
+				} else {
+					parsed[i], errors[i] = imp.v.Config.ParseFile(imp.v.Config.Fset, filename, src)
+				}
+					}
 			<-ioLimit // signal
 			wg.Done()
 		}(i, filename)
