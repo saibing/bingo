@@ -380,7 +380,7 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 					if sameFile(f, filename) {
 						src = contents
 					}
-					}
+				}
 				var err error
 				if src == nil {
 					src, err = ioutil.ReadFile(filename)
@@ -390,7 +390,7 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 				} else {
 					parsed[i], errors[i] = imp.v.Config.ParseFile(imp.v.Config.Fset, filename, src)
 				}
-					}
+			}
 			<-ioLimit // signal
 			wg.Done()
 		}(i, filename)
