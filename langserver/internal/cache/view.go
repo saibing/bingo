@@ -60,6 +60,7 @@ func (v *View) SetContent(ctx context.Context, uri source.URI, content []byte) (
 	defer v.mu.Unlock()
 
 	newView := NewView(&v.Config)
+	newView.cache = v.cache
 
 	for fURI, f := range v.files {
 		newView.files[fURI] = &File{
@@ -350,7 +351,7 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 	n := len(filenames)
 	parsed := make([]*ast.File, n)
 	errors := make([]error, n)
-	for i, file := range filenames {
+	for i, filename := range filenames {
 		if imp.v.Config.Context != nil {
 			if imp.v.Config.Context.Err() != nil {
 				parsed[i] = nil
@@ -358,9 +359,21 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 				continue
 			}
 		}
+
+		// First, check if we have already cached an AST for this file.
+		f := imp.v.files[source.ToURI(filename)]
+		var fAST *ast.File
+		if f != nil {
+			fAST = f.ast
+		}
+
 		wg.Add(1)
 		go func(i int, filename string) {
 			ioLimit <- true // wait
+
+			if fAST != nil {
+				parsed[i], errors[i] = fAST, nil
+			} else {
 			// ParseFile may return both an AST and an error.
 			var src []byte
 			for f, contents := range imp.v.Config.Overlay {
@@ -377,9 +390,10 @@ func (imp *importer) parseFiles(filenames []string) ([]*ast.File, []error) {
 			} else {
 				parsed[i], errors[i] = imp.v.Config.ParseFile(imp.v.Config.Fset, filename, src)
 			}
+		}
 			<-ioLimit // signal
 			wg.Done()
-		}(i, file)
+		}(i, filename)
 	}
 	wg.Wait()
 

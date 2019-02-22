@@ -72,7 +72,7 @@ func toProtocolEdits(f source.File, edits []source.TextEdit) []lsp.TextEdit {
 	result := make([]lsp.TextEdit, len(edits))
 	for i, edit := range edits {
 		rng := toProtocolRange(tok, edit.Range)
-
+		
 		// If the edit ends at the end of the file, add the extra line.
 		if hasExtraNewline && tok.Offset(edit.Range.End) == len(content) {
 			rng.End.Line++
