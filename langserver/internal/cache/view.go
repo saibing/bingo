@@ -59,6 +59,20 @@ func (v *View) SetContent(ctx context.Context, uri source.URI, content []byte) (
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
+	newView := NewView(&v.Config)
+
+	for fURI, f := range v.files {
+		newView.files[fURI] = &File{
+			URI:     fURI,
+			view:    newView,
+			active:  f.active,
+			content: f.content,
+			ast:     f.ast,
+			token:   f.token,
+			pkg:     f.pkg,
+		}
+	}
+
 	f := v.getFile(uri)
 	f.content = content
 
@@ -84,8 +98,7 @@ func (v *View) SetContent(ctx context.Context, uri source.URI, content []byte) (
 		}
 	}
 
-	// TODO(rstambler): We should really return a new, updated view.
-	return v, nil
+	return newView, nil
 }
 
 // GetFile returns a File for the given URI. It will always succeed because it
@@ -187,9 +200,9 @@ type entry struct {
 }
 
 func (imp *importer) addImports(path string, pkg *packages.Package) error {
-	if _, ok := imp.packages[path]; ok {    
-		return nil                                                                                                 
-	}    
+	if _, ok := imp.packages[path]; ok {
+		return nil
+	}
 	imp.packages[path] = pkg
 	for importPath, importPkg := range pkg.Imports {
 		if err := imp.addImports(importPath, importPkg); err != nil {

@@ -92,7 +92,8 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 // requests.
 type overlay struct {
 	conn             *jsonrpc2.Conn
-	view             *cache.View
+	viewMu sync.Mutex
+	view   source.View
 	diagnosticsStyle DiagnosticsStyleEnum
 }
 
@@ -127,22 +128,18 @@ func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocume
 		return fmt.Errorf("received textDocument/didChange for unknown file %q", params.TextDocument.URI)
 	}
 
-	//log.Printf("old text: %s\n", string(contents))
-
 	contents, err := applyContentChanges(params.TextDocument.URI, contents, params.ContentChanges)
 	if err != nil {
 		return err
 	}
 
-	//log.Printf("new text: %s\n", string(contents))
-
-	h.cacheFile(ctx, params.TextDocument.URI, contents)
+	h.cacheAndDiagnose(ctx, params.TextDocument.URI, contents)
 	return nil
 }
 
 func (h *overlay) didClose(ctx context.Context, params *lsp.DidCloseTextDocumentParams) {
 	uri := source.FromDocumentURI(params.TextDocument.URI)
-	h.view.SetContent(ctx, uri, nil)
+	h.setContent(ctx, uri, nil)
 }
 
 func (h *overlay) didSave(ctx context.Context, param *lsp.DidSaveTextDocumentParams) {
@@ -151,7 +148,7 @@ func (h *overlay) didSave(ctx context.Context, param *lsp.DidSaveTextDocumentPar
 	}
 
 	sourceURI := source.FromDocumentURI(param.TextDocument.URI)
-	f, err := h.view.GetFile(ctx, sourceURI)
+	f, err := h.GetFile(ctx, sourceURI)
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -160,20 +157,20 @@ func (h *overlay) didSave(ctx context.Context, param *lsp.DidSaveTextDocumentPar
 }
 
 func (h *overlay) get(ctx context.Context, uri lsp.DocumentURI) ([]byte, bool) {
-	file, err := h.view.GetFile(ctx, source.FromDocumentURI(uri))
+	file, err := h.GetFile(ctx, source.FromDocumentURI(uri))
 	if err != nil {
 		return nil, false
 	}
 	if file != nil {
 		contents := file.GetContent()
-		return contents, err == nil
+	+	return contents, err == nil
 	}
 	return nil, false
 }
 
-func (h *overlay) cacheFile(ctx context.Context, uri lsp.DocumentURI, text []byte) {
+func (h *overlay) cacheAndDiagnose(ctx context.Context, uri lsp.DocumentURI, text []byte) {
 	sourceURI := source.FromDocumentURI(uri)
-	h.view.SetContent(ctx, sourceURI, text)
+	h.setContent(ctx, sourceURI, text)
 	f, err := h.view.GetFile(ctx, sourceURI)
 	if err != nil {
 		return
@@ -183,6 +180,19 @@ func (h *overlay) cacheFile(ctx context.Context, uri lsp.DocumentURI, text []byt
 	}
 
 	go h.diagnosetics(ctx, f)
+}
+
+func (h *overlay) setContent(ctx context.Context, uri source.URI, content []byte) error {
+	v, err := s.view.SetContent(ctx, uri, content)
+	if err != nil {
+		return err
+	}
+
+	h.viewMu.Lock()
+	h.view = v
+	h.viewMu.Unlock()
+
+	return nil
 }
 
 type DiagnosticsStyleEnum string
