@@ -2,6 +2,7 @@ package langserver
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/sourcegraph/go-lsp"
@@ -19,6 +20,10 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 		return nil, err
 	}
 	tok := f.GetToken()
+	if tok == nil {
+		return nil, newJsonrpc2Errorf(jsonrpc2.CodeInternalError, fmt.Sprintf("token file does not exist of %s", fileURI))
+	}
+
 	pos := fromProtocolPosition(tok, params.Position)
 	info, err := source.SignatureHelp(ctx, f, pos, h.project.GetBuiltinPackage(), h.DefaultConfig.EnhanceSignatureHelp)
 	if err != nil {
