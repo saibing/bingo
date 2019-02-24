@@ -1,5 +1,7 @@
 # bingo
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/saibing/bingo)](https://goreportcard.com/report/github.com/saibing/bingo)
+
 bingo is a [Go](https://golang.org) language server that speaks
 [Language Server Protocol](https://github.com/Microsoft/language-server-protocol).
 
