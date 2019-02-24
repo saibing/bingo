@@ -187,6 +187,16 @@ func (c *PackageCache) Put(pkg *packages.Package) {
 	c.put(pkg)
 }
 
+func (c *PackageCache) Delete(id string) {
+	if c == nil {
+		return
+	}
+
+	c.Lock()
+	defer c.Unlock()
+	c.delete(id)
+}
+
 // GetByURI get package by filename from global cache
 func (c *PackageCache) GetByURI(filename string) *Package {
 	if c == nil {

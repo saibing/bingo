@@ -27,6 +27,10 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		return nil, err
 	}
 	tok := f.GetToken()
+	if tok == nil {
+		return nil, newJsonrpc2Errorf(jsonrpc2.CodeInternalError, fmt.Sprintf("token file does not exist of %s", fileURI))
+	}
+
 	pos := fromProtocolPosition(tok, params.Position)
 	items, prefix, err := source.Completion(ctx, f, pos, h.project.Cache())
 	if err != nil {

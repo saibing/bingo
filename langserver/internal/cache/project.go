@@ -492,7 +492,8 @@ func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*pack
 	f := p.view.files[uri]
 	p.view.mu.Unlock()
 
-	if f == nil || f.pkg == nil {
+	filename, _ := uri.Filename()
+	if f == nil || (f.pkg == nil && !p.isInsideProject(filename)) {
 		pkg := p.GetFromURI(fileURI)
 		if pkg != nil {
 			return pkg, nil, nil
@@ -511,6 +512,10 @@ func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*pack
 	}
 
 	return pkg, f, nil
+}
+
+func (p *Project) isInsideProject(path string) bool {
+	return strings.HasPrefix(path, p.rootDir)
 }
 
 func newSubject(observer Observer) Subject {
