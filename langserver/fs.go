@@ -187,7 +187,7 @@ func (h *overlay) diagnosetics(ctx context.Context, f source.File) {
 
 func bytesOffset(content []byte, pos lsp.Position) int {
 	var line, char, offset int
-	if len(content) == 0 {
+	if len(content) == 0 && pos.Line == 0 && pos.Character == 0 {
 		return 0
 	}
 
