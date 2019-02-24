@@ -6,7 +6,9 @@ bingo is a [Go](https://golang.org) language server that speaks
 This project was largely inspired by [go-langserver](https://github.com/sourcegraph/go-langserver).
 
 ## Supported Features
+
 ### Feature
+
 bingo will support editor features as follow:
 
 - [x] textDocument/hover
@@ -28,7 +30,9 @@ bingo will support editor features as follow:
 - [x] workspace/xreferences
 
 ## Install
+
 ### Install
+
 bingo is a go module project, so you need install [Go 1.11 or above](https://golang.google.cn/dl/),
 to  install the `bingo`, please run
 
@@ -37,29 +41,41 @@ git clone https://github.com/saibing/bingo.git
 cd bingo
 GO111MODULE=on go install
 ```
+
 If you live in China and may not be able to download golang.org/x/ dependency module, please set GOPROXY as follow:
+
 ```bash
  export GOPROXY=https://athens.azurefd.net/
 ```
 
 ## Configuration
+
 ### bingo's flag
+
 #### --trace
+
 print all requests and responses
+
 #### --logfile &lt;path&gt;
+
 log both stdout and stderr to a file
 
 #### --format-style &lt;style&gt;
+
 which format style is used to format documents. Supported: gofmt and goimports
 
 #### --diagnostics-style &lt;style&gt;
+
 which diagnostics style is used to diagnostics current document. Supported: none, instant, onsave.
 
 ####  --cache-style &lt;style&gt;
+
 set global cache style: none, on-demand, always.
 
 ## Language Client
+
 ### [vscode-go](https://github.com/Microsoft/vscode-go)
+
 ```json
 {
     "go.useLanguageServer": true,
@@ -79,9 +95,11 @@ set global cache style: none, on-demand, always.
 ```
 
 ### [coc.nvim](https://github.com/neoclide/coc.nvim)
+
 Please reference [Language server](https://github.com/neoclide/coc.nvim/wiki/Language-servers#go)
 
 ### [LanguageClient-neovim](https://github.com/autozimu/LanguageClient-neovim)
+
 ```vim
 let g:LanguageClient_rootMarkers = {
         \ 'go': ['.git', 'go.mod'],
@@ -94,7 +112,9 @@ let g:LanguageClient_serverCommands = {
 ```
 
 ## F.A.Q
+
 ### Differences between go-langserver, bingo, golsp
+
 - [go-langserver](https://github.com/sourcegraph/go-langserver)
 
 > go-langserver is designed for online code reading such as github.com.
@@ -106,5 +126,3 @@ let g:LanguageClient_serverCommands = {
 - [gopls](https://github.com/golang/tools/blob/master/cmd/gopls/main.go)
 
 > gopls is an official language server,  and it is currently in early development.
-
-
