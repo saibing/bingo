@@ -148,14 +148,15 @@ func (v *View) parse(uri source.URI) error {
 			v:               v,
 			topLevelPkgPath: pkg.PkgPath,
 		}
-		if err := imp.addImports(pkg.PkgPath, pkg); err != nil {
-			return err
-		}
+		imp.addImports(pkg.PkgPath, pkg)
 		// Start prefetching direct imports.
 		for importPath := range pkg.Imports {
 			go imp.Import(importPath)
 		}
-		imp.importPackage(pkg.PkgPath)
+		_, err := imp.importPackage(pkg.PkgPath)
+		if err != nil {
+			return err
+		}
 
 		// Add every file in this package to our cache.
 		for _, file := range pkg.Syntax {
@@ -200,17 +201,15 @@ type entry struct {
 	ready chan struct{}
 }
 
-func (imp *importer) addImports(path string, pkg *packages.Package) error {
+func (imp *importer) addImports(path string, pkg *packages.Package) {
 	if _, ok := imp.packages[path]; ok {
-		return nil
+		return
 	}
 	imp.packages[path] = pkg
 	for importPath, importPkg := range pkg.Imports {
-		if err := imp.addImports(importPath, importPkg); err != nil {
-			return err
-		}
+		imp.addImports(importPath, importPkg)
 	}
-	return nil
+	return
 }
 
 func (imp *importer) Import(path string) (*types.Package, error) {
