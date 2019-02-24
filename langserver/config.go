@@ -86,6 +86,10 @@ func (c Config) Apply(o *InitializationOptions) Config {
 		c.MaxParallelism = *o.MaxParallelism
 	}
 
+	if o.BuildTags != nil {
+		c.BuildTags = o.BuildTags
+	}
+
 	return c
 }
 

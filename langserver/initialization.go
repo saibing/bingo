@@ -1,6 +1,6 @@
 package langserver
 
-import "github.com/sourcegraph/go-lsp"
+import lsp "github.com/sourcegraph/go-lsp"
 
 // This file contains Go-specific extensions to LSP types.
 //
@@ -40,6 +40,9 @@ type InitializationOptions struct {
 
 	// MaxParallelism is an optional version of Config.MaxParallelism
 	MaxParallelism *int `json:"maxParallelism"`
+
+	// BuildTags is an optional version of Config.BuildTags
+	BuildTags []string `json:"buildTags"`
 }
 
 type InitializeParams struct {
