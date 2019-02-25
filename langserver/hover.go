@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/goast"
-	"github.com/slimsag/godocmd"
 	"go/ast"
 	"go/build"
 	"go/format"
@@ -13,6 +11,9 @@ import (
 	"go/types"
 	"sort"
 	"strings"
+
+	"github.com/saibing/bingo/langserver/internal/goast"
+	doc "github.com/slimsag/godocmd"
 
 	"golang.org/x/tools/go/packages"
 
@@ -103,7 +104,8 @@ func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, id
 		return h.packageStatement(pkg, ident, position)
 	}
 
-	if o != nil && !o.Pos().IsValid() {
+	isBuiltIn, builtInObject := o != nil && !o.Pos().IsValid(), o
+	if isBuiltIn {
 		// Only builtins have invalid position, and don't have useful info.
 		pkg = h.project.GetBuiltinPackage()
 		if pkg == nil {
@@ -127,11 +129,20 @@ func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, id
 			typ := obj.Type().Underlying()
 			if _, ok := typ.(*types.Struct); ok {
 				s = "type " + obj.Name() + " struct"
-				extra = prettyPrintTypesString(types.TypeString(typ, qf))
+				if !isBuiltIn {
+					extra = prettyPrintTypesString(types.TypeString(typ, qf))
+				} else {
+					extra = prettyPrintTypesString(builtInObject.String())
+				}
 			}
 			if _, ok := typ.(*types.Interface); ok {
 				s = "type " + obj.Name() + " interface"
 				extra = prettyPrintTypesString(types.TypeString(typ, qf))
+				if !isBuiltIn {
+					extra = prettyPrintTypesString(types.TypeString(typ, qf))
+				} else {
+					extra = prettyPrintTypesString(builtInObject.String())
+				}
 			}
 		}
 		if s == "" {
