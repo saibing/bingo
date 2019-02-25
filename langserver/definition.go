@@ -102,7 +102,6 @@ func (h *LangHandler) lookupCallExprDefinition(ctx context.Context, conn jsonrpc
 }
 
 func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg *packages.Package, pathNodes []ast.Node, ident *ast.Ident) ([]symbolLocationInformation, error) {
-
 	var nodes []foundNode
 	obj := goast.FindIdentObject(pkg, ident)
 	if obj != nil {
@@ -112,9 +111,11 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 			}
 		}
 
-		if p := obj.Pos(); p.IsValid() {
+		pos := obj.Pos()
+		isBuiltIn := !pos.IsValid()
+		if !isBuiltIn {
 			nodes = append(nodes, foundNode{
-				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
+				ident: &ast.Ident{NamePos: pos, Name: obj.Name()},
 				typ:   goast.TypeLookup(pkg.TypesInfo.TypeOf(ident)),
 			})
 		} else {
@@ -132,11 +133,12 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 				return []symbolLocationInformation{}, nil
 			}
 
+			// re-look up position in `builtin` package
+			pos = obj.Pos()
 			nodes = append(nodes, foundNode{
-				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
+				ident: &ast.Ident{NamePos: pos, Name: obj.Name()},
 				typ:   goast.TypeLookup(obj.Type()),
 			})
-
 			pathNodes, _, _ = goast.GetObjectPathNode(pkg, obj)
 		}
 	}
