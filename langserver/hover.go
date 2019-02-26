@@ -310,14 +310,14 @@ func prettyPrintTypesString(s string) string {
 				b.WriteByte(c)
 				continue
 			}
-			
+
 			b.WriteByte('\n')
 			for j := 0; j < depth; j++ {
 				b.WriteString("    ")
 			}
 			// Skip following space
 			i++
-			
+
 		case '"':
 			inTag = !inTag
 			b.WriteByte('`')
