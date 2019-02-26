@@ -23,7 +23,7 @@ import (
 )
 
 type View struct {
-	mu sync.Mutex // protects all mutable state of the view
+	mu *sync.Mutex // protects all mutable state of the view
 
 	Config packages.Config
 
@@ -37,6 +37,7 @@ type View struct {
 // If config is nil, one is created with the directory set to the rootPath.
 func NewView(config *packages.Config) *View {
 	return &View{
+		mu:     &sync.Mutex{},
 		Config: *config,
 		files:  make(map[source.URI]*File),
 	}
