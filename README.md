@@ -84,11 +84,7 @@ set global cache style: none, on-demand, always.
     "go.alternateTools": {
         "go-langserver": "bingo"
     },
-    "go.languageServerFlags": [
-        "-enhance-signature-help",
-        "-trace",
-        "-format-style=goimports",
-    ],
+    "go.languageServerFlags": [],
     "go.languageServerExperimentalFeatures": {
         "format": true,
         "autoComplete": true
