@@ -104,7 +104,14 @@ func NewProject(ctx context.Context, conn jsonrpc2.JSONRPC2, rootPath string, bu
 }
 
 func (p *Project) View() source.View {
-	return p.view
+	return p.getView()
+}
+
+func (p *Project) getView() *View {
+	p.viewMu.Lock()
+	v := p.view
+	p.viewMu.Unlock()
+	return v
 }
 
 func (p *Project) SetView(view source.View) {
@@ -133,7 +140,7 @@ func (p *Project) Init(ctx context.Context, globalCacheStyle string) error {
 		return nil
 	}
 
-	p.view.cache = NewCache()
+	p.getView().cache = NewCache()
 	err := p.createBuiltin()
 	if err != nil {
 		p.notify(err)
@@ -334,13 +341,17 @@ func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, strin
 // GetFromURI get package from document uri.
 func (p *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	filename, _ := source.FromDocumentURI(uri).Filename()
-	pkg := p.view.cache.GetByURI(filename)
+	pkg := p.getCache().GetByURI(filename)
 	return pkg.Package()
+}
+
+func (p *Project) getCache() *PackageCache {
+	return p.getView().cache
 }
 
 // GetFromPkgPath get package from package import path.
 func (p *Project) GetFromPkgPath(pkgPath string) *packages.Package {
-	pkg := p.view.cache.Get(pkgPath)
+	pkg := p.getCache().Get(pkgPath)
 	return pkg.Package()
 }
 
@@ -367,9 +378,10 @@ func (p *Project) needRebuild(eventName string) bool {
 	}
 
 	uri := source.ToURI(eventName)
-	p.view.mu.Lock()
-	f := p.view.files[uri]
-	p.view.mu.Unlock()
+	v := p.getView()
+	v.mu.Lock()
+	f := v.files[uri]
+	v.mu.Unlock()
 	if f != nil {
 		return false
 	}
@@ -449,7 +461,7 @@ func (p *Project) Search(walkFunc source.WalkFunc) error {
 		ranks = append(ranks, module.mainModulePath)
 	}
 
-	return p.view.cache.Walk(walkFunc, ranks)
+	return p.getCache().Walk(walkFunc, ranks)
 }
 
 func (p *Project) setCache(pkgs []*packages.Package) {
@@ -469,7 +481,7 @@ func (p *Project) setOnePackage(pkg *packages.Package, seen map[string]bool) {
 	}
 	seen[pkg.ID] = true
 
-	p.view.cache.put(pkg)
+	p.getCache().put(pkg)
 
 	for _, ip := range pkg.Imports {
 		p.setOnePackage(ip, seen)
@@ -477,20 +489,22 @@ func (p *Project) setOnePackage(pkg *packages.Package, seen map[string]bool) {
 }
 
 func (p *Project) Cache() *PackageCache {
-	return p.view.cache
+	return p.getCache()
 }
 
 // SetCache just for go test case
 func (p *Project) SetCache(cache *PackageCache) {
-	p.view.cache = cache
+	v := p.getView()
+	v.cache = cache
 }
 
 func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*packages.Package, source.File, error) {
 	uri := source.FromDocumentURI(fileURI)
 
-	p.view.mu.Lock()
-	f := p.view.files[uri]
-	p.view.mu.Unlock()
+	v := p.getView()
+	v.mu.Lock()
+	f := v.files[uri]
+	v.mu.Unlock()
 
 	filename, _ := uri.Filename()
 	if f == nil || (f.pkg == nil && !p.isInsideProject(filename)) {
@@ -500,9 +514,10 @@ func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*pack
 		}
 
 		if f == nil {
-			p.view.mu.Lock()
-			f = p.view.getFile(uri)
-			p.view.mu.Unlock()
+			v := p.getView()
+			v.mu.Lock()
+			f = v.getFile(uri)
+			v.mu.Unlock()
 		}
 	}
 
