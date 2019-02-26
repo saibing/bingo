@@ -301,15 +301,30 @@ func prettyPrintTypesString(s string) string {
 	var b bytes.Buffer
 	b.Grow(len(s))
 	depth := 0
+	var inTag bool
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		switch c {
 		case ';':
+			if inTag {
+				b.WriteByte(c)
+				continue
+			}
+			
 			b.WriteByte('\n')
 			for j := 0; j < depth; j++ {
 				b.WriteString("    ")
 			}
 			// Skip following space
+			i++
+			
+		case '"':
+			inTag = !inTag
+			b.WriteByte('`')
+
+		case '\\':
+			b.WriteByte('"')
+			//skip following "
 			i++
 
 		case '{':
