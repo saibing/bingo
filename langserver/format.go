@@ -38,6 +38,9 @@ func formatRange(ctx context.Context, v source.View, uri lsp.DocumentURI, rng *l
 		return nil, err
 	}
 	tok := f.GetToken()
+	if tok == nil {
+		return nil, newJsonrpc2Errorf(jsonrpc2.CodeInternalError, fmt.Sprintf("token file does not exist of %s", uri))
+	}
 	var r source.Range
 	if rng == nil {
 		r.Start = tok.Pos(0)
