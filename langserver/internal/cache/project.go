@@ -530,7 +530,7 @@ func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*pack
 }
 
 func (p *Project) isInsideProject(path string) bool {
-	return strings.HasPrefix(path, p.rootDir)
+	return strings.HasPrefix(filepath.ToSlash(path), p.rootDir)
 }
 
 func newSubject(observer Observer) Subject {
