@@ -39,15 +39,7 @@ bingo is a go module project, so you need install [Go 1.11 or above](https://gol
 to  install the `bingo`, please run
 
 ```bash
-git clone https://github.com/saibing/bingo.git
-cd bingo
-GO111MODULE=on go install
-```
-
-If you live in China and may not be able to download golang.org/x/ dependency module, please set GOPROXY as follow:
-
-```bash
- export GOPROXY=https://athens.azurefd.net/
+go get -u github.com/saibing/bingo
 ```
 
 ## Configuration
