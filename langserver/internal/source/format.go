@@ -65,7 +65,9 @@ func Imports(ctx context.Context, f File, rng Range) ([]TextEdit, error) {
 }
 
 func computeTextEdits(file File, formatted string) (edits []TextEdit) {
-	u := strings.SplitAfter(string(file.GetContent()), "\n")
+	content := file.GetContent()
+	content = bytes.Replace(content, []byte{'\r'}, []byte{}, -1)
+	u := strings.SplitAfter(string(content), "\n")
 	tok := file.GetToken()
 	f := strings.SplitAfter(formatted, "\n")
 	for _, op := range diff.Operations(u, f) {
