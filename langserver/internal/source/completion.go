@@ -9,6 +9,7 @@ import (
 	"go/types"
 	"log"
 	"strings"
+	"unicode"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
@@ -855,10 +856,11 @@ func offsetForIdent(contents []byte, p token.Position) string {
 		prefix := contents[:offset]
 		i := offset - 1
 		for ; i > 0; i-- {
-			c := prefix[i]
-			if c == ' ' || c == '\t' || c == '\n' {
-				break
+			c := rune(prefix[i])
+			if unicode.IsLetter(c) || c == '.' || unicode.IsDigit(c) {
+				continue
 			}
+			break
 		}
 		result := string(contents[i+1 : offset])
 		return result
