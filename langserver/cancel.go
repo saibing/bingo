@@ -9,8 +9,15 @@ import (
 
 // cancel manages $/cancelRequest by keeping track of running commands
 type cancel struct {
-	mu sync.Mutex
+	mu *sync.Mutex
 	m  map[jsonrpc2.ID]func()
+}
+
+func NewCancel() *cancel {
+	return &cancel{
+		mu: &sync.Mutex{},
+		m:  make(map[jsonrpc2.ID]func()),
+	}
 }
 
 // WithCancel is like context.WithCancel, except you can also cancel via
