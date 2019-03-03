@@ -48,7 +48,7 @@ func TestDefinition(t *testing.T) {
 	})
 
 	t.Run("go root", func(t *testing.T) {
-		test(t, "goroot/a.go:1:40", "goroot/src/fmt/print.go:263:6-263:13")
+		test(t, "goroot/a.go:1:40", "goroot/src/fmt/print.go:274:6-274:13")
 	})
 
 	t.Run("go project", func(t *testing.T) {
