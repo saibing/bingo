@@ -31,7 +31,7 @@ func TestDefinition(t *testing.T) {
 	})
 
 	t.Run("builtin definition", func(t *testing.T) {
-		test(t, "builtin/a.go:1:26", "goroot/src/builtin/builtin.go:246:8-246:15")
+		test(t, "builtin/a.go:1:26", "goroot/src/builtin/builtin.go:257:6-257:13")
 	})
 
 	t.Run("subdirectory definition", func(t *testing.T) {
@@ -48,7 +48,7 @@ func TestDefinition(t *testing.T) {
 	})
 
 	t.Run("go root", func(t *testing.T) {
-		test(t, "goroot/a.go:1:40", "goroot/src/fmt/print.go:263:6-263:13")
+		test(t, "goroot/a.go:1:40", "goroot/src/fmt/print.go:274:6-274:13")
 	})
 
 	t.Run("go project", func(t *testing.T) {
