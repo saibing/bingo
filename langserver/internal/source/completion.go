@@ -19,6 +19,7 @@ type CompletionItem struct {
 	Label, Detail string
 	Kind          CompletionItemKind
 	Score         float64
+	Documentation string
 }
 
 type CompletionItemKind int
@@ -105,6 +106,14 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 			item := formatCompletion(obj, pkgStringer, weight, func(v *types.Var) bool {
 				return isParameter(sig, v)
 			})
+
+			// TODO(mbana): figure out how to get `golang.org/x/tools/go/packages.Packages` from `go/types.Package`.
+			// pkg, ok := obj.Pkg().(pkg.Types)
+			ok := true
+			if ok {
+				// FindComments(obj.Pkg(), obj, "")
+			}
+
 			items = append(items, item)
 		}
 		return items
@@ -118,7 +127,18 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 				if p.Name == pkgIdent && p != pkg {
 					scope := p.Types.Scope()
 					for _, name := range scope.Names() {
-						items = found(scope.Lookup(name), stdScore, items)
+						obj := scope.Lookup(name)
+						items = found(obj, stdScore, items)
+
+						// log.Printf("        name := %#+v \n", name)
+						// log.Printf("        pkgIdent := %#+v \n", pkgIdent)
+						itemIndex := len(items) - 1
+						comments, err := FindComments(pkg, obj, pkgIdent)
+						if err == nil && len(items) > 1 {
+							items[itemIndex].Documentation = comments
+							// log.Printf("        item := %#+v \n", items[itemIndex])
+							// log.Printf("        items[itemIndex].Documentation := %#+v \n", items[itemIndex].Documentation)
+						}
 					}
 				}
 				return nil
