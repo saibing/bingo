@@ -66,7 +66,7 @@ type FindPackageFunc func(project *Project, importPath string) (*packages.Packag
 type Project struct {
 	context       context.Context
 	conn          jsonrpc2.JSONRPC2
-	viewMu        sync.Mutex
+	viewMu        *sync.Mutex
 	view          *View
 	rootDir       string
 	vendorDir     string
@@ -95,6 +95,7 @@ func NewProject(ctx context.Context, conn jsonrpc2.JSONRPC2, rootPath string, bu
 
 	p := &Project{
 		conn:    conn,
+		viewMu:  &sync.Mutex{},
 		view:    view,
 		rootDir: util.LowerDriver(rootPath),
 	}
@@ -295,7 +296,7 @@ func (p *Project) findGoModFiles() []string {
 	return gomodList
 }
 
-var defaultExcludeDir = []string{".git", ".svn", ".hg", ".vscode", ".idea", vendor}
+var defaultExcludeDir = []string{".git", ".svn", ".hg", ".vscode", ".idea", "node_modules", vendor}
 
 func isExclude(dir string) bool {
 	for _, d := range defaultExcludeDir {
