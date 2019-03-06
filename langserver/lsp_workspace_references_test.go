@@ -24,6 +24,8 @@ func matchDir(path string) string {
 }
 
 func TestWorkspaceReferences(t *testing.T) {
+	t.Parallel()
+
 	setup(t)
 
 	test := func(t *testing.T, data map[*lspext.WorkspaceReferencesParams][]string) {

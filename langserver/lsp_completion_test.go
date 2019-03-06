@@ -15,6 +15,8 @@ import (
 )
 
 func TestCompletion(t *testing.T) {
+	t.Skip()
+
 	setup(t)
 
 	cache := h.project.Cache()

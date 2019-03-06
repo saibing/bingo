@@ -21,6 +21,8 @@ const exportedOnUnexported = "exported_on_unexported"
 const gorootnoexport = "gorootnoexport"
 
 func TestWorkspaceSymbol(t *testing.T) {
+	t.Parallel()
+
 	setup(t)
 
 	test := func(t *testing.T, data map[*lspext.WorkspaceSymbolParams][]string) {

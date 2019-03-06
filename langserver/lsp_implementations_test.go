@@ -18,6 +18,8 @@ import (
 )
 
 func TestImplementations(t *testing.T) {
+	t.Parallel()
+
 	setup(t)
 
 	test := func(t *testing.T, input string, output []string) {

@@ -16,6 +16,8 @@ import (
 )
 
 func TestFormatting(t *testing.T) {
+	t.Parallel()
+
 	setup(t)
 
 	test := func(t *testing.T, input string, output map[string]string) {
