@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/imports"
@@ -89,7 +90,7 @@ func (h *LangHandler) doInit(ctx context.Context, conn *jsonrpc2.Conn, init *Ini
 	rootPath := h.FilePath(init.Root())
 	buildFlags := []string{}
 	if len(h.config.BuildTags) > 0 {
-		buildFlags = append(buildFlags, append([]string{"-tags"}, h.config.BuildTags...)...)
+		buildFlags = append(buildFlags, "-tags", strings.Join(h.config.BuildTags, " "))
 	}
 	h.project = cache.NewProject(ctx, conn, rootPath, buildFlags)
 	h.overlay = newOverlay(conn, h.project, DiagnosticsStyleEnum(h.DefaultConfig.DiagnosticsStyle))
