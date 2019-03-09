@@ -152,14 +152,7 @@ func (h *overlay) cacheAndDiagnose(ctx context.Context, uri lsp.DocumentURI, tex
 }
 
 func (h *overlay) setContent(ctx context.Context, uri source.URI, content []byte) error {
-	v, err := h.view().SetContent(ctx, uri, content)
-	if err != nil {
-		return err
-	}
-
-	h.project.SetView(v)
-
-	return nil
+	return h.view().SetContent(ctx, uri, content)
 }
 
 type DiagnosticsStyleEnum string
@@ -171,7 +164,7 @@ const (
 )
 
 func (h *overlay) diagnosetics(ctx context.Context, f source.File) {
-	reports, err := diagnostics(f)
+	reports, err := diagnostics(ctx, f)
 	if err == nil {
 		for filename, diagnostics := range reports {
 			fileURI := source.ToURI(filename)
@@ -241,7 +234,7 @@ func (h *overlay) applyChanges(ctx context.Context, params *lsp.DidChangeTextDoc
 		return nil, newJsonrpc2Errorf(jsonrpc2.CodeInternalError, "file not found")
 	}
 
-	content := file.GetContent()
+	content := file.GetContent(ctx)
 	for _, change := range params.ContentChanges {
 		start := bytesOffset(content, change.Range.Start)
 		if start == -1 {

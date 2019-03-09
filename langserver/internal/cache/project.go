@@ -115,12 +115,6 @@ func (p *Project) getView() *View {
 	return v
 }
 
-func (p *Project) SetView(view source.View) {
-	p.viewMu.Lock()
-	p.view = view.(*View)
-	p.viewMu.Unlock()
-}
-
 func (p *Project) notify(err error) {
 	if err != nil {
 		p.notifyLog(fmt.Sprintf("notify: %s\n", err))
@@ -141,7 +135,7 @@ func (p *Project) Init(ctx context.Context, globalCacheStyle string) error {
 		return nil
 	}
 
-	p.getView().cache = NewCache()
+	p.getView().gcache = NewCache()
 	err := p.createBuiltin()
 	if err != nil {
 		p.notify(err)
@@ -346,8 +340,8 @@ func (p *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
 	return pkg.Package()
 }
 
-func (p *Project) getCache() *PackageCache {
-	return p.getView().cache
+func (p *Project) getCache() *GlobalCache {
+	return p.getView().gcache
 }
 
 // GetFromPkgPath get package from package import path.
@@ -489,14 +483,8 @@ func (p *Project) setOnePackage(pkg *packages.Package, seen map[string]bool) {
 	}
 }
 
-func (p *Project) Cache() *PackageCache {
+func (p *Project) Cache() *GlobalCache {
 	return p.getCache()
-}
-
-// SetCache just for go test case
-func (p *Project) SetCache(cache *PackageCache) {
-	v := p.getView()
-	v.cache = cache
 }
 
 func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*packages.Package, source.File, error) {
@@ -522,7 +510,7 @@ func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*pack
 		}
 	}
 
-	pkg := f.GetPackage()
+	pkg := f.GetPackage(ctx)
 	if pkg == nil {
 		return nil, nil, fmt.Errorf("package is null for file %s", uri)
 	}

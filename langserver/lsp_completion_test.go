@@ -17,10 +17,6 @@ import (
 func TestCompletion(t *testing.T) {
 	setup(t)
 
-	cache := h.project.Cache()
-	h.project.SetCache(nil)
-	defer h.project.SetCache(cache)
-
 	test := func(t *testing.T, input string, output string) {
 		testCompletion(t, &completionTestCase{input: input, output: output})
 	}

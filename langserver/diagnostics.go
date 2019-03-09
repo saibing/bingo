@@ -5,20 +5,22 @@
 package langserver
 
 import (
+	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/source"
-	"github.com/sourcegraph/go-lsp"
 	"go/token"
 	"strconv"
 	"strings"
+
+	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/sourcegraph/go-lsp"
 
 	"golang.org/x/tools/go/packages"
 )
 
 // NOTICE: Code adapted from https://github.com/golang/tools/blob/master/internal/lsp/diagnostics.go.
 
-func diagnostics(f source.File) (map[string][]lsp.Diagnostic, error) {
-	pkg := f.GetPackage()
+func diagnostics(ctx context.Context, f source.File) (map[string][]lsp.Diagnostic, error) {
+	pkg := f.GetPackage(ctx)
 	if pkg == nil {
 		return nil, fmt.Errorf("package is null for file")
 	}

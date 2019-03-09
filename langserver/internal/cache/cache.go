@@ -51,7 +51,7 @@ func getPackageModTime(pkg *packages.Package) time.Time {
 }
 
 // PackageCache package cache
-type PackageCache struct {
+type GlobalCache struct {
 	mu      sync.RWMutex
 	idMap   id2Package
 	pathMap path2Package
@@ -62,11 +62,11 @@ type PackageCache struct {
 var debugCache = false
 
 // NewCache new a package cache
-func NewCache() *PackageCache {
-	return &PackageCache{idMap: id2Package{}, pathMap: path2Package{}, fileMap: file2Package{}}
+func NewCache() *GlobalCache {
+	return &GlobalCache{idMap: id2Package{}, pathMap: path2Package{}, fileMap: file2Package{}}
 }
 
-func (c *PackageCache) put(pkg *packages.Package) {
+func (c *GlobalCache) put(pkg *packages.Package) {
 	if c == nil {
 		return
 	}
@@ -85,7 +85,7 @@ func (c *PackageCache) put(pkg *packages.Package) {
 	}
 }
 
-func (c *PackageCache) get(id string) *Package {
+func (c *GlobalCache) get(id string) *Package {
 	if c == nil {
 		return nil
 	}
@@ -98,7 +98,7 @@ func (c *PackageCache) get(id string) *Package {
 	return pkg
 }
 
-func (c *PackageCache) delete(id string) {
+func (c *GlobalCache) delete(id string) {
 	if c == nil {
 		return
 	}
@@ -120,7 +120,7 @@ func (c *PackageCache) delete(id string) {
 	}
 }
 
-func (c *PackageCache) RLock() {
+func (c *GlobalCache) RLock() {
 	if c == nil {
 		return
 	}
@@ -128,7 +128,7 @@ func (c *PackageCache) RLock() {
 	c.mu.RLock()
 }
 
-func (c *PackageCache) RUnlock() {
+func (c *GlobalCache) RUnlock() {
 	if c == nil {
 		return
 	}
@@ -136,7 +136,7 @@ func (c *PackageCache) RUnlock() {
 	c.mu.RUnlock()
 }
 
-func (c *PackageCache) Lock() {
+func (c *GlobalCache) Lock() {
 	if c == nil {
 		return
 	}
@@ -144,7 +144,7 @@ func (c *PackageCache) Lock() {
 	c.mu.Lock()
 }
 
-func (c *PackageCache) Unlock() {
+func (c *GlobalCache) Unlock() {
 	if c == nil {
 		return
 	}
@@ -152,7 +152,7 @@ func (c *PackageCache) Unlock() {
 	c.mu.Unlock()
 }
 
-func (c *PackageCache) clean(idList []string) {
+func (c *GlobalCache) clean(idList []string) {
 	if c == nil || len(idList) == 0 {
 		return
 	}
@@ -166,7 +166,7 @@ func (c *PackageCache) clean(idList []string) {
 }
 
 // Get get package by package import path from global cache
-func (c *PackageCache) Get(pkgPath string) *Package {
+func (c *GlobalCache) Get(pkgPath string) *Package {
 	if c == nil {
 		return nil
 	}
@@ -177,7 +177,7 @@ func (c *PackageCache) Get(pkgPath string) *Package {
 	return p
 }
 
-func (c *PackageCache) Put(pkg *packages.Package) {
+func (c *GlobalCache) Put(pkg *packages.Package) {
 	if c == nil {
 		return
 	}
@@ -187,7 +187,7 @@ func (c *PackageCache) Put(pkg *packages.Package) {
 	c.put(pkg)
 }
 
-func (c *PackageCache) Delete(id string) {
+func (c *GlobalCache) Delete(id string) {
 	if c == nil {
 		return
 	}
@@ -198,7 +198,7 @@ func (c *PackageCache) Delete(id string) {
 }
 
 // GetByURI get package by filename from global cache
-func (c *PackageCache) GetByURI(filename string) *Package {
+func (c *GlobalCache) GetByURI(filename string) *Package {
 	if c == nil {
 		return nil
 	}
@@ -209,7 +209,7 @@ func (c *PackageCache) GetByURI(filename string) *Package {
 }
 
 // Walk walk the global package cache
-func (c *PackageCache) Walk(walkFunc source.WalkFunc, ranks []string) error {
+func (c *GlobalCache) Walk(walkFunc source.WalkFunc, ranks []string) error {
 	if c == nil {
 		return nil
 	}
@@ -254,7 +254,7 @@ func (c *PackageCache) Walk(walkFunc source.WalkFunc, ranks []string) error {
 	return c.walk(idList, walkFunc)
 }
 
-func (c *PackageCache) walk(idList []string, walkFunc source.WalkFunc) error {
+func (c *GlobalCache) walk(idList []string, walkFunc source.WalkFunc) error {
 	for _, id := range idList {
 		p := c.get(id)
 		if err := walkFunc(p.pkg); err != nil {

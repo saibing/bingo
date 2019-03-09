@@ -19,7 +19,7 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	if err != nil {
 		return nil, err
 	}
-	tok := f.GetToken()
+	tok := f.GetToken(ctx)
 	if tok == nil {
 		return nil, newJsonrpc2Errorf(jsonrpc2.CodeInternalError, fmt.Sprintf("token file does not exist of %s", fileURI))
 	}

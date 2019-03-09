@@ -42,13 +42,13 @@ func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, po
 	if f == nil {
 		pos, err = h.getPosFromPkg(pkg, fileURI, position)
 	} else {
-		pos, err = h.getPosFromFile(pkg, f, position)
+		pos, err = h.getPosFromFile(ctx, pkg, f, position)
 	}
 	return pkg, pos, err
 }
 
-func (h *LangHandler) getPosFromFile(pkg *packages.Package, f source.File, position lsp.Position) (token.Pos, error) {
-	tok := f.GetToken()
+func (h *LangHandler) getPosFromFile(ctx context.Context, pkg *packages.Package, f source.File, position lsp.Position) (token.Pos, error) {
+	tok := f.GetToken(ctx)
 	pos := fromProtocolPosition(tok, position)
 	return pos, nil
 }
@@ -83,7 +83,7 @@ func (h *LangHandler) loadPackageAndAst(ctx context.Context, fileURI lsp.Documen
 	if f == nil {
 		astFile, err = h.getAstFromPkg(pkg, fileURI)
 	} else {
-		astFile = f.GetAST()
+		astFile = f.GetAST(ctx)
 	}
 
 	return pkg, astFile, err

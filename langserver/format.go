@@ -38,7 +38,7 @@ func formatRange(ctx context.Context, v source.View, uri lsp.DocumentURI, rng *l
 	if err != nil {
 		return nil, err
 	}
-	tok := f.GetToken()
+	tok := f.GetToken(ctx)
 	if tok == nil {
 		return nil, newJsonrpc2Errorf(jsonrpc2.CodeInternalError, fmt.Sprintf("token file does not exist of %s", uri))
 	}
@@ -59,15 +59,15 @@ func formatRange(ctx context.Context, v source.View, uri lsp.DocumentURI, rng *l
 	if err != nil {
 		return nil, err
 	}
-	return toProtocolEdits(f, edits), nil
+	return toProtocolEdits(ctx, f, edits), nil
 }
 
-func toProtocolEdits(f source.File, edits []source.TextEdit) []lsp.TextEdit {
+func toProtocolEdits(ctx context.Context, f source.File, edits []source.TextEdit) []lsp.TextEdit {
 	if edits == nil {
 		return nil
 	}
-	tok := f.GetToken()
-	content := f.GetContent()
+	tok := f.GetToken(ctx)
+	content := f.GetContent(ctx)
 	// When a file ends with an empty line, the newline character is counted
 	// as part of the previous line. This causes the formatter to insert
 	// another unnecessary newline on each formatting. We handle this case by
@@ -76,7 +76,7 @@ func toProtocolEdits(f source.File, edits []source.TextEdit) []lsp.TextEdit {
 	result := make([]lsp.TextEdit, len(edits))
 	for i, edit := range edits {
 		rng := toProtocolRange(tok, edit.Range)
-		
+
 		// If the edit ends at the end of the file, add the extra line.
 		if hasExtraNewline && tok.Offset(edit.Range.End) == len(content) {
 			rng.End.Line++

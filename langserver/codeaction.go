@@ -48,7 +48,7 @@ func organizeImports(ctx context.Context, v source.View, uri lsp.DocumentURI) ([
 	if err != nil {
 		return nil, err
 	}
-	tok := f.GetToken()
+	tok := f.GetToken(ctx)
 	if tok == nil {
 		return nil, fmt.Errorf("token file does not exist for file %s", uri)
 	}
@@ -61,5 +61,5 @@ func organizeImports(ctx context.Context, v source.View, uri lsp.DocumentURI) ([
 	if err != nil {
 		return nil, err
 	}
-	return toProtocolEdits(f, edits), nil
+	return toProtocolEdits(ctx, f, edits), nil
 }

@@ -19,7 +19,7 @@ type Diagnostic struct {
 }
 
 func Diagnostics(ctx context.Context, f File) (map[string][]Diagnostic, error) {
-	pkg := f.GetPackage()
+	pkg := f.GetPackage(ctx)
 
 	// Prepare the reports we will send for this package.
 	reports := make(map[string][]Diagnostic)
