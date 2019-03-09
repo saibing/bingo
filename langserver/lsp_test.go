@@ -81,7 +81,7 @@ type TestContext struct {
 func newTestContext(style cache.CacheStyle) *TestContext {
 	cfg := NewDefaultConfig()
 	cfg.DisableFuncSnippet = false
-	cfg.GlobalCacheStyle = style
+	cfg.GlobalCacheStyle = string(style)
 
 	h := &LangHandler{
 		DefaultConfig: cfg,

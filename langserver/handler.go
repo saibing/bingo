@@ -94,7 +94,7 @@ func (h *LangHandler) doInit(ctx context.Context, conn *jsonrpc2.Conn, init *Ini
 	}
 	h.project = cache.NewProject(ctx, conn, rootPath, buildFlags)
 	h.overlay = newOverlay(conn, h.project, DiagnosticsStyleEnum(h.DefaultConfig.DiagnosticsStyle))
-	if err := h.project.Init(ctx, h.DefaultConfig.GlobalCacheStyle); err != nil {
+	if err := h.project.Init(ctx, cache.CacheStyle(h.DefaultConfig.GlobalCacheStyle)); err != nil {
 		return err
 	}
 	return nil
