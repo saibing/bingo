@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/token"
 	"io/ioutil"
+	"log"
 
 	"github.com/saibing/bingo/langserver/internal/source"
 	"golang.org/x/tools/go/packages"
@@ -49,6 +50,7 @@ func (f *File) GetToken(ctx context.Context) *token.File {
 
 	if f.token == nil || len(f.view.contentChanges) > 0 {
 		if err := f.view.parse(ctx, f.URI); err != nil {
+			log.Printf("get token failed: %s\n", err)
 			return nil
 		}
 	}
@@ -61,6 +63,7 @@ func (f *File) GetAST(ctx context.Context) *ast.File {
 
 	if f.ast == nil || len(f.view.contentChanges) > 0 {
 		if err := f.view.parse(ctx, f.URI); err != nil {
+			log.Printf("get ast failed: %s\n", err)
 			return nil
 		}
 	}
@@ -73,6 +76,7 @@ func (f *File) GetPackage(ctx context.Context) *packages.Package {
 
 	if f.pkg == nil || len(f.view.contentChanges) > 0 {
 		if err := f.view.parse(ctx, f.URI); err != nil {
+			log.Printf("get package failed: %s\n", err)
 			return nil
 		}
 	}
