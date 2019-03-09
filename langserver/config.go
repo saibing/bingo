@@ -2,6 +2,8 @@ package langserver
 
 import (
 	"runtime"
+
+	"github.com/saibing/bingo/langserver/internal/cache"
 )
 
 // Config adjusts the behaviour of go-langserver. Please keep in sync with
@@ -17,7 +19,7 @@ type Config struct {
 	// EnableGlobalCache enable global cache when hover, reference, definition. Can be overridden by InitializationOptions.
 	//
 	// Defaults to "always" if not specified
-	GlobalCacheStyle string
+	GlobalCacheStyle cache.CacheStyle
 
 	// DiagnosticsEnabled enables handling of diagnostics
 	//
@@ -67,7 +69,7 @@ func (c Config) Apply(o *InitializationOptions) Config {
 	}
 
 	if o.GlobalCacheStyle != nil {
-		c.GlobalCacheStyle = *o.GlobalCacheStyle
+		c.GlobalCacheStyle = cache.CacheStyle(*o.GlobalCacheStyle)
 	}
 
 	if o.FormatStyle != nil {

@@ -8,16 +8,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
+var hoverContext = newTestContext(cache.Ondemand)
+
 func TestHover(t *testing.T) {
 	t.Parallel()
 
-	setup(t)
+	hoverContext.setup(t)
 
 	test := func(t *testing.T, input string, output string) {
 		testHover(t, &hoverTestCase{input: input, output: output})
@@ -126,11 +129,11 @@ type hoverTestCase struct {
 
 func testHover(tb testing.TB, c *hoverTestCase) {
 	tbRun(tb, fmt.Sprintf("hover-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(hoverContext.root())
 		if err != nil {
 			log.Fatal("testHover", err)
 		}
-		doHoverTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+		doHoverTest(t, hoverContext.ctx, hoverContext.conn, util.PathToURI(dir), c.input, c.output)
 	})
 }
 

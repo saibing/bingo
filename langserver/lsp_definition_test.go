@@ -10,16 +10,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
+var definitionContext = newTestContext(cache.Ondemand)
+
 func TestDefinition(t *testing.T) {
 	t.Parallel()
 
-	setup(t)
+	definitionContext.setup(t)
 
 	test := func(t *testing.T, input string, output string) {
 		testDefinition(t, &definitionTestCase{input: input, output: output})
@@ -84,11 +87,11 @@ type definitionTestCase struct {
 
 func testDefinition(tb testing.TB, c *definitionTestCase) {
 	tbRun(tb, fmt.Sprintf("definition-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(definitionContext.root())
 		if err != nil {
 			log.Fatal("testDefinition", err)
 		}
-		doDefinitionTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output, "")
+		doDefinitionTest(t, definitionContext.ctx, definitionContext.conn, util.PathToURI(dir), c.input, c.output, "")
 	})
 }
 
@@ -121,7 +124,7 @@ func doDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 	} else if strings.HasPrefix(want, gomodule) {
 		want = makePath(gomoduleDir, want[len(gomodule):])
 	} else if want != "" {
-		want = makePath(exported.Config.Dir, want)
+		want = makePath(definitionContext.root(), want)
 	}
 
 	if definition != want {

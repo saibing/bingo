@@ -12,21 +12,24 @@ import (
 
 	"github.com/sourcegraph/go-lsp/lspext"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
+var workspaceReferencesContext = newTestContext(cache.Always)
+
 func matchDir(path string) string {
-	dir := makePath(exported.Config.Dir, path)
+	dir := makePath(workspaceReferencesContext.root(), path)
 	return string(util.PathToURI(dir))
 }
 
 func TestWorkspaceReferences(t *testing.T) {
 	t.Parallel()
 
-	setup(t)
+	workspaceReferencesContext.setup(t)
 
 	test := func(t *testing.T, data map[*lspext.WorkspaceReferencesParams][]string) {
 		for k, v := range data {
@@ -152,11 +155,11 @@ type workspaceReferencesTestCase struct {
 
 func testWorkspaceReferences(tb testing.TB, c *workspaceReferencesTestCase) {
 	tbRun(tb, fmt.Sprintf("workspace-references-%s", c.input.Query), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(workspaceReferencesContext.root())
 		if err != nil {
 			log.Fatal("testWorkspaceReferences", err)
 		}
-		doWorkspaceReferencesTest(t, ctx, conn, util.PathToURI(dir), *c.input, c.output)
+		doWorkspaceReferencesTest(t, workspaceReferencesContext.ctx, workspaceReferencesContext.conn, util.PathToURI(dir), *c.input, c.output)
 	})
 }
 
@@ -172,7 +175,7 @@ func doWorkspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Co
 			splits := strings.Split(want[i], "/")
 			pkgDir = splits[0]
 		}
-		want[i] = makePath(exported.Config.Dir, want[i])
+		want[i] = makePath(workspaceReferencesContext.root(), want[i])
 	}
 
 	rootDir := util.UriToRealPath(rootURI)

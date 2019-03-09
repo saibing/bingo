@@ -10,16 +10,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
+var referencesContext = newTestContext(cache.Always)
+
 func TestReferences(t *testing.T) {
 	t.Parallel()
 
-	setup(t)
+	referencesContext.setup(t)
 
 	test := func(t *testing.T, input string, output []string) {
 		testReferences(t, &referencesTestCase{input: input, output: output})
@@ -72,11 +75,11 @@ type referencesTestCase struct {
 
 func testReferences(tb testing.TB, c *referencesTestCase) {
 	tbRun(tb, fmt.Sprintf("references-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(referencesContext.root())
 		if err != nil {
 			log.Fatal("testReferences", err)
 		}
-		doReferencesTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+		doReferencesTest(t, referencesContext.ctx, referencesContext.conn, util.PathToURI(dir), c.input, c.output)
 	})
 }
 
@@ -107,7 +110,7 @@ func doReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootU
 		if strings.HasPrefix(want[i], githubModule) {
 			want[i] = makePath(gopathDir, want[i])
 		} else {
-			want[i] = makePath(exported.Config.Dir, want[i])
+			want[i] = makePath(referencesContext.root(), want[i])
 		}
 	}
 	sort.Strings(results)

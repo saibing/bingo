@@ -11,13 +11,16 @@ import (
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 )
+
+var signatureContext = newTestContext(cache.Ondemand)
 
 func TestSignature(t *testing.T) {
 	t.Parallel()
 
-	setup(t)
+	signatureContext.setup(t)
 
 	test := func(t *testing.T, data map[string]string) {
 		for k, v := range data {
@@ -49,11 +52,11 @@ type signatureTestCase struct {
 
 func testSignature(tb testing.TB, c *signatureTestCase) {
 	tbRun(tb, fmt.Sprintf("signature-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(signatureContext.root())
 		if err != nil {
 			log.Fatal("testSignature", err)
 		}
-		doSignatureTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+		doSignatureTest(t, signatureContext.ctx, signatureContext.conn, util.PathToURI(dir), c.input, c.output)
 	})
 }
 

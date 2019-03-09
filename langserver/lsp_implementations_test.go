@@ -14,13 +14,16 @@ import (
 	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 )
+
+var implementationContext = newTestContext(cache.Always)
 
 func TestImplementations(t *testing.T) {
 	t.Parallel()
 
-	setup(t)
+	implementationContext.setup(t)
 
 	test := func(t *testing.T, input string, output []string) {
 		testImplementations(t, &implementationsTestCase{input: input, output: output})
@@ -63,11 +66,11 @@ type implementationsTestCase struct {
 
 func testImplementations(tb testing.TB, c *implementationsTestCase) {
 	tbRun(tb, fmt.Sprintf("implementations-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(implementationContext.root())
 		if err != nil {
 			log.Fatal("testImplementations", err)
 		}
-		doImplementationTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+		doImplementationTest(t, implementationContext.ctx, implementationContext.conn, util.PathToURI(dir), c.input, c.output)
 	})
 }
 
@@ -86,7 +89,7 @@ func doImplementationTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 	sort.Strings(impls)
 
 	for i := range want {
-		want[i] = makePath(exported.Config.Dir, want[i])
+		want[i] = makePath(implementationContext.root(), want[i])
 	}
 	sort.Strings(want)
 	if !reflect.DeepEqual(impls, want) {

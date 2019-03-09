@@ -3,13 +3,14 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/cache"
-	"github.com/saibing/bingo/langserver/internal/util"
-	"github.com/sourcegraph/go-lsp"
 	"math"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/saibing/bingo/langserver/internal/cache"
+	"github.com/saibing/bingo/langserver/internal/util"
+	"github.com/sourcegraph/go-lsp"
 
 	"golang.org/x/tools/go/packages"
 
@@ -141,7 +142,7 @@ func defSymbolDescriptor(pkg *packages.Package, project *cache.Project, def refs
 			return nil, err
 		}
 		if defPkg == nil {
-			return nil, fmt.Errorf("cannot find package for %s in %s", pkg.GoFiles[0], def.ImportPath)
+			return nil, fmt.Errorf("package %s does not exist", def.ImportPath)
 		}
 	}
 

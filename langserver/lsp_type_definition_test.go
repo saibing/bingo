@@ -9,15 +9,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
+var typeDefinitionContext = newTestContext(cache.None)
+
 func TestTypeDefinition(t *testing.T) {
 	t.Parallel()
 
-	setup(t)
+	typeDefinitionContext.setup(t)
 
 	test := func(t *testing.T, input string, output string) {
 		testTypeDefinition(t, &definitionTestCase{input: input, output: output})
@@ -33,11 +36,11 @@ func TestTypeDefinition(t *testing.T) {
 
 func testTypeDefinition(tb testing.TB, c *definitionTestCase) {
 	tbRun(tb, fmt.Sprintf("typeDefinition-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(typeDefinitionContext.root())
 		if err != nil {
 			log.Fatal("testTypeDefinition", err)
 		}
-		doTypeDefinitionTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output, "")
+		doTypeDefinitionTest(t, typeDefinitionContext.ctx, typeDefinitionContext.conn, util.PathToURI(dir), c.input, c.output, "")
 	})
 }
 
@@ -66,7 +69,7 @@ func doTypeDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 	}
 
 	if want != "" {
-		want = makePath(exported.Config.Dir, want)
+		want = makePath(typeDefinitionContext.root(), want)
 	}
 	if definition != want {
 		t.Errorf("got %q, want %q", definition, want)

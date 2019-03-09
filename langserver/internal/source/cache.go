@@ -8,3 +8,4 @@ type WalkFunc func(p *packages.Package) error
 type Cache interface {
 	Walk(walkFunc WalkFunc, ranks []string) error
 }
+

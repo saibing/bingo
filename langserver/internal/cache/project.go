@@ -122,7 +122,7 @@ func (p *Project) notify(err error) {
 }
 
 // Init init project
-func (p *Project) Init(ctx context.Context, globalCacheStyle string) error {
+func (p *Project) Init(ctx context.Context, globalCacheStyle CacheStyle) error {
 	p.context = ctx
 	start := time.Now()
 	defer func() {
@@ -131,7 +131,7 @@ func (p *Project) Init(ctx context.Context, globalCacheStyle string) error {
 			p.rootDir, elapsedTime, p.cached, len(p.modules) > 0))
 	}()
 
-	if globalCacheStyle == "none" {
+	if globalCacheStyle == None {
 		return nil
 	}
 
@@ -141,7 +141,7 @@ func (p *Project) Init(ctx context.Context, globalCacheStyle string) error {
 		p.notify(err)
 	}
 
-	if globalCacheStyle != "always" {
+	if globalCacheStyle != Always {
 		return nil
 	}
 

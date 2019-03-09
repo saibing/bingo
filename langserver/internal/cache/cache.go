@@ -13,6 +13,14 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+type CacheStyle string
+
+const (
+	None     CacheStyle = "none"
+	Ondemand CacheStyle = "on-demand"
+	Always   CacheStyle = "always"
+)
+
 type Package struct {
 	pkg     *packages.Package
 	modTime time.Time

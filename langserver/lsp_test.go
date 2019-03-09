@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,6 +17,7 @@ import (
 
 	"golang.org/x/tools/go/packages/packagestest"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/sourcegraph/go-lsp"
@@ -25,256 +25,6 @@ import (
 
 	_ "net/http/pprof"
 )
-
-var h *LangHandler
-var conn *jsonrpc2.Conn
-var ctx context.Context
-var exported *packagestest.Exported
-var testdata = []packagestest.Module{
-	{
-		Name: "github.com/saibing/bingo/langserver/test/pkg",
-		Files: map[string]interface{}{
-			"basic/a.go": `package p; func A() { A() }`,
-			"basic/b.go": `package p; func B() { A() }`,
-
-			"builtin/a.go": `package p; func A() { println("hello") }`,
-
-			"detailed/a.go": `package p; type T struct { F string }`,
-
-			"exported_on_unexported/a.go": `package p; type t struct { F string }`,
-
-			"gomodule/a.go": `package a; import "github.com/saibing/dep"; var _ = dep.D; var _ = dep.D`,
-			"gomodule/b.go": `package a; import "github.com/saibing/dep/subp"; var _ = subp.D`,
-			"gomodule/c.go": `package a; import "github.com/saibing/dep/dep1"; var _ = dep1.D1().D2`,
-
-			"goproject/a/a.go": `package a; func A() {}`,
-			"goproject/b/b.go": `package b; import "github.com/saibing/bingo/langserver/test/pkg/goproject/a"; var _ = a.A`,
-
-			"goroot/a.go": `package p; import "fmt"; var _ = fmt.Println; var x int`,
-
-			"implementations/i0.go":    `package p; type I0 interface { M0() }`,
-			"implementations/i1.go":    `package p; type I1 interface { M1() }`,
-			"implementations/i2.go":    `package p; type I2 interface { M1(); M2() }`,
-			"implementations/t0.go":    `package p; type T0 struct{}`,
-			"implementations/t1.go":    `package p; type T1 struct {}; func (T1) M1() {}; func (T1) M3(){}`,
-			"implementations/t1e.go":   `package p; type T1E struct { T1 }; var _ = (T1E{}).M1`,
-			"implementations/t1p.go":   `package p; type T1P struct {}; func (*T1P) M1() {}`,
-			"implementations/p2/p2.go": `package p2; type T2 struct{}; func (T2) M1() {}`,
-
-			"lookup/a/a.go": `package a; type A int; func A1() A { var A A = 1; return A }`,
-			"lookup/b/b.go": `package b; import "github.com/saibing/bingo/langserver/test/pkg/lookup/a"; func Dummy() a.A { x := a.A1(); return x }`,
-			"lookup/c/c.go": `package c; import "github.com/saibing/bingo/langserver/test/pkg/lookup/a"; func Dummy() **a.A { var x **a.A; return x }`,
-			"lookup/d/d.go": `package d; import "github.com/saibing/bingo/langserver/test/pkg/lookup/a"; func Dummy() map[string]a.A { var x map[string]a.A; return x }`,
-
-			"multiple/a.go": `package p; func A() { A() }`,
-			"multiple/main.go": `// +build ignore
-
-package main;  func B() { p.A(); B() }`,
-
-			"workspace_multiple/a.go": `package p; import "fmt"; var _ = fmt.Println; var x int`,
-			"workspace_multiple/b.go": `package p; import "fmt"; var _ = fmt.Println; var y int`,
-			"workspace_multiple/c.go": `package p; import "fmt"; var _ = fmt.Println; var z int`,
-
-			"subdirectory/a.go":    `package d; func A() { A() }`,
-			"subdirectory/d2/b.go": `package d2; import "github.com/saibing/bingo/langserver/test/pkg/subdirectory"; func B() { d.A(); B() }`,
-
-			"typealias/a.go": `package p; type A struct{ a int }`,
-			"typealias/b.go": `package p; type B = A`,
-
-			"unexpected_paths/a.go": `package p; func A() { A() }`,
-
-			"xreferences/a.go": `package p; import "fmt"; var _ = fmt.Println; var x int`,
-			"xreferences/b.go": `package p; import "fmt"; var _ = fmt.Println; var y int`,
-			"xreferences/c.go": `package p; import "fmt"; var _ = fmt.Println; var z int`,
-
-			"test/a.go":      `package p; var A int`,
-			"test/a_test.go": `package p; import "testing"; import "github.com/saibing/bingo/langserver/test/pkg/test/b"; var X = b.B; func TestB(t *testing.T) {}`,
-			"test/b/b.go":    `package b; var B int; func C() int { return B };`,
-			"test/c/c.go":    `package c; import "github.com/saibing/bingo/langserver/test/pkg/test/b"; var X = b.B;`,
-
-			"xtest/a.go":      `package p; var A int`,
-			"xtest/a_test.go": `package p; var X = A`,
-			"xtest/b_test.go": `package p; func Y() int { return X }`,
-			"xtest/x_test.go": `package p_test; import "github.com/saibing/bingo/langserver/test/pkg/xtest"; var X = p.A`,
-			"xtest/y_test.go": `package p_test; func Y() int { return X }`,
-
-			"renaming/a.go": `package p
-import "fmt"
-
-func main() {
-	str := A()
-	fmt.Println(str)
-}
-
-func A() string {
-	return "test"
-}
-`,
-
-			"symbols/abc.go": `package a
-
-type XYZ struct {}
-
-func (x XYZ) ABC() {}
-
-var (
-	A = 1
-)
-
-const (
-	B = 2
-)
-
-type (
-	_ struct{}
-	C struct{}
-)
-
-type UVW interface {}
-
-type T string`,
-			"symbols/bcd.go": `package a
-
-type YZA struct {}
-
-func (y YZA) BCD() {}`,
-			"symbols/cde.go": `package a
-
-var(
-	a, b string
-	c int
-)`,
-			"symbols/xyz.go": `package a
-
-func yza() {}`,
-
-			"signature/a.go": `package p
-
-// Comments for A
-func A(foo int, bar func(baz int) int) int {
-	return bar(foo)
-}
-
-
-func B() {}
-
-// Comments for C
-func C(x int, y int) int {
-	return x+y
-}
-`,
-			"signature/b.go": `package p; func main() { B(); A(); A(0,); A(0); C(1,2); A(,) }`,
-			"signature/c.go": `package p; import "fmt"; func test1() { fmt.Printf("%s",)}`,
-			"signature/d.go": `package p; import "fmt"; func test2() { fmt.Printf()}`,
-			"signature/e.go": `package p; import "fmt"; func test3() { append()}`,
-
-			"issue/223.go": `package main
-
-import (
-	"fmt"
-)
-
-func main() {
-
-	b := &Hello{
-		a: 1,
-	}
-
-	fmt.Println(b.Bye())
-}
-
-type Hello struct {
-	a int
-}
-
-func (h *Hello) Bye() int {
-	return h.a
-}`,
-			"issue/261.go": `package main
-
-import "fmt"
-
-type T string
-type TM map[string]T
-
-func main() {
-	var tm TM
-	for _, t := range tm {
-		fmt.Println(t)
-	}
-}`,
-
-			"docs/a.go": `// Copyright 2015 someone.
-// Copyrights often span multiple lines.
-
-// Some additional non-package docs.
-
-// Package p is a package with lots of great things.
-package p
-
-import "github.com/saibing/dep/pkg2"
-
-// logit is pkg2.X
-var logit = pkg2.X
-
-// T is a struct.
-type T struct {
-	// F is a string field.
-	F string
-
-	// H is a header.
-	H pkg2.Header
-}
-
-// Foo is the best string.
-var Foo string
-
-var (
-	// I1 is an int
-	I1 = 1
-
-	// I2 is an int
-	I2 = 3
-)`,
-			"docs/q.go": `package p
-type T2 struct {
-	Q string // Q is a string field.
-	// X is documented.
-	X int // X has comments.
-}`,
-
-			"different/abc.go": `package a
-type XYZ struct {}`,
-			"different/bcd.go": `package a
-func (x XYZ) ABC() {}`,
-
-			"completion/a.go": `package p
-
-import "strings"
-
-func s2() {
-	_ = strings.Title("s")
-	_ = new(strings.Replacer)
-}
-
-const s1 = 42
-
-var s3 int
-var s4 func()`,
-			"completion/b.go": `package p; import "fmt"; var _ = fmt.Printl`,
-			"completion/c.go": `package p;
-
-import (
-	"fmt"
-)
-
-func main() {
-	fmt.Println("hahah")
-	defer fmt.
-}`,
-		},
-	},
-}
 
 const (
 	goroot         = "goroot"
@@ -305,49 +55,80 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func setup(t *testing.T) {
-	if exported != nil {
-		return
-	}
-
-	exported = packagestest.Export(t, packagestest.Modules, testdata)
-	initServer(exported.Config.Dir)
+func tearDown() {
+	completionContext.tearDown()
+	definitionContext.tearDown()
+	symbolContext.tearDown()
+	formatContext.tearDown()
+	hoverContext.tearDown()
+	implementationContext.tearDown()
+	referencesContext.tearDown()
+	renameContext.tearDown()
+	signatureContext.tearDown()
+	typeDefinitionContext.tearDown()
+	workspaceReferencesContext.tearDown()
+	workspaceSymbolContext.tearDown()
+	xDefinitionContext.tearDown()
 }
 
-func tearDown() {
-	if exported != nil {
-		fmt.Printf("clean up module project %s\n", exported.Config.Dir)
-		exported.Cleanup()
+type TestContext struct {
+	h        *LangHandler
+	conn     *jsonrpc2.Conn
+	ctx      context.Context
+	exported *packagestest.Exported
+}
+
+func newTestContext(style cache.CacheStyle) *TestContext {
+	cfg := NewDefaultConfig()
+	cfg.DisableFuncSnippet = false
+	cfg.GlobalCacheStyle = style
+
+	h := &LangHandler{
+		DefaultConfig: cfg,
+		HandlerShared: &HandlerShared{},
 	}
 
-	if conn != nil {
-		if err := conn.Close(); err != nil {
+	ctx := context.Background()
+	tx := &TestContext{h: h, ctx: ctx}
+	return tx
+}
+
+func (tx *TestContext) setup(t *testing.T) {
+	tx.exported = packagestest.Export(t, packagestest.Modules, testdata)
+	tx.initServer()
+}
+
+func (tx *TestContext) tearDown() {
+	if tx.exported != nil {
+		fmt.Printf("clean up module project %s\n", tx.exported.Config.Dir)
+		tx.exported.Cleanup()
+	}
+
+	if tx.conn != nil {
+		if err := tx.conn.Close(); err != nil {
 			log.Fatal("conn.Close", err)
 		}
 	}
 }
 
-func initServer(rootDir string) {
+func (tx *TestContext) root() string {
+	return tx.exported.Config.Dir
+}
+
+func (tx *TestContext) initServer() {
+	rootDir := tx.exported.Config.Dir
 	os.Chdir(rootDir)
 	root := util.PathToURI(filepath.ToSlash(rootDir))
 	fmt.Printf("root uri is %s\n", root)
-	cfg := NewDefaultConfig()
-	cfg.DisableFuncSnippet = false
-	cfg.GlobalCacheStyle = "always"
 
-	h = &LangHandler{
-		DefaultConfig: cfg,
-		HandlerShared: &HandlerShared{},
-	}
-
-	addr, done := startLanguageServer(jsonrpc2.HandlerWithError(h.handle))
+	addr, done := tx.startLanguageServer()
 	defer done()
-	conn = dialLanguageServer(addr)
+	tx.conn = dialLanguageServer(addr)
 	// Prepare the connection.
-	ctx = context.Background()
+
 	tdCap := lsp.TextDocumentClientCapabilities{}
 	tdCap.Completion.CompletionItemKind.ValueSet = []lsp.CompletionItemKind{lsp.CIKConstant}
-	if err := conn.Call(ctx, "initialize", InitializeParams{
+	if err := tx.conn.Call(tx.ctx, "initialize", InitializeParams{
 		InitializeParams: lsp.InitializeParams{
 			RootURI:      root,
 			Capabilities: lsp.ClientCapabilities{TextDocument: tdCap},
@@ -359,10 +140,10 @@ func initServer(rootDir string) {
 	}
 }
 
-func startLanguageServer(h jsonrpc2.Handler) (addr string, done func()) {
-	go func() {
-		log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
-	}()
+func (tx *TestContext) startLanguageServer() (addr string, done func()) {
+	// go func() {
+	// 	log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
+	// }()
 
 	bindAddr := ":0"
 	if os.Getenv("CI") != "" || runtime.GOOS == "windows" {
@@ -376,8 +157,9 @@ func startLanguageServer(h jsonrpc2.Handler) (addr string, done func()) {
 	if err != nil {
 		log.Fatal("net.Listen", err)
 	}
+
 	go func() {
-		err := serveServer(context.Background(), l, h)
+		err := tx.serveServer(l)
 		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 			log.Fatal("jsonrpc2.Serve:", err)
 		}
@@ -389,13 +171,15 @@ func startLanguageServer(h jsonrpc2.Handler) (addr string, done func()) {
 	}
 }
 
-func serveServer(ctx context.Context, lis net.Listener, h jsonrpc2.Handler, opt ...jsonrpc2.ConnOpt) error {
+func (tx *TestContext) serveServer(lis net.Listener, opt ...jsonrpc2.ConnOpt) error {
+	h := jsonrpc2.HandlerWithError(tx.h.handle)
+
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
 			return err
 		}
-		jsonrpc2.NewConn(ctx, jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), h, opt...)
+		jsonrpc2.NewConn(tx.ctx, jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), h, opt...)
 	}
 }
 

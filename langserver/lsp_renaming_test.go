@@ -12,13 +12,16 @@ import (
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 )
+
+var renameContext = newTestContext(cache.Always)
 
 func TestRenaming(t *testing.T) {
 	t.Parallel()
 
-	setup(t)
+	renameContext.setup(t)
 
 	test := func(t *testing.T, input string, output map[string]string) {
 		testRenaming(t, &renamingTestCase{input: input, output: output})
@@ -44,11 +47,11 @@ type renamingTestCase struct {
 
 func testRenaming(tb testing.TB, c *renamingTestCase) {
 	tbRun(tb, fmt.Sprintf("renaming-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(renameContext.root())
 		if err != nil {
 			log.Fatal("testRenaming", err)
 		}
-		doRenamingTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+		doRenamingTest(t, renameContext.ctx, renameContext.conn, util.PathToURI(dir), c.input, c.output)
 	})
 }
 
@@ -71,7 +74,7 @@ func doRenamingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 	}
 
 	for k := range want {
-		want[k] = makePath(exported.Config.Dir, want[k])
+		want[k] = makePath(renameContext.root(), want[k])
 	}
 
 	if !reflect.DeepEqual(got, want) {

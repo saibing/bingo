@@ -9,16 +9,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
+var xDefinitionContext = newTestContext(cache.Always)
+
 func TestXDefinition(t *testing.T) {
 	t.Parallel()
 
-	setup(t)
+	xDefinitionContext.setup(t)
 
 	test := func(t *testing.T, input string, output string) {
 		testXDefinition(t, &definitionTestCase{input: input, output: output})
@@ -67,11 +70,11 @@ func TestXDefinition(t *testing.T) {
 
 func testXDefinition(tb testing.TB, c *definitionTestCase) {
 	tbRun(tb, fmt.Sprintf("xdefinition-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(xDefinitionContext.root())
 		if err != nil {
 			log.Fatal("testXDefinition", err)
 		}
-		doXDefinitionTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+		doXDefinitionTest(t, xDefinitionContext.ctx, xDefinitionContext.conn, util.PathToURI(dir), c.input, c.output)
 	})
 }
 
@@ -95,7 +98,7 @@ func doXDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, root
 	} else if strings.HasPrefix(want, gomodule) {
 		want = makePath(gomoduleDir, want[len(gomodule):])
 	} else if want != "" {
-		want = makePath(exported.Config.Dir, want)
+		want = makePath(xDefinitionContext.root(), want)
 	}
 
 	if xdefinition != want {

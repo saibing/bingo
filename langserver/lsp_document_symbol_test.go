@@ -12,13 +12,16 @@ import (
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 )
+
+var symbolContext = newTestContext(cache.None)
 
 func TestDocumentSymbol(t *testing.T) {
 	t.Parallel()
 
-	setup(t)
+	symbolContext.setup(t)
 
 	test := func(t *testing.T, data map[string][]string) {
 		for k, v := range data {
@@ -121,11 +124,11 @@ type documentSymbolTestCase struct {
 
 func testDocumentSymbol(tb testing.TB, c *documentSymbolTestCase) {
 	tbRun(tb, fmt.Sprintf("document-symbol-%s", c.input), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(symbolContext.root())
 		if err != nil {
 			log.Fatal("testDocumentSymbol", err)
 		}
-		doTestDocumentSymbol(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+		doTestDocumentSymbol(t, symbolContext.ctx, symbolContext.conn, util.PathToURI(dir), c.input, c.output)
 	})
 }
 
@@ -139,7 +142,7 @@ func doTestDocumentSymbol(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 	}
 
 	for i, s := range want {
-		want[i] = makePath(exported.Config.Dir, s)
+		want[i] = makePath(symbolContext.root(), s)
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %q, want %q", symbols, want)

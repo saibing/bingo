@@ -11,13 +11,16 @@ import (
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 )
 
-func TestCompletion(t *testing.T) {
-	t.Skip()
+var completionContext = newTestContext(cache.None)
 
-	setup(t)
+func TestCompletion(t *testing.T) {
+	t.Parallel()
+
+	completionContext.setup(t)
 
 	test := func(t *testing.T, input string, output string) {
 		testCompletion(t, &completionTestCase{input: input, output: output})
@@ -38,7 +41,7 @@ func TestCompletion(t *testing.T) {
 	})
 
 	t.Run("go root", func(t *testing.T) {
-		test(t, "goroot/a.go:1:21", "")
+		test(t, "goroot/a.go:1:21", "1:20-1:21 fmt module \"fmt\", false constant , float32 typeParameter , float64 typeParameter ")
 		test(t, "goroot/a.go:1:44", "1:38-1:44 Println(a ...interface{}) function n int, err error")
 	})
 
@@ -48,10 +51,10 @@ func TestCompletion(t *testing.T) {
 	})
 
 	t.Run("go module dep", func(t *testing.T) {
-		test(t, "gomodule/a.go:1:40", "")
+		test(t, "gomodule/a.go:1:40", "1:39-1:40 dep module \"github.com/saibing/dep\", delete(m map[K]V, key K) function ")
 		test(t, "gomodule/a.go:1:57", "1:57-1:57 D() function ")
 
-		test(t, "gomodule/b.go:1:40", "")
+		test(t, "gomodule/b.go:1:40", "1:39-1:40 delete(m map[K]V, key K) function ")
 		test(t, "gomodule/b.go:1:63", "1:63-1:63 D() function ")
 
 		test(t, "gomodule/c.go:1:68", "1:68-1:68 D2 field int")
@@ -73,11 +76,11 @@ type completionTestCase struct {
 
 func testCompletion(tb testing.TB, c *completionTestCase) {
 	tbRun(tb, fmt.Sprintf("complete-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(completionContext.root())
 		if err != nil {
 			log.Fatal("testCompletion", err)
 		}
-		doCompletionTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+		doCompletionTest(t, completionContext.ctx, completionContext.conn, util.PathToURI(dir), c.input, c.output)
 	})
 }
 

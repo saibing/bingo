@@ -12,13 +12,16 @@ import (
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 )
+
+var formatContext = newTestContext(cache.None)
 
 func TestFormatting(t *testing.T) {
 	t.Parallel()
 
-	setup(t)
+	formatContext.setup(t)
 
 	test := func(t *testing.T, input string, output map[string]string) {
 		testFormatting(t, &formattingTestCase{input: input, output: output})
@@ -38,11 +41,11 @@ type formattingTestCase struct {
 
 func testFormatting(tb testing.TB, c *formattingTestCase) {
 	tbRun(tb, fmt.Sprintf("formatting-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(formatContext.root())
 		if err != nil {
 			log.Fatal("testFormatting", err)
 		}
-		doFormattingTest(t, ctx, conn, util.PathToURI(dir), c.input, c.output)
+		doFormattingTest(t, formatContext.ctx, formatContext.conn, util.PathToURI(dir), c.input, c.output)
 	})
 }
 

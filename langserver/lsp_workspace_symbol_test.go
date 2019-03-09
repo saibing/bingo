@@ -11,6 +11,7 @@ import (
 
 	"github.com/sourcegraph/go-lsp/lspext"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/sourcegraph/go-lsp"
@@ -20,10 +21,12 @@ import (
 const exportedOnUnexported = "exported_on_unexported"
 const gorootnoexport = "gorootnoexport"
 
+var workspaceSymbolContext = newTestContext(cache.Always)
+
 func TestWorkspaceSymbol(t *testing.T) {
 	t.Parallel()
 
-	setup(t)
+	workspaceSymbolContext.setup(t)
 
 	test := func(t *testing.T, data map[*lspext.WorkspaceSymbolParams][]string) {
 		for k, v := range data {
@@ -141,11 +144,11 @@ type workspaceSymbolTestCase struct {
 
 func testWorkspaceSymbol(tb testing.TB, c *workspaceSymbolTestCase) {
 	tbRun(tb, fmt.Sprintf("workspace-symbol-%s", c.input.Query), func(t testing.TB) {
-		dir, err := filepath.Abs(exported.Config.Dir)
+		dir, err := filepath.Abs(workspaceSymbolContext.root())
 		if err != nil {
 			log.Fatal("testWorkspaceSymbol", err)
 		}
-		doWorkspaceSymbolsTest(t, ctx, conn, util.PathToURI(dir), *c.input, c.output)
+		doWorkspaceSymbolsTest(t, workspaceSymbolContext.ctx, workspaceSymbolContext.conn, util.PathToURI(dir), *c.input, c.output)
 	})
 }
 
