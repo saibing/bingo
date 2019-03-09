@@ -9,6 +9,8 @@ import (
 )
 
 func Test_resultSorter(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		rawQuery   string
 		allSymbols []lsp.SymbolInformation
@@ -147,7 +149,10 @@ func TestQueryString(t *testing.T) {
 		{input: "func baz dir:foo", expect: "dir:foo func baz"},
 	}
 	for _, test := range tests {
+		test := test
 		t.Run(test.input, func(t *testing.T) {
+			t.Parallel()
+
 			got := ParseQuery(test.input).String()
 			if got != test.expect {
 				t.Errorf("got %q, expect %q", got, test.expect)

@@ -15,7 +15,7 @@ import (
 	_ "gopkg.in/inconshreveable/log15.v2"
 )
 
-func testConfig(fs *token.FileSet, pkgName string, files []*ast.File) *Config {
+func testConfig(fs *token.FileSet, pkgName string, files []*ast.File) (*Config, error) {
 	info := types.Info{
 		Defs:       map[*ast.Ident]types.Object{},
 		Uses:       map[*ast.Ident]types.Object{},
@@ -30,14 +30,15 @@ func testConfig(fs *token.FileSet, pkgName string, files []*ast.File) *Config {
 	}
 	pkg, err := cfg.Check(pkgName, fs, files, &info)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
+
 	return &Config{
 		FileSet:  fs,
 		Pkg:      pkg,
 		PkgFiles: files,
 		Info:     &info,
-	}
+	}, nil
 }
 
 func TestParseFile(t *testing.T) {
@@ -46,16 +47,19 @@ func TestParseFile(t *testing.T) {
 		fp := strings.Split(f[0], ":")
 		line, err := strconv.Atoi(fp[1])
 		if err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
+
 		column, err := strconv.Atoi(fp[2])
 		if err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
+
 		offs, err := strconv.Atoi(strings.TrimSuffix(f[2], ")"))
 		if err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
+
 		return token.Position{
 			Filename: fp[0],
 			Line:     line,
@@ -63,10 +67,12 @@ func TestParseFile(t *testing.T) {
 			Offset:   offs,
 		}
 	}
+
 	type posRef struct {
 		Def        Def
 		Start, End token.Position
 	}
+
 	cases := []struct {
 		Filename string
 		Want     []*posRef
@@ -132,17 +138,26 @@ func TestParseFile(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
+		c := c
 		t.Run(c.Filename, func(t *testing.T) {
+			t.Parallel()
+
 			cont, err := ioutil.ReadFile(c.Filename)
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			fs := token.NewFileSet()
 			astFile, err := parser.ParseFile(fs, c.Filename, cont, 0)
 			if err != nil {
 				t.Fatal(err)
 			}
-			cfg := testConfig(fs, "refstest", []*ast.File{astFile})
+
+			cfg, err := testConfig(fs, "refstest", []*ast.File{astFile})
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			var allRefs []*posRef
 			err = cfg.Refs(func(r *Ref) {
 				allRefs = append(allRefs, &posRef{
@@ -154,6 +169,7 @@ func TestParseFile(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			if len(allRefs) != len(c.Want) {
 				t.Log("got", len(allRefs), "refs:")
 				for i, r := range allRefs {

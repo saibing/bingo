@@ -15,6 +15,8 @@ import (
 )
 
 func TestCompletion(t *testing.T) {
+	t.Skip()
+
 	setup(t)
 
 	test := func(t *testing.T, input string, output string) {

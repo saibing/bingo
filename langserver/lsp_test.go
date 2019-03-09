@@ -29,9 +29,7 @@ import (
 var h *LangHandler
 var conn *jsonrpc2.Conn
 var ctx context.Context
-
 var exported *packagestest.Exported
-
 var testdata = []packagestest.Module{
 	{
 		Name: "github.com/saibing/bingo/langserver/test/pkg",
@@ -70,7 +68,7 @@ var testdata = []packagestest.Module{
 
 			"multiple/a.go": `package p; func A() { A() }`,
 			"multiple/main.go": `// +build ignore
-			
+
 package main;  func B() { p.A(); B() }`,
 
 			"workspace_multiple/a.go": `package p; import "fmt"; var _ = fmt.Println; var x int`,
@@ -264,7 +262,7 @@ const s1 = 42
 var s3 int
 var s4 func()`,
 			"completion/b.go": `package p; import "fmt"; var _ = fmt.Printl`,
-			"completion/c.go": `package p; 
+			"completion/c.go": `package p;
 
 import (
 	"fmt"
@@ -379,7 +377,8 @@ func startLanguageServer(h jsonrpc2.Handler) (addr string, done func()) {
 		log.Fatal("net.Listen", err)
 	}
 	go func() {
-		if err := serveServer(context.Background(), l, h); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
+		err := serveServer(context.Background(), l, h)
+		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 			log.Fatal("jsonrpc2.Serve:", err)
 		}
 	}()

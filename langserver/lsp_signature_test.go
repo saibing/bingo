@@ -15,6 +15,8 @@ import (
 )
 
 func TestSignature(t *testing.T) {
+	t.Parallel()
+
 	setup(t)
 
 	test := func(t *testing.T, data map[string]string) {
