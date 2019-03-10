@@ -80,8 +80,24 @@ func main() {
 
 func A() string {
 	return "test"
+}`,
+
+			"renaming/cgo/a.go": `package p
+/*
+#define _GNU_SOURCE
+#include <stdio.h>
+*/
+import "C"
+import "fmt"
+
+func main() {
+	str := A()
+	fmt.Println(str)
 }
-`,
+
+func A() string {
+	return "test"
+}`,
 
 			"symbols/abc.go": `package a
 

@@ -183,6 +183,10 @@ func GetSyntaxFile(pkg *packages.Package, filename string) *ast.File {
 func FindIdentObject(pkg *packages.Package, ident *ast.Ident) types.Object {
 	var o types.Object
 
+	if pkg == nil {
+		return nil
+	}
+
 	found := func(pkg *packages.Package) bool {
 		if pkg.TypesInfo == nil {
 			return false
@@ -198,6 +202,10 @@ func FindIdentObject(pkg *packages.Package, ident *ast.Ident) types.Object {
 
 func FindIdentType(pkg *packages.Package, ident *ast.Ident) types.Type {
 	var t types.Type
+
+	if pkg == nil {
+		return nil
+	}
 
 	found := func(pkg *packages.Package) bool {
 		if pkg.TypesInfo == nil {

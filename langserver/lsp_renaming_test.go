@@ -37,6 +37,16 @@ func TestRenaming(t *testing.T) {
 			"4:8-4:9": "renaming/a.go",
 			"8:5-8:6": "renaming/a.go",
 		})
+
+		test(t, "renaming/cgo/a.go:10:2", map[string]string{
+			"9:1-9:4":     "renaming/cgo/a.go",
+			"10:13-10:16": "renaming/cgo/a.go",
+		})
+
+		test(t, "renaming/cgo/a.go:14:6", map[string]string{
+			"9:8-9:9":   "renaming/cgo/a.go",
+			"13:5-13:6": "renaming/cgo/a.go",
+		})
 	})
 }
 

@@ -152,7 +152,10 @@ func (v *View) link(pkgPath string, pkg *packages.Package, parent *metadata) *me
 	}
 	// Reset any field that could have changed across calls to packages.Load.
 	m.name = pkg.Name
-	m.files = pkg.CompiledGoFiles
+
+	// TODO: saibing  pkg.CompiledGoFiles does not include cgo files.
+	//m.files = pkg.CompiledGoFiles
+	m.files = pkg.GoFiles
 	for _, filename := range m.files {
 		if f, ok := v.files[source.ToURI(filename)]; ok {
 			f.meta = m
