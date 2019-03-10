@@ -89,6 +89,7 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 	typ := expectedType(path, pos, pkg.TypesInfo)
 	sig := enclosingFunction(path, pos, pkg.TypesInfo)
 	pkgStringer := qualifier(file, pkg.Types, pkg.TypesInfo)
+	preferTypeNames := wantTypeNames(pos, path)
 
 	seen := make(map[types.Object]bool)
 
@@ -97,6 +98,9 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 	found := func(obj types.Object, weight float64, items []CompletionItem) []CompletionItem {
 		if obj.Pkg() != nil && obj.Pkg() != pkg.Types && !obj.Exported() {
 			return items // inaccessible
+		}
+		if _, ok := obj.(*types.TypeName); !ok && preferTypeNames {
+			return items
 		}
 		if !seen[obj] {
 			seen[obj] = true
@@ -260,6 +264,34 @@ func selector(sel *ast.SelectorExpr, pos token.Pos, info *types.Info, found find
 	}
 
 	return items, nil
+}
+
+// wantTypeNames checks if given token position is inside func receiver, type params
+// or type results (e.g func (<>) foo(<>) (<>) {} ).
+func wantTypeNames(pos token.Pos, path []ast.Node) bool {
+	for _, p := range path {
+		switch n := p.(type) {
+		case *ast.FuncDecl:
+			recv := n.Recv
+			if recv != nil && recv.Pos() <= pos && pos <= recv.End() {
+				return true
+			}
+
+			if n.Type != nil {
+				params := n.Type.Params
+				if params != nil && params.Pos() <= pos && pos <= params.End() {
+					return true
+				}
+
+				results := n.Type.Results
+				if results != nil && results.Pos() <= pos && pos <= results.End() {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	return false
 }
 
 // lexical finds completions in the lexical environment.
