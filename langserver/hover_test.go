@@ -66,7 +66,6 @@ func TestPrettyprintTypesString(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-
 		actual := prettyPrintTypesString(testCase.input)
 		require.Equal(testCase.expected, actual)
 	}

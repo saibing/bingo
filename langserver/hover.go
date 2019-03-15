@@ -145,7 +145,8 @@ func (h *LangHandler) hoverIdent(pkg source.Package, pathNodes []ast.Node, ident
 			}
 		}
 		if s == "" {
-			s = types.ObjectString(o, qf)
+			objectString := types.ObjectString(o, qf)
+			s = prettyPrintTypesString(objectString)
 		}
 
 	} else if t != nil {
