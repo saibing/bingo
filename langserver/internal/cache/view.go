@@ -42,8 +42,10 @@ type View struct {
 	// mcache caches metadata for the packages of the opened files in a view.
 	mcache *metadataCache
 
+	// pcache caches type information for the packages of the opened files in a view.
 	pcache *packageCache
 
+	// gcache global cache for project's package
 	gcache *GlobalCache
 
 	analysisCache *source.AnalysisCache
@@ -181,7 +183,7 @@ func (v *View) remove(pkgPath string, seen map[string]bool) {
 		return
 	}
 	seen[pkgPath] = true
-	
+
 	m, ok := v.mcache.packages[pkgPath]
 	if !ok {
 		return
