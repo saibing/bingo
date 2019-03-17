@@ -36,6 +36,14 @@ func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, po
 		return nil, pos, err
 	}
 
+	if pkg == nil {
+		return nil, pos, fmt.Errorf("package for %s is null", fileURI)
+	}
+
+	if pkg.IsIllTyped() {
+		return nil, pos, fmt.Errorf("package for %s is ill typed", fileURI)
+	}
+
 	if f == nil {
 		pos, err = h.getPosFromPkg(pkg, fileURI, position)
 	} else {

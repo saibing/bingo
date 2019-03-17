@@ -53,14 +53,10 @@ func fromProtocolPosition(f *token.File, pos lsp.Position) token.Pos {
 // toProtocolPosition converts from a token pos (byte offset) to a protocol
 // position  (0-based line and column number)
 // It requires the token file the pos belongs to in order to do this.
-func toProtocolPosition(f *token.File, pos token.Pos) lsp.Position {
-	if !pos.IsValid() {
-		return lsp.Position{Line: -1.0, Character: -1.0}
-	}
-	p := f.Position(pos)
+func toProtocolPosition(point span.Point) lsp.Position {
 	return lsp.Position{
-		Line:      p.Line - 1,
-		Character: p.Column - 1,
+		Line:      point.Line(),
+		Character: point.Column(),
 	}
 }
 

@@ -132,7 +132,13 @@ func NewInvalidNodeError(fset *token.FileSet, node ast.Node) *InvalidNodeError {
 func GetObjectPathNode(pkg Package, fset *token.FileSet, o types.Object) (nodes []ast.Node, ident *ast.Ident, err error) {
 	nodes, _ = GetPathNodes(pkg, fset, o.Pos(), o.Pos())
 	if len(nodes) == 0 {
-		nodes, err = GetPathNodes(pkg.GetImport(o.Pkg().Path()), fset, o.Pos(), o.Pos())
+		ip := pkg.GetImport(o.Pkg().Path())
+		if ip == nil {
+			return nil, nil,
+			fmt.Errorf("import package %s of package %s does not exist", o.Pkg().Path(), pkg.GetPkgPath())
+		}
+
+		nodes, err = GetPathNodes(ip, fset, o.Pos(), o.Pos())
 		if err != nil {
 			return nil, nil, err
 		}

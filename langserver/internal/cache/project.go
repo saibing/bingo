@@ -12,14 +12,13 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/span"
 	"github.com/saibing/bingo/langserver/internal/util"
 
-	lsp "github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"golang.org/x/tools/go/packages"
 )
@@ -67,7 +66,6 @@ type FindPackageFunc func(project *Project, importPath string) (source.Package, 
 type Project struct {
 	context       context.Context
 	conn          jsonrpc2.JSONRPC2
-	viewMu        *sync.Mutex
 	view          *View
 	rootDir       string
 	vendorDir     string
@@ -97,7 +95,6 @@ func NewProject(ctx context.Context, conn jsonrpc2.JSONRPC2, rootPath string, bu
 
 	p := &Project{
 		conn:    conn,
-		viewMu:  &sync.Mutex{},
 		view:    view,
 		rootDir: util.LowerDriver(rootPath),
 	}
@@ -111,10 +108,7 @@ func (p *Project) View() source.View {
 }
 
 func (p *Project) getView() *View {
-	p.viewMu.Lock()
-	v := p.view
-	p.viewMu.Unlock()
-	return v
+	return p.view
 }
 
 func (p *Project) notify(err error) {
@@ -340,16 +334,26 @@ func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, strin
 func (p *Project) GetFromURI(uri lsp.DocumentURI) source.Package {
 	filename, _ := source.FromDocumentURI(uri).Filename()
 	pkg := p.getCache().GetByURI(filename)
+	if pkg == nil {
+		return nil
+	}
+
 	return pkg
 }
 
 func (p *Project) getCache() *GlobalCache {
-	return p.getView().gcache
+	p.view.mu.Lock()
+	cache := p.view.gcache
+	p.view.mu.Unlock()
+	return cache
 }
 
 // GetFromPkgPath get package from package import path.
 func (p *Project) GetFromPkgPath(pkgPath string) source.Package {
 	pkg := p.getCache().Get(pkgPath)
+	if pkg == nil {
+		return nil
+	}
 	return pkg.Package()
 }
 

@@ -103,7 +103,7 @@ func (c *GlobalCache) get(id string) *Package {
 	if debugCache {
 		log.Printf("get %s = %p\n", id, pkg)
 	}
-	return pkg.pkg
+	return pkg.Package()
 }
 
 func (c *GlobalCache) delete(id string) {
@@ -213,7 +213,7 @@ func (c *GlobalCache) GetByURI(filename string) *Package {
 	c.RLock()
 	p := c.fileMap[util.LowerDriver(filename)]
 	c.RUnlock()
-	return p.pkg
+	return p.Package()
 }
 
 // Walk walk the global package cache
@@ -298,6 +298,8 @@ func (c *GlobalCache) recusiveAdd(pkg *packages.Package, parent *Package) {
 		c.recusiveAdd(ip, p)
 	}
 
+	c.put(p)
+
 	if parent != nil {
 		parent.imports[p.pkgPath] = p
 	}
@@ -307,6 +309,7 @@ func create(pkg *packages.Package) *Package {
 	return &Package{
 		name:      pkg.Name,
 		id:        pkg.ID,
+		pkgPath:   pkg.PkgPath,
 		files:     pkg.CompiledGoFiles,
 		syntax:    pkg.Syntax,
 		errors:    pkg.Errors,

@@ -134,7 +134,11 @@ func (pkg *Package) IsIllTyped() bool {
 }
 
 func (pkg *Package) GetImport(pkgPath string) source.Package {
-	return pkg.imports[pkgPath]
+	if ip, ok := pkg.imports[pkgPath]; ok {
+		return ip
+	}
+
+	return nil
 }
 
 func (pkg *Package) GetFileSet() *token.FileSet {

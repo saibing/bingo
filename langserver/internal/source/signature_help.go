@@ -28,7 +28,10 @@ type ParameterInformation struct {
 func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg Package, enhance bool) (*SignatureInformation, error) {
 	fAST := f.GetAST(ctx)
 	pkg := f.GetPackage(ctx)
-
+	if pkg.IsIllTyped() {
+		return nil, fmt.Errorf("package for %s is ill typed", f.URI())
+	}
+	
 	// Find a call expression surrounding the query position.
 	var callExpr *ast.CallExpr
 	path, _ := astutil.PathEnclosingInterval(fAST, pos, pos)
