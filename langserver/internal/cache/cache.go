@@ -21,35 +21,35 @@ const (
 	Always   CacheStyle = "always"
 )
 
-type Package struct {
-	pkg     *packages.Package
+type GlobalPackage struct {
+	pkg     *Package
 	modTime time.Time
 }
 
-func (p *Package) Package() *packages.Package {
+func (p *GlobalPackage) Package() *Package {
 	if p == nil {
 		return nil
 	}
 	return p.pkg
 }
 
-func (p *Package) ModTime() time.Time {
+func (p *GlobalPackage) ModTime() time.Time {
 	if p == nil {
 		return time.Time{}
 	}
 	return p.modTime
 }
 
-type id2Package map[string]*Package
-type file2Package map[string]*Package
-type path2Package map[string]*Package
+type id2Package map[string]*GlobalPackage
+type file2Package map[string]*GlobalPackage
+type path2Package map[string]*GlobalPackage
 
-func getPackageModTime(pkg *packages.Package) time.Time {
-	if pkg == nil || len(pkg.CompiledGoFiles) == 0 {
+func getPackageModTime(pkg *Package) time.Time {
+	if pkg == nil || len(pkg.files) == 0 {
 		return time.Time{}
 	}
 
-	dir := pkg.CompiledGoFiles[0]
+	dir := pkg.files[0]
 	fi, err := os.Stat(dir)
 	if err != nil {
 		return time.Time{}
@@ -74,21 +74,21 @@ func NewCache() *GlobalCache {
 	return &GlobalCache{idMap: id2Package{}, pathMap: path2Package{}, fileMap: file2Package{}}
 }
 
-func (c *GlobalCache) put(pkg *packages.Package) {
+func (c *GlobalCache) put(pkg *Package) {
 	if c == nil {
 		return
 	}
 
 	if debugCache {
-		log.Printf("cache %s = %p\n", pkg.ID, pkg)
+		log.Printf("cache %s = %p\n", pkg.id, pkg)
 	}
 
-	c.delete(pkg.ID)
-	p := &Package{pkg: pkg, modTime: getPackageModTime(pkg)}
-	c.idMap[pkg.ID] = p
-	c.pathMap[pkg.PkgPath] = p
+	c.delete(pkg.id)
+	p := &GlobalPackage{pkg: pkg, modTime: getPackageModTime(pkg)}
+	c.idMap[pkg.id] = p
+	c.pathMap[pkg.pkgPath] = p
 
-	for _, file := range pkg.CompiledGoFiles {
+	for _, file := range pkg.files {
 		c.fileMap[util.LowerDriver(file)] = p
 	}
 }
@@ -103,7 +103,7 @@ func (c *GlobalCache) get(id string) *Package {
 	if debugCache {
 		log.Printf("get %s = %p\n", id, pkg)
 	}
-	return pkg
+	return pkg.pkg
 }
 
 func (c *GlobalCache) delete(id string) {
@@ -121,9 +121,9 @@ func (c *GlobalCache) delete(id string) {
 	}
 
 	delete(c.idMap, id)
-	delete(c.pathMap, p.pkg.PkgPath)
+	delete(c.pathMap, p.pkg.pkgPath)
 
-	for _, file := range p.pkg.CompiledGoFiles {
+	for _, file := range p.pkg.files {
 		delete(c.fileMap, util.LowerDriver(file))
 	}
 }
@@ -174,7 +174,7 @@ func (c *GlobalCache) clean(idList []string) {
 }
 
 // Get get package by package import path from global cache
-func (c *GlobalCache) Get(pkgPath string) *Package {
+func (c *GlobalCache) Get(pkgPath string) *GlobalPackage {
 	if c == nil {
 		return nil
 	}
@@ -185,7 +185,7 @@ func (c *GlobalCache) Get(pkgPath string) *Package {
 	return p
 }
 
-func (c *GlobalCache) Put(pkg *packages.Package) {
+func (c *GlobalCache) Put(pkg *Package) {
 	if c == nil {
 		return
 	}
@@ -213,7 +213,7 @@ func (c *GlobalCache) GetByURI(filename string) *Package {
 	c.RLock()
 	p := c.fileMap[util.LowerDriver(filename)]
 	c.RUnlock()
-	return p
+	return p.pkg
 }
 
 // Walk walk the global package cache
@@ -264,11 +264,55 @@ func (c *GlobalCache) Walk(walkFunc source.WalkFunc, ranks []string) error {
 
 func (c *GlobalCache) walk(idList []string, walkFunc source.WalkFunc) error {
 	for _, id := range idList {
-		p := c.get(id)
-		if err := walkFunc(p.pkg); err != nil {
+		pkg := c.get(id)
+		if err := walkFunc(pkg); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (c *GlobalCache) Add(pkg *packages.Package) {
+	if c == nil {
+		return
+	}
+
+	c.Lock()
+	defer c.Unlock()
+
+	c.recusiveAdd(pkg, nil)
+}
+
+func (c *GlobalCache) recusiveAdd(pkg *packages.Package, parent *Package) {
+	if p, _ := c.idMap[pkg.ID]; p != nil {
+		if parent != nil {
+			parent.imports[pkg.PkgPath] = p.pkg
+		}
+		return
+	}
+
+	p := create(pkg)
+
+	for _, ip := range pkg.Imports {
+		c.recusiveAdd(ip, p)
+	}
+
+	if parent != nil {
+		parent.imports[p.pkgPath] = p
+	}
+}
+
+func create(pkg *packages.Package) *Package {
+	return &Package{
+		name:      pkg.Name,
+		id:        pkg.ID,
+		files:     pkg.CompiledGoFiles,
+		syntax:    pkg.Syntax,
+		errors:    pkg.Errors,
+		types:     pkg.Types,
+		typesInfo: pkg.TypesInfo,
+		fset:      pkg.Fset,
+		imports:   make(map[string]*Package),
+	}
 }

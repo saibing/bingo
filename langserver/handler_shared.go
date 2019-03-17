@@ -9,7 +9,6 @@ import (
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/sourcegraph/go-lsp"
-	"golang.org/x/tools/go/packages"
 )
 
 // HandlerShared contains data structures that a build server and its
@@ -48,7 +47,7 @@ func (h *HandlerShared) getFindPackageFunc() cache.FindPackageFunc {
 	return defaultFindPackageFunc
 }
 
-func defaultFindPackageFunc(project *cache.Project, importPath string) (*packages.Package, error) {
+func defaultFindPackageFunc(project *cache.Project, importPath string) (source.Package, error) {
 	if strings.HasPrefix(importPath, "/") {
 		return nil, fmt.Errorf("import %q: cannot import absolute path", importPath)
 	}

@@ -5,118 +5,183 @@
 package source
 
 import (
+	"bytes"
 	"context"
-	"go/token"
-	"strconv"
-	"strings"
+	"fmt"
+	"log"
 
+	"github.com/saibing/bingo/langserver/internal/span"
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/asmdecl"
+	"golang.org/x/tools/go/analysis/passes/assign"
+	"golang.org/x/tools/go/analysis/passes/atomic"
+	"golang.org/x/tools/go/analysis/passes/atomicalign"
+	"golang.org/x/tools/go/analysis/passes/bools"
+	"golang.org/x/tools/go/analysis/passes/buildtag"
+	"golang.org/x/tools/go/analysis/passes/cgocall"
+	"golang.org/x/tools/go/analysis/passes/composite"
+	"golang.org/x/tools/go/analysis/passes/copylock"
+	"golang.org/x/tools/go/analysis/passes/httpresponse"
+	"golang.org/x/tools/go/analysis/passes/loopclosure"
+	"golang.org/x/tools/go/analysis/passes/lostcancel"
+	"golang.org/x/tools/go/analysis/passes/nilfunc"
+	"golang.org/x/tools/go/analysis/passes/printf"
+	"golang.org/x/tools/go/analysis/passes/shift"
+	"golang.org/x/tools/go/analysis/passes/stdmethods"
+	"golang.org/x/tools/go/analysis/passes/structtag"
+	"golang.org/x/tools/go/analysis/passes/tests"
+	"golang.org/x/tools/go/analysis/passes/unmarshal"
+	"golang.org/x/tools/go/analysis/passes/unreachable"
+	"golang.org/x/tools/go/analysis/passes/unsafeptr"
+	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/go/packages"
 )
 
 type Diagnostic struct {
-	token.Position
-	Message string
+	span.Span
+	Message  string
+	Source   string
+	Severity DiagnosticSeverity
 }
 
-func Diagnostics(ctx context.Context, f File) (map[string][]Diagnostic, error) {
-	pkg := f.GetPackage(ctx)
+type DiagnosticSeverity int
 
-	// Prepare the reports we will send for this package.
-	reports := make(map[string][]Diagnostic)
-	for _, filename := range pkg.GoFiles {
-		reports[filename] = []Diagnostic{}
+const (
+	SeverityWarning DiagnosticSeverity = iota
+	SeverityError
+)
+
+func Diagnostics(ctx context.Context, v View, uri span.URI) (map[span.URI][]Diagnostic, error) {
+	f, err := v.GetFile(ctx, uri)
+	if err != nil {
+		return nil, err
 	}
-	var parseErrors, typeErrors []packages.Error
-	for _, err := range pkg.Errors {
+	pkg := f.GetPackage(ctx)
+	if pkg == nil {
+		return nil, fmt.Errorf("no package found for %v", f.URI())
+	}
+	// Prepare the reports we will send for this package.
+	reports := make(map[span.URI][]Diagnostic)
+	for _, filename := range pkg.GetFilenames() {
+		reports[span.FileURI(filename)] = []Diagnostic{}
+	}
+	var listErrors, parseErrors, typeErrors []packages.Error
+	for _, err := range pkg.GetErrors() {
 		switch err.Kind {
 		case packages.ParseError:
 			parseErrors = append(parseErrors, err)
 		case packages.TypeError:
 			typeErrors = append(typeErrors, err)
 		default:
-			// ignore other types of errors
-			continue
+			listErrors = append(listErrors, err)
 		}
 	}
-	// Don't report type errors if there are parse errors.
+	// Don't report type errors if there are parse errors or list errors.
 	diags := typeErrors
 	if len(parseErrors) > 0 {
 		diags = parseErrors
+	} else if len(listErrors) > 0 {
+		diags = listErrors
 	}
 	for _, diag := range diags {
-		pos := errorPos(diag)
-		diagnostic := Diagnostic{
-			Position: pos,
-			Message:  diag.Msg,
+		spn := span.Parse(diag.Pos)
+		if spn.IsPoint() && diag.Kind == packages.TypeError {
+			// Don't set a range if it's anything other than a type error.
+			if diagFile, err := v.GetFile(ctx, spn.URI()); err == nil {
+				tok := diagFile.GetToken(ctx)
+				if tok == nil {
+					continue // ignore errors
+				}
+				content := diagFile.GetContent(ctx)
+				c := span.NewTokenConverter(diagFile.GetFileSet(ctx), tok)
+				s, err := spn.WithOffset(c)
+				//we just don't bother producing an error if this failed
+				if err == nil {
+					start := s.Start()
+					offset := start.Offset()
+					if l := bytes.IndexAny(content[offset:], " \n,():;[]"); l > 0 {
+						spn = span.New(spn.URI(), start, span.NewPoint(start.Line(), start.Column()+l, offset+l))
+					}
+				}
+			}
 		}
-		if _, ok := reports[pos.Filename]; ok {
-			reports[pos.Filename] = append(reports[pos.Filename], diagnostic)
+		diagnostic := Diagnostic{
+			Span:     spn,
+			Message:  diag.Msg,
+			Severity: SeverityError,
+		}
+		if _, ok := reports[spn.URI()]; ok {
+			reports[spn.URI()] = append(reports[spn.URI()], diagnostic)
 		}
 	}
+	if len(diags) > 0 {
+		return reports, nil
+	}
+	// Type checking and parsing succeeded. Run analyses.
+	runAnalyses(ctx, v, pkg, func(a *analysis.Analyzer, diag analysis.Diagnostic) {
+		r := span.NewRange(v.FileSet(), diag.Pos, 0)
+		s, err := r.Span()
+		if err != nil {
+			//TODO: we could not process the diag.Pos, and thus have no valid span
+			//we don't have anywhere to put this error though
+			log.Print(err)
+		}
+		category := a.Name
+		if diag.Category != "" {
+			category += "." + category
+		}
+
+		reports[s.URI()] = append(reports[s.URI()], Diagnostic{
+			Source:   category,
+			Span:     s,
+			Message:  fmt.Sprintf(diag.Message),
+			Severity: SeverityWarning,
+		})
+	})
+
 	return reports, nil
 }
 
-// FromTokenPosition converts a token.Position (1-based line and column
-// number) to a token.Pos (byte offset value).
-// It requires the token file the pos belongs to in order to do this.
-func FromTokenPosition(f *token.File, pos token.Position) token.Pos {
-	line := lineStart(f, pos.Line)
-	return line + token.Pos(pos.Column-1) // TODO: this is wrong, bytes not characters
-}
-
-func errorPos(pkgErr packages.Error) token.Position {
-	remainder1, first, hasLine := chop(pkgErr.Pos)
-	remainder2, second, hasColumn := chop(remainder1)
-	var pos token.Position
-	if hasLine && hasColumn {
-		pos.Filename = remainder2
-		pos.Line = second
-		pos.Column = first
-	} else if hasLine {
-		pos.Filename = remainder1
-		pos.Line = first
+func runAnalyses(ctx context.Context, v View, pkg Package, report func(a *analysis.Analyzer, diag analysis.Diagnostic)) error {
+	// the traditional vet suite:
+	analyzers := []*analysis.Analyzer{
+		asmdecl.Analyzer,
+		assign.Analyzer,
+		atomic.Analyzer,
+		atomicalign.Analyzer,
+		bools.Analyzer,
+		buildtag.Analyzer,
+		cgocall.Analyzer,
+		composite.Analyzer,
+		copylock.Analyzer,
+		httpresponse.Analyzer,
+		loopclosure.Analyzer,
+		lostcancel.Analyzer,
+		nilfunc.Analyzer,
+		printf.Analyzer,
+		shift.Analyzer,
+		stdmethods.Analyzer,
+		structtag.Analyzer,
+		tests.Analyzer,
+		unmarshal.Analyzer,
+		unreachable.Analyzer,
+		unsafeptr.Analyzer,
+		unusedresult.Analyzer,
 	}
-	return pos
-}
 
-func chop(text string) (remainder string, value int, ok bool) {
-	i := strings.LastIndex(text, ":")
-	if i < 0 {
-		return text, 0, false
-	}
-	v, err := strconv.ParseInt(text[i+1:], 10, 64)
-	if err != nil {
-		return text, 0, false
-	}
-	return text[:i], int(v), true
-}
+	roots := analyze(ctx, v, []Package{pkg}, analyzers)
 
-// this functionality was borrowed from the analysisutil package
-func lineStart(f *token.File, line int) token.Pos {
-	// Use binary search to find the start offset of this line.
-	//
-	// TODO(adonovan): eventually replace this function with the
-	// simpler and more efficient (*go/token.File).LineStart, added
-	// in go1.12.
-
-	min := 0        // inclusive
-	max := f.Size() // exclusive
-	for {
-		offset := (min + max) / 2
-		pos := f.Pos(offset)
-		posn := f.Position(pos)
-		if posn.Line == line {
-			return pos - (token.Pos(posn.Column) - 1)
-		}
-
-		if min+1 >= max {
-			return token.NoPos
-		}
-
-		if posn.Line < line {
-			min = offset
-		} else {
-			max = offset
+	// Report diagnostics and errors from root analyzers.
+	for _, r := range roots {
+		for _, diag := range r.diagnostics {
+			if r.err != nil {
+				// TODO(matloob): This isn't quite right: we might return a failed prerequisites error,
+				// which isn't super useful...
+				return r.err
+			}
+			report(r.Analyzer, diag)
 		}
 	}
+
+	return nil
 }

@@ -1,4 +1,4 @@
-package goast
+package source
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/saibing/bingo/langserver/internal/util"
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/go/packages"
 )
 
 // PathEnclosingInterval returns the PackageInfo and ast.Node that
@@ -19,29 +18,24 @@ import (
 //
 // The zero value is returned if not found.
 //
-func PathEnclosingInterval(root *packages.Package, start, end token.Pos) (path []ast.Node, exact bool) {
-	found := func(pkg *packages.Package) bool {
-		path, exact = doEnclosingInterval(pkg, start, end)
-		return path != nil && len(path) != 0
-	}
-
-	visit(root, found)
+func PathEnclosingInterval(pkg Package, fset *token.FileSet, start, end token.Pos) (path []ast.Node, exact bool) {
+	path, exact = doEnclosingInterval(pkg, fset, start, end)
 	return
 }
 
-func doEnclosingInterval(pkg *packages.Package, start, end token.Pos) ([]ast.Node, bool) {
-	if pkg == nil || pkg.Syntax == nil {
+func doEnclosingInterval(pkg Package, fset *token.FileSet, start, end token.Pos) ([]ast.Node, bool) {
+	if pkg == nil || pkg.GetSyntax() == nil {
 		return nil, false
 	}
 
-	for _, f := range pkg.Syntax {
+	for _, f := range pkg.GetSyntax() {
 		if f.Pos() == token.NoPos {
 			// This can happen if the parser saw
 			// too many errors and bailed out.
 			// (Use parser.AllErrors to prevent that.)
 			continue
 		}
-		if !tokenFileContainsPos(pkg.Fset.File(f.Pos()), start) {
+		if !tokenFileContainsPos(fset.File(f.Pos()), start) {
 			continue
 		}
 		if path, exact := astutil.PathEnclosingInterval(f, start, end); path != nil {
@@ -103,29 +97,29 @@ func (e *InvalidNodeError) Error() string {
 	return e.msg
 }
 
-func GetPathNodes(pkg *packages.Package, start, end token.Pos) ([]ast.Node, error) {
-	nodes, _ := PathEnclosingInterval(pkg, start, end)
+func GetPathNodes(pkg Package, fset *token.FileSet, start, end token.Pos) ([]ast.Node, error) {
+	nodes, _ := PathEnclosingInterval(pkg, fset, start, end)
 	if len(nodes) == 0 {
-		s := pkg.Fset.Position(start)
+		s := fset.Position(start)
 		return nodes, fmt.Errorf("no node found at %s offset %d", s, s.Offset)
 	}
 
 	return nodes, nil
 }
 
-func FetchIdentFromPathNodes(pkg *packages.Package, nodes []ast.Node) (*ast.Ident, error) {
+func FetchIdentFromPathNodes(fset *token.FileSet, nodes []ast.Node) (*ast.Ident, error) {
 	firstNode := nodes[0]
 	switch node := firstNode.(type) {
 	case *ast.Ident:
 		return node, nil
 	default:
-		return nil, NewInvalidNodeError(pkg, firstNode)
+		return nil, NewInvalidNodeError(fset, firstNode)
 	}
 }
 
-func NewInvalidNodeError(pkg *packages.Package, node ast.Node) *InvalidNodeError {
+func NewInvalidNodeError(fset *token.FileSet, node ast.Node) *InvalidNodeError {
 	lineCol := func(p token.Pos) string {
-		pp := pkg.Fset.Position(p)
+		pp := fset.Position(p)
 		return fmt.Sprintf("%d:%d", pp.Line, pp.Column)
 	}
 	return &InvalidNodeError{
@@ -135,89 +129,35 @@ func NewInvalidNodeError(pkg *packages.Package, node ast.Node) *InvalidNodeError
 	}
 }
 
-func GetObjectPathNode(pkg *packages.Package, o types.Object) (nodes []ast.Node, ident *ast.Ident, err error) {
-	nodes, _ = GetPathNodes(pkg, o.Pos(), o.Pos())
+func GetObjectPathNode(pkg Package, fset *token.FileSet, o types.Object) (nodes []ast.Node, ident *ast.Ident, err error) {
+	nodes, _ = GetPathNodes(pkg, fset, o.Pos(), o.Pos())
 	if len(nodes) == 0 {
-		nodes, err = GetPathNodes(SearchImportPackage(pkg, o.Pkg().Path()), o.Pos(), o.Pos())
+		nodes, err = GetPathNodes(pkg.GetImport(o.Pkg().Path()), fset, o.Pos(), o.Pos())
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
-	ident, err = FetchIdentFromPathNodes(pkg, nodes)
+	ident, err = FetchIdentFromPathNodes(fset, nodes)
 	return
 }
 
-func visit(root *packages.Package, found func(*packages.Package) bool) bool {
-	if found(root) {
-		return true
-	}
-
-	for _, ip := range root.Imports {
-		if found(ip) {
-			return true
+func GetSyntaxFile(pkg Package, filename string) *ast.File {
+	for i, f := range pkg.GetSyntax() {
+		if util.PathEqual(pkg.GetFilenames()[i], filename) {
+			return f
 		}
 	}
 
-	return false
+	return nil
 }
 
-func GetSyntaxFile(pkg *packages.Package, filename string) *ast.File {
-	var file *ast.File
-	found := func(pkg *packages.Package) bool {
-		for i, f := range pkg.Syntax {
-			if util.PathEqual(pkg.CompiledGoFiles[i], filename) {
-				file = f
-				return true
-			}
-		}
-
-		return false
-	}
-
-	visit(pkg, found)
-
-	return file
+func FindIdentObject(pkg Package, ident *ast.Ident) types.Object {
+	return pkg.GetTypesInfo().ObjectOf(ident)
 }
 
-func FindIdentObject(pkg *packages.Package, ident *ast.Ident) types.Object {
-	var o types.Object
-
-	if pkg == nil {
-		return nil
-	}
-
-	found := func(pkg *packages.Package) bool {
-		if pkg.TypesInfo == nil {
-			return false
-		}
-
-		o = pkg.TypesInfo.ObjectOf(ident)
-		return o != nil
-	}
-
-	visit(pkg, found)
-	return o
-}
-
-func FindIdentType(pkg *packages.Package, ident *ast.Ident) types.Type {
-	var t types.Type
-
-	if pkg == nil {
-		return nil
-	}
-
-	found := func(pkg *packages.Package) bool {
-		if pkg.TypesInfo == nil {
-			return false
-		}
-
-		t = pkg.TypesInfo.TypeOf(ident)
-		return t != nil
-	}
-
-	visit(pkg, found)
-	return t
+func FindIdentType(pkg Package, ident *ast.Ident) types.Type {
+	return pkg.GetTypesInfo().TypeOf(ident)
 }
 
 // CallExpr climbs AST tree up until call expression
@@ -231,30 +171,9 @@ func CallExpr(fset *token.FileSet, nodes []ast.Node) *ast.CallExpr {
 	return nil
 }
 
-func SearchImportPackage(root *packages.Package, path string) *packages.Package {
-	if root == nil {
-		return nil
-	}
-
-	var p *packages.Package
-
-	found := func(pkg *packages.Package) bool {
-		p = pkg.Imports[path]
-		return p != nil
-	}
-
-	visit(root, found)
-
-	return p
-}
-
 // FindObject find object
-func FindObject(pkg *packages.Package, o types.Object) types.Object {
-	if pkg == nil {
-		return nil
-	}
-
-	for _, def := range pkg.TypesInfo.Defs {
+func FindObject(pkg Package, o types.Object) types.Object {
+	for _, def := range pkg.GetTypesInfo().Defs {
 		if def == nil {
 			continue
 		}

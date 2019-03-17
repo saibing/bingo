@@ -9,6 +9,7 @@ import (
 
 	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/span"
 	lsp "github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -119,7 +120,7 @@ func (h *overlay) didChange(ctx context.Context, params *lsp.DidChangeTextDocume
 }
 
 func (h *overlay) didClose(ctx context.Context, params *lsp.DidCloseTextDocumentParams) {
-	uri := source.FromDocumentURI(params.TextDocument.URI)
+	uri := span.FromDocumentURI(params.TextDocument.URI)
 	h.setContent(ctx, uri, nil)
 }
 
@@ -128,7 +129,7 @@ func (h *overlay) didSave(ctx context.Context, param *lsp.DidSaveTextDocumentPar
 		return
 	}
 
-	sourceURI := source.FromDocumentURI(param.TextDocument.URI)
+	sourceURI := span.FromDocumentURI(param.TextDocument.URI)
 	f, err := h.view().GetFile(ctx, sourceURI)
 	if err != nil {
 		log.Fatal(err)
@@ -138,7 +139,7 @@ func (h *overlay) didSave(ctx context.Context, param *lsp.DidSaveTextDocumentPar
 }
 
 func (h *overlay) cacheAndDiagnose(ctx context.Context, uri lsp.DocumentURI, text []byte) {
-	sourceURI := source.FromDocumentURI(uri)
+	sourceURI := span.FromDocumentURI(uri)
 	h.setContent(ctx, sourceURI, text)
 	f, err := h.view().GetFile(ctx, sourceURI)
 	if err != nil {
@@ -151,7 +152,7 @@ func (h *overlay) cacheAndDiagnose(ctx context.Context, uri lsp.DocumentURI, tex
 	go h.diagnosetics(ctx, f)
 }
 
-func (h *overlay) setContent(ctx context.Context, uri source.URI, content []byte) error {
+func (h *overlay) setContent(ctx context.Context, uri span.URI, content []byte) error {
 	return h.view().SetContent(ctx, uri, content)
 }
 

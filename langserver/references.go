@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/saibing/bingo/langserver/internal/cache"
-	"github.com/saibing/bingo/langserver/internal/goast"
-	"github.com/sourcegraph/go-lsp"
-	"github.com/sourcegraph/jsonrpc2"
 	"go/ast"
 	"go/token"
 	"go/types"
-	"golang.org/x/tools/go/packages"
+
+	"github.com/saibing/bingo/langserver/internal/cache"
+	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/jsonrpc2"
 )
 
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
@@ -29,13 +29,13 @@ func (h *LangHandler) doHandleTextDocumentReferences(ctx context.Context, conn j
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
-		if _, ok := err.(*goast.InvalidNodeError); ok {
+		if _, ok := err.(*source.InvalidNodeError); ok {
 			return []lsp.Location{}, nil
 		}
 		return nil, err
 	}
 
-	pathNodes, err := goast.GetPathNodes(pkg, pos, pos)
+	pathNodes, err := source.GetPathNodes(pkg, pkg.GetFileSet(), pos, pos)
 	if err != nil {
 		return nil, err
 	}
@@ -48,12 +48,12 @@ func (h *LangHandler) doHandleTextDocumentReferences(ctx context.Context, conn j
 	case *ast.FuncDecl:
 		ident = node.Name
 	default:
-		return nil, goast.NewInvalidNodeError(pkg, firstNode)
+		return nil, source.NewInvalidNodeError(pkg.GetFileSet(), firstNode)
 	}
 
 	// NOTICE: Code adapted from golang.org/x/tools/cmd/guru
 	// referrers.go.
-	obj := goast.FindIdentObject(pkg, ident)
+	obj := source.FindIdentObject(pkg, ident)
 	if obj == nil {
 		return nil, errors.New("references object not found")
 	}
@@ -74,7 +74,7 @@ func (h *LangHandler) doHandleTextDocumentReferences(ctx context.Context, conn j
 		refs = append(refs, &ast.Ident{NamePos: obj.Pos(), Name: obj.Name()})
 	}
 
-	return refStreamAndCollect(pkg.Fset, refs, params.Context.XLimit), nil
+	return refStreamAndCollect(pkg.GetFileSet(), refs, params.Context.XLimit), nil
 }
 
 // refStreamAndCollect returns all refs read in from chan until it is
@@ -129,22 +129,22 @@ func (h *LangHandler) findReferences(ctx context.Context, queryObj types.Object)
 		defPkgPath = cache.BuiltinPkg
 	}
 
-	f := func(pkg *packages.Package) error {
+	f := func(pkg source.Package) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 
 		if defPkgPath != cache.BuiltinPkg {
-			if _, ok := pkg.Imports[defPkgPath]; !ok && pkg.PkgPath != defPkgPath {
+			if p := pkg.GetImport(defPkgPath); p == nil && pkg.GetPkgPath() != defPkgPath {
 				return nil
 			}
 		}
 
-		if pkg.TypesInfo == nil {
+		if pkg.GetTypesInfo() == nil {
 			return nil
 		}
 
-		for id, obj := range pkg.TypesInfo.Uses {
+		for id, obj := range pkg.GetTypesInfo().Uses {
 			if sameObj(queryObj, obj) {
 				refs = append(refs, id)
 			}

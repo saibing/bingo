@@ -12,11 +12,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/source"
 	doc "github.com/slimsag/godocmd"
-
-	"golang.org/x/tools/go/packages"
 
 	"github.com/saibing/bingo/langserver/internal/util"
 
@@ -29,7 +26,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
-		if _, ok := err.(*goast.InvalidNodeError); ok {
+		if _, ok := err.(*source.InvalidNodeError); ok {
 			return nil, nil
 		}
 		// This is a common error we get in production when a user is
@@ -42,7 +39,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		return nil, err
 	}
 
-	pathNodes, err := goast.GetPathNodes(pkg, pos, pos)
+	pathNodes, err := source.GetPathNodes(pkg, pkg.GetFileSet(), pos, pos)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +60,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 	return nil, nil
 }
 
-func (h *LangHandler) hoverCallExpr(pkg *packages.Package, nodes []ast.Node, call *ast.CallExpr, position lsp.Position) (*lsp.Hover, error) {
+func (h *LangHandler) hoverCallExpr(pkg source.Package, nodes []ast.Node, call *ast.CallExpr, position lsp.Position) (*lsp.Hover, error) {
 	if ident, ok := call.Fun.(*ast.Ident); ok {
 		return h.hoverIdent(pkg, nodes, ident, position)
 	}
@@ -72,20 +69,20 @@ func (h *LangHandler) hoverCallExpr(pkg *packages.Package, nodes []ast.Node, cal
 		return h.hoverIdent(pkg, nodes, selExpr.Sel, position)
 	}
 
-	return nil, goast.NewInvalidNodeError(pkg, nodes[0])
+	return nil, source.NewInvalidNodeError(pkg.GetFileSet(), nodes[0])
 }
 
-func (h *LangHandler) hoverBasicLit(pkg *packages.Package, nodes []ast.Node, basicLit *ast.BasicLit, position lsp.Position) (*lsp.Hover, error) {
+func (h *LangHandler) hoverBasicLit(pkg source.Package, nodes []ast.Node, basicLit *ast.BasicLit, position lsp.Position) (*lsp.Hover, error) {
 	if len(nodes) == 1 {
 		return nil, nil
 	}
 
 	if node, ok := nodes[1].(*ast.ImportSpec); ok {
-		importPkg := goast.SearchImportPackage(pkg, strings.Trim(node.Path.Value, `"`))
-		comments := source.PackageDoc(importPkg.Syntax, importPkg.Name)
-		r := rangeForNode(pkg.Fset, node)
+		importPkg := pkg.GetImport(strings.Trim(node.Path.Value, `"`))
+		comments := source.PackageDoc(importPkg.GetSyntax(), importPkg.GetName())
+		r := rangeForNode(pkg.GetFileSet(), node)
 		return &lsp.Hover{
-			Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: "package " + importPkg.Name}}),
+			Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: "package " + importPkg.GetName()}}),
 			Range:    &r,
 		}, nil
 	}
@@ -93,14 +90,14 @@ func (h *LangHandler) hoverBasicLit(pkg *packages.Package, nodes []ast.Node, bas
 	return nil, nil
 }
 
-func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
-	o := goast.FindIdentObject(pkg, ident)
-	t := goast.FindIdentType(pkg, ident)
+func (h *LangHandler) hoverIdent(pkg source.Package, pathNodes []ast.Node, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
+	o := source.FindIdentObject(pkg, ident)
+	t := source.FindIdentType(pkg, ident)
 
 	if o == nil && t == nil {
 		if ident.Obj != nil {
 			contents := maybeAddComments("", []lsp.MarkedString{{Language: "go", Value: ident.String()}})
-			r := rangeForNode(pkg.Fset, ident)
+			r := rangeForNode(pkg.GetFileSet(), ident)
 			return &lsp.Hover{Contents: contents, Range: &r}, nil
 		}
 		return h.packageStatement(pkg, ident, position)
@@ -113,7 +110,7 @@ func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, id
 		if pkg == nil {
 			return nil, nil
 		}
-		o = goast.FindObject(pkg, o)
+		o = source.FindObject(pkg, o)
 		if o == nil {
 			return nil, nil
 		}
@@ -155,7 +152,7 @@ func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, id
 		s = types.TypeString(t, qf)
 	}
 
-	comments, err := source.FindComments(pkg, o, ident.Name)
+	comments, err := source.FindComments(pkg, pkg.GetFileSet(), o, ident.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -166,16 +163,16 @@ func (h *LangHandler) hoverIdent(pkg *packages.Package, pathNodes []ast.Node, id
 		contents = append(contents, lsp.MarkedString{Language: "go", Value: extra})
 	}
 
-	r := rangeForNode(pkg.Fset, ident)
+	r := rangeForNode(pkg.GetFileSet(), ident)
 	return &lsp.Hover{Contents: contents, Range: &r}, nil
 }
 
-func (h *LangHandler) packageStatement(pkg *packages.Package, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
-	comments := source.PackageDoc(pkg.Syntax, ident.Name)
+func (h *LangHandler) packageStatement(pkg source.Package, ident *ast.Ident, position lsp.Position) (*lsp.Hover, error) {
+	comments := source.PackageDoc(pkg.GetSyntax(), ident.Name)
 
 	// Package statement idents don't have an object, so try that separately.
-	r := rangeForNode(pkg.Fset, ident)
-	if pkgName := packageStatementName(pkg.Fset, pkg.Syntax, ident); pkgName != "" {
+	r := rangeForNode(pkg.GetFileSet(), ident)
+	if pkgName := packageStatementName(pkg.GetFileSet(), pkg.GetSyntax(), ident); pkgName != "" {
 		return &lsp.Hover{
 			Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: "package " + pkgName}}),
 			Range:    &r,

@@ -12,9 +12,7 @@ import (
 	"go/token"
 	"go/types"
 
-	"github.com/saibing/bingo/langserver/internal/goast"
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/go/packages"
 )
 
 type SignatureInformation struct {
@@ -27,7 +25,7 @@ type ParameterInformation struct {
 	Label string
 }
 
-func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packages.Package, enhance bool) (*SignatureInformation, error) {
+func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg Package, enhance bool) (*SignatureInformation, error) {
 	fAST := f.GetAST(ctx)
 	pkg := f.GetPackage(ctx)
 
@@ -51,9 +49,9 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packa
 	var obj types.Object
 	switch t := callExpr.Fun.(type) {
 	case *ast.Ident:
-		obj = pkg.TypesInfo.ObjectOf(t)
+		obj = pkg.GetTypesInfo().ObjectOf(t)
 	case *ast.SelectorExpr:
-		obj = pkg.TypesInfo.ObjectOf(t.Sel)
+		obj = pkg.GetTypesInfo().ObjectOf(t.Sel)
 	default:
 		return nil, fmt.Errorf("the enclosing function is malformed")
 	}
@@ -71,7 +69,7 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packa
 		sig = obj.Type().(*types.Signature)
 
 	case *types.Builtin:
-		obj = goast.FindObject(builtinPkg, obj)
+		obj = FindObject(builtinPkg, obj)
 		if _, ok := obj.(*types.Func); ok {
 			sig = obj.Type().(*types.Signature)
 		}
@@ -79,7 +77,7 @@ func SignatureHelp(ctx context.Context, f File, pos token.Pos, builtinPkg *packa
 	if sig == nil {
 		return nil, fmt.Errorf("no function signatures found for %s", obj.Name())
 	}
-	pkgStringer := qualifier(fAST, pkg.Types, pkg.TypesInfo)
+	pkgStringer := qualifier(fAST, pkg.GetTypes(), pkg.GetTypesInfo())
 	var paramInfo []ParameterInformation
 	for i := 0; i < sig.Params().Len(); i++ {
 		param := sig.Params().At(i)

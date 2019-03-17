@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/span"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -22,7 +23,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		return nil, nil
 	}
 
-	f, err := h.View().GetFile(ctx, source.FromDocumentURI(fileURI))
+	f, err := h.View().GetFile(ctx, span.FromDocumentURI(fileURI))
 	if err != nil {
 		return nil, err
 	}

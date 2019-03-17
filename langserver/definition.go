@@ -7,11 +7,10 @@ import (
 	"go/ast"
 	"go/types"
 
-	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/refs"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
-	"golang.org/x/tools/go/packages"
 )
 
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
@@ -63,13 +62,13 @@ func (h *LangHandler) doHandleXDefinition(ctx context.Context, conn jsonrpc2.JSO
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no locations.
-		if _, ok := err.(*goast.InvalidNodeError); ok {
+		if _, ok := err.(*source.InvalidNodeError); ok {
 			return []symbolLocationInformation{}, nil
 		}
 		return nil, err
 	}
 
-	pathNodes, err := goast.GetPathNodes(pkg, pos, pos)
+	pathNodes, err := source.GetPathNodes(pkg, pkg.GetFileSet(), pos, pos)
 	if err != nil {
 		return nil, err
 	}
@@ -85,11 +84,11 @@ func (h *LangHandler) doHandleXDefinition(ctx context.Context, conn jsonrpc2.JSO
 	case *ast.SelectorExpr:
 		return h.lookupIdentDefinition(ctx, conn, pkg, pathNodes, node.Sel)
 	default:
-		return nil, goast.NewInvalidNodeError(pkg, firstNode)
+		return nil, source.NewInvalidNodeError(pkg.GetFileSet(), firstNode)
 	}
 }
 
-func (h *LangHandler) lookupCallExprDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg *packages.Package, pathNodes []ast.Node, call *ast.CallExpr) ([]symbolLocationInformation, error) {
+func (h *LangHandler) lookupCallExprDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg source.Package, pathNodes []ast.Node, call *ast.CallExpr) ([]symbolLocationInformation, error) {
 	if ident, ok := call.Fun.(*ast.Ident); ok {
 		return h.lookupIdentDefinition(ctx, conn, pkg, pathNodes, ident)
 	}
@@ -98,12 +97,12 @@ func (h *LangHandler) lookupCallExprDefinition(ctx context.Context, conn jsonrpc
 		return h.lookupIdentDefinition(ctx, conn, pkg, pathNodes, selExpr.Sel)
 	}
 
-	return nil, goast.NewInvalidNodeError(pkg, pathNodes[0])
+	return nil, source.NewInvalidNodeError(pkg.GetFileSet(), pathNodes[0])
 }
 
-func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg *packages.Package, pathNodes []ast.Node, ident *ast.Ident) ([]symbolLocationInformation, error) {
+func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, pkg source.Package, pathNodes []ast.Node, ident *ast.Ident) ([]symbolLocationInformation, error) {
 	var nodes []foundNode
-	obj := goast.FindIdentObject(pkg, ident)
+	obj := source.FindIdentObject(pkg, ident)
 	if obj != nil {
 		if typeVar, ok := obj.(*types.Var); ok && typeVar.Embedded() {
 			if t, ok := typeVar.Type().(*types.Named); ok {
@@ -116,7 +115,7 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 		if !isBuiltIn {
 			nodes = append(nodes, foundNode{
 				ident: &ast.Ident{NamePos: pos, Name: obj.Name()},
-				typ:   goast.TypeLookup(pkg.TypesInfo.TypeOf(ident)),
+				typ:   source.TypeLookup(pkg.GetTypesInfo().TypeOf(ident)),
 			})
 		} else {
 			// Builtins have an invalid Pos. Just don't emit a definition for
@@ -128,7 +127,7 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 			if pkg == nil {
 				return []symbolLocationInformation{}, nil
 			}
-			obj = goast.FindObject(pkg, obj)
+			obj = source.FindObject(pkg, obj)
 			if obj == nil {
 				return []symbolLocationInformation{}, nil
 			}
@@ -137,9 +136,9 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 			pos = obj.Pos()
 			nodes = append(nodes, foundNode{
 				ident: &ast.Ident{NamePos: pos, Name: obj.Name()},
-				typ:   goast.TypeLookup(obj.Type()),
+				typ:   source.TypeLookup(obj.Type()),
 			})
-			pathNodes, _, _ = goast.GetObjectPathNode(pkg, obj)
+			pathNodes, _, _ = source.GetObjectPathNode(pkg, pkg.GetFileSet(), obj)
 		}
 	}
 	if len(nodes) == 0 {
@@ -150,16 +149,16 @@ func (h *LangHandler) lookupIdentDefinition(ctx context.Context, conn jsonrpc2.J
 	for _, found := range nodes {
 		// Determine location information for the ident.
 		l := symbolLocationInformation{
-			Location: goRangeToLSPLocation(pkg.Fset, found.ident.Pos(), found.ident.Name),
+			Location: goRangeToLSPLocation(pkg.GetFileSet(), found.ident.Pos(), found.ident.Name),
 		}
 		if found.typ != nil {
 			// We don't get an end position, but we can assume it's comparable to
 			// the length of the name, I hope.
-			l.TypeLocation = goRangeToLSPLocation(pkg.Fset, found.typ.Pos(), found.typ.Name())
+			l.TypeLocation = goRangeToLSPLocation(pkg.GetFileSet(), found.typ.Pos(), found.typ.Name())
 		}
 
 		// Determine metadata information for the ident.
-		if def, err := refs.DefInfo(pkg.Types, pkg.TypesInfo, pathNodes, found.ident.Pos()); err == nil {
+		if def, err := refs.DefInfo(pkg.GetTypes(), pkg.GetTypesInfo(), pathNodes, found.ident.Pos()); err == nil {
 			symDesc, err := defSymbolDescriptor(pkg, h.project, *def, findPackage)
 			if err != nil {
 				// TODO: tracing

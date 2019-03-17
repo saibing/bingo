@@ -10,8 +10,10 @@ import (
 	"context"
 	"fmt"
 	"go/token"
+	"log"
 
 	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/span"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -42,7 +44,7 @@ func formatRange(ctx context.Context, v source.View, uri lsp.DocumentURI, rng *l
 	if tok == nil {
 		return nil, newJsonrpc2Errorf(jsonrpc2.CodeInternalError, fmt.Sprintf("token file does not exist of %s", uri))
 	}
-	var r source.Range
+	var r span.Range
 	if rng == nil {
 		r.Start = tok.Pos(0)
 		r.End = tok.Pos(tok.Size())
@@ -68,6 +70,7 @@ func toProtocolEdits(ctx context.Context, f source.File, edits []source.TextEdit
 	}
 	tok := f.GetToken(ctx)
 	content := f.GetContent(ctx)
+	converter := span.NewTokenConverter(f.GetFileSet(ctx), tok)
 	// When a file ends with an empty line, the newline character is counted
 	// as part of the previous line. This causes the formatter to insert
 	// another unnecessary newline on each formatting. We handle this case by
@@ -75,10 +78,13 @@ func toProtocolEdits(ctx context.Context, f source.File, edits []source.TextEdit
 	hasExtraNewline := content[len(content)-1] == '\n'
 	result := make([]lsp.TextEdit, len(edits))
 	for i, edit := range edits {
-		rng := toProtocolRange(tok, edit.Range)
-
+		spanRange, err := edit.Span.Range(converter)
+		if err != nil {
+			log.Printf("convert range failed %s\n", err)
+		}
+		rng := toProtocolRange(tok, spanRange)
 		// If the edit ends at the end of the file, add the extra line.
-		if hasExtraNewline && tok.Offset(edit.Range.End) == len(content) {
+		if hasExtraNewline && tok.Offset(spanRange.End) == len(content) {
 			rng.End.Line++
 			rng.End.Character = 0
 		}
@@ -91,7 +97,7 @@ func toProtocolEdits(ctx context.Context, f source.File, edits []source.TextEdit
 }
 
 // toProtocolRange converts from a source range back to a protocol range.
-func toProtocolRange(f *token.File, r source.Range) lsp.Range {
+func toProtocolRange(f *token.File, r span.Range) lsp.Range {
 	return lsp.Range{
 		Start: toProtocolPosition(f, r.Start),
 		End:   toProtocolPosition(f, r.End),

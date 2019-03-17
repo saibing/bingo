@@ -2,12 +2,12 @@ package langserver
 
 import (
 	"bytes"
-	"github.com/saibing/bingo/langserver/internal/source"
 	"go/ast"
 	"go/token"
 	"go/types"
-	"golang.org/x/tools/go/packages"
 	"io/ioutil"
+
+	"github.com/saibing/bingo/langserver/internal/source"
 
 	"github.com/sourcegraph/go-lsp"
 )
@@ -96,7 +96,7 @@ const (
 //
 // Adapted from golang.org/x/tools/cmd/guru (Copyright (c) 2013 The Go Authors). All rights
 // reserved. See NOTICE for full license.
-func findInterestingNode(pkg *packages.Package, path []ast.Node) ([]ast.Node, action) {
+func findInterestingNode(pkg source.Package, path []ast.Node) ([]ast.Node, action) {
 	// TODO(adonovan): integrate with go/types/stdlib_test.go and
 	// apply this to every AST node we can find to make sure it
 	// doesn't crash.
@@ -187,7 +187,7 @@ func findInterestingNode(pkg *packages.Package, path []ast.Node) ([]ast.Node, ac
 
 		case *ast.SelectorExpr:
 			// TODO(adonovan): use Selections info directly.
-			if pkg.TypesInfo.Uses[n.Sel] == nil {
+			if pkg.GetTypesInfo().Uses[n.Sel] == nil {
 				// TODO(adonovan): is this reachable?
 				return path, actionUnknown
 			}
@@ -196,7 +196,7 @@ func findInterestingNode(pkg *packages.Package, path []ast.Node) ([]ast.Node, ac
 			continue
 
 		case *ast.Ident:
-			switch pkg.TypesInfo.ObjectOf(n).(type) {
+			switch pkg.GetTypesInfo().ObjectOf(n).(type) {
 			case *types.PkgName:
 				return path, actionPackage
 
@@ -273,7 +273,7 @@ func findInterestingNode(pkg *packages.Package, path []ast.Node) ([]ast.Node, ac
 			}
 
 		case *ast.StarExpr:
-			if pkg.TypesInfo.Types[n].IsType() {
+			if pkg.GetTypesInfo().Types[n].IsType() {
 				return path, actionType
 			}
 			return path, actionExpr

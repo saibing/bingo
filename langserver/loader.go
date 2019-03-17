@@ -6,13 +6,10 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/sourcegraph/jsonrpc2"
-
-	"github.com/saibing/bingo/langserver/internal/goast"
 	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/sourcegraph/go-lsp"
-	"golang.org/x/tools/go/packages"
+	"github.com/sourcegraph/jsonrpc2"
 )
 
 func checkFileURI(fileURI lsp.DocumentURI) error {
@@ -27,7 +24,7 @@ func checkFileURI(fileURI lsp.DocumentURI) error {
 	return nil
 }
 
-func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (*packages.Package, token.Pos, error) {
+func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, position lsp.Position) (source.Package, token.Pos, error) {
 	pos := token.NoPos
 
 	if err := checkFileURI(fileURI); err != nil {
@@ -47,20 +44,20 @@ func (h *LangHandler) typeCheck(ctx context.Context, fileURI lsp.DocumentURI, po
 	return pkg, pos, err
 }
 
-func (h *LangHandler) getPosFromFile(ctx context.Context, pkg *packages.Package, f source.File, position lsp.Position) (token.Pos, error) {
+func (h *LangHandler) getPosFromFile(ctx context.Context, pkg source.Package, f source.File, position lsp.Position) (token.Pos, error) {
 	tok := f.GetToken(ctx)
 	pos := fromProtocolPosition(tok, position)
 	return pos, nil
 }
 
-func (h *LangHandler) getPosFromPkg(pkg *packages.Package, fileURI lsp.DocumentURI, position lsp.Position) (token.Pos, error) {
+func (h *LangHandler) getPosFromPkg(pkg source.Package, fileURI lsp.DocumentURI, position lsp.Position) (token.Pos, error) {
 	pos := token.NoPos
 	fAST, err := h.getAstFromPkg(pkg, fileURI)
 	if err != nil {
 		return pos, err
 	}
 
-	fToken := pkg.Fset.File(fAST.Pos())
+	fToken := pkg.GetFileSet().File(fAST.Pos())
 	if fToken == nil {
 		return pos, fmt.Errorf("%s token file does not exist", fileURI)
 	}
@@ -69,7 +66,7 @@ func (h *LangHandler) getPosFromPkg(pkg *packages.Package, fileURI lsp.DocumentU
 	return pos, nil
 }
 
-func (h *LangHandler) loadPackageAndAst(ctx context.Context, fileURI lsp.DocumentURI) (*packages.Package, *ast.File, error) {
+func (h *LangHandler) loadPackageAndAst(ctx context.Context, fileURI lsp.DocumentURI) (source.Package, *ast.File, error) {
 	if err := checkFileURI(fileURI); err != nil {
 		return nil, nil, err
 	}
@@ -89,8 +86,8 @@ func (h *LangHandler) loadPackageAndAst(ctx context.Context, fileURI lsp.Documen
 	return pkg, astFile, err
 }
 
-func (h *LangHandler) getAstFromPkg(pkg *packages.Package, fileURI lsp.DocumentURI) (*ast.File, error) {
-	fAST := goast.GetSyntaxFile(pkg, util.UriToRealPath(fileURI))
+func (h *LangHandler) getAstFromPkg(pkg source.Package, fileURI lsp.DocumentURI) (*ast.File, error) {
+	fAST := source.GetSyntaxFile(pkg, util.UriToRealPath(fileURI))
 	if fAST == nil {
 		return nil, fmt.Errorf("%s ast file does not exist", fileURI)
 	}

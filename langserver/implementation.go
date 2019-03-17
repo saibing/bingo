@@ -3,12 +3,12 @@ package langserver
 import (
 	"context"
 	"errors"
-	"github.com/saibing/bingo/langserver/internal/cache"
-	"github.com/saibing/bingo/langserver/internal/goast"
 	"go/ast"
 	"go/types"
-	"golang.org/x/tools/go/packages"
 	"sort"
+
+	"github.com/saibing/bingo/langserver/internal/cache"
+	"github.com/saibing/bingo/langserver/internal/source"
 
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/go-lsp/lspext"
@@ -22,13 +22,13 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
-		if _, ok := err.(*goast.InvalidNodeError); ok {
+		if _, ok := err.(*source.InvalidNodeError); ok {
 			return []*lspext.ImplementationLocation{}, nil
 		}
 		return nil, err
 	}
 
-	pathNodes, _ := goast.GetPathNodes(pkg, pos, pos)
+	pathNodes, _ := source.GetPathNodes(pkg, pkg.GetFileSet(), pos, pos)
 	pathNodes, action := findInterestingNode(pkg, pathNodes)
 
 	return implements(h.project, pkg, pathNodes, action)
@@ -36,7 +36,7 @@ func (h *LangHandler) handleTextDocumentImplementation(ctx context.Context, conn
 
 // Adapted from golang.org/x/tools/cmd/guru (Copyright (c) 2013 The Go Authors). All rights
 // reserved. See NOTICE for full license.
-func implements(globalCache *cache.Project, pkg *packages.Package, path []ast.Node, action action) ([]*lspext.ImplementationLocation, error) {
+func implements(project *cache.Project, pkg source.Package, path []ast.Node, action action) ([]*lspext.ImplementationLocation, error) {
 	var method *types.Func
 	var T types.Type // selected type (receiver if method != nil)
 
@@ -44,7 +44,7 @@ func implements(globalCache *cache.Project, pkg *packages.Package, path []ast.No
 	case actionExpr:
 		// method?
 		if id, ok := path[0].(*ast.Ident); ok {
-			if obj, ok := pkg.TypesInfo.ObjectOf(id).(*types.Func); ok {
+			if obj, ok := pkg.GetTypesInfo().ObjectOf(id).(*types.Func); ok {
 				recv := obj.Type().(*types.Signature).Recv()
 				if recv == nil {
 					return nil, errors.New("this function is not a method")
@@ -56,11 +56,11 @@ func implements(globalCache *cache.Project, pkg *packages.Package, path []ast.No
 
 		// If not a method, use the expression's type.
 		if T == nil {
-			T = pkg.TypesInfo.TypeOf(path[0].(ast.Expr))
+			T = pkg.GetTypesInfo().TypeOf(path[0].(ast.Expr))
 		}
 
 	case actionType:
-		T = pkg.TypesInfo.TypeOf(path[0].(ast.Expr))
+		T = pkg.GetTypesInfo().TypeOf(path[0].(ast.Expr))
 	}
 	if T == nil {
 		return nil, errors.New("not a type, method, or value")
@@ -72,12 +72,8 @@ func implements(globalCache *cache.Project, pkg *packages.Package, path []ast.No
 	// reporting of the Named type N.
 	var allNamed []*types.Named
 
-	f := func(p *packages.Package) error {
-		if p.TypesInfo == nil {
-			return nil
-		}
-
-		for _, obj := range p.TypesInfo.Defs {
+	f := func(p source.Package) error {
+		for _, obj := range p.GetTypesInfo().Defs {
 			if obj, ok := obj.(*types.TypeName); ok && !isAlias(obj) {
 				if named, ok := obj.Type().(*types.Named); ok {
 					allNamed = append(allNamed, named)
@@ -88,7 +84,7 @@ func implements(globalCache *cache.Project, pkg *packages.Package, path []ast.No
 		return nil
 	}
 
-	err := globalCache.Search(f)
+	err := project.Search(f)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +146,7 @@ func implements(globalCache *cache.Project, pkg *packages.Package, path []ast.No
 		var obj types.Object
 		if method == nil {
 			// t is a type
-			nt, ok := goast.Deref(t).(*types.Named)
+			nt, ok := source.Deref(t).(*types.Named)
 			if !ok {
 				return nil // t is non-named
 			}
@@ -169,7 +165,7 @@ func implements(globalCache *cache.Project, pkg *packages.Package, path []ast.No
 		}
 
 		return &lspext.ImplementationLocation{
-			Location: goRangeToLSPLocation(pkg.Fset, obj.Pos(), obj.Name()),
+			Location: goRangeToLSPLocation(pkg.GetFileSet(), obj.Pos(), obj.Name()),
 			Method:   method != nil,
 		}
 	}

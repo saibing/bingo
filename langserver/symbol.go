@@ -11,8 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/tools/go/packages"
-
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/go-lsp/lspext"
@@ -243,12 +242,12 @@ func score(q Query, s symbolPair) (scor int) {
 
 // toSym returns a SymbolInformation value derived from values we get
 // from visiting the Go ast.
-func toSym(name string, pkg *packages.Package, container string, recv string, kind lsp.SymbolKind, fs *token.FileSet, pos token.Pos) symbolPair {
+func toSym(name string, pkg source.Package, container string, recv string, kind lsp.SymbolKind, fs *token.FileSet, pos token.Pos) symbolPair {
 	var id string
 	if container == "" {
-		id = fmt.Sprintf("%s/-/%s", path.Clean(pkg.PkgPath), name)
+		id = fmt.Sprintf("%s/-/%s", path.Clean(pkg.GetPkgPath()), name)
 	} else {
-		id = fmt.Sprintf("%s/-/%s/%s", path.Clean(pkg.PkgPath), container, name)
+		id = fmt.Sprintf("%s/-/%s/%s", path.Clean(pkg.GetPkgPath()), container, name)
 	}
 
 	return symbolPair{
@@ -261,8 +260,8 @@ func toSym(name string, pkg *packages.Package, container string, recv string, ki
 		// NOTE: fields must be kept in sync with workspace_refs.go:defSymbolDescriptor
 		desc: symbolDescriptor{
 			Vendor:      false,
-			Package:     path.Clean(pkg.PkgPath),
-			PackageName: pkg.Name,
+			Package:     path.Clean(pkg.GetPkgPath()),
+			PackageName: pkg.GetName(),
 			Recv:        recv,
 			Name:        name,
 			ID:          id,
@@ -312,7 +311,7 @@ func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn jsonrpc2.J
 func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, query Query, limit int) ([]lsp.SymbolInformation, error) {
 	results := resultSorter{Query: query, results: make([]scoredSymbol, 0)}
 
-	f := func(pkg *packages.Package) error {
+	f := func(pkg source.Package) error {
 		// If the context is cancelled, breaking the loop here
 		// will allow us to return partial results, and
 		// avoiding starting new computations.
@@ -322,7 +321,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 
 		if results.Query.File != "" {
 			found := false
-			for _, file := range pkg.CompiledGoFiles {
+			for _, file := range pkg.GetFilenames() {
 				if util.PathEqual(file, results.Query.File) {
 					found = true
 					break
@@ -334,7 +333,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 			}
 		}
 
-		if results.Query.Filter == FilterDir && !util.PathEqual(pkg.PkgPath, results.Query.Dir) {
+		if results.Query.Filter == FilterDir && !util.PathEqual(pkg.GetPkgPath(), results.Query.Dir) {
 			return nil
 		}
 
@@ -363,7 +362,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 // collectFromPkg collects all the symbols from the specified package
 // into the results. It uses LangHandler's package symbol cache to
 // speed up repeated calls.
-func (h *LangHandler) collectFromPkg(pkg *packages.Package, results *resultSorter) {
+func (h *LangHandler) collectFromPkg(pkg source.Package, results *resultSorter) {
 	symbols := astPkgToSymbols(pkg)
 	if symbols == nil {
 		return
@@ -380,7 +379,7 @@ func (h *LangHandler) collectFromPkg(pkg *packages.Package, results *resultSorte
 // SymbolCollector stores symbol information for an AST
 type SymbolCollector struct {
 	pkgSyms []symbolPair
-	pkg     *packages.Package
+	pkg     source.Package
 	fs      *token.FileSet
 }
 
@@ -474,20 +473,20 @@ func (c *SymbolCollector) Visit(n ast.Node) (w ast.Visitor) {
 	return c
 }
 
-func astPkgToSymbols(pkg *packages.Package) []symbolPair {
+func astPkgToSymbols(pkg source.Package) []symbolPair {
 	var pkgSyms []symbolPair
-	symbolCollector := &SymbolCollector{pkgSyms, pkg, pkg.Fset}
+	symbolCollector := &SymbolCollector{pkgSyms, pkg, pkg.GetFileSet()}
 
-	for _, src := range pkg.Syntax {
+	for _, src := range pkg.GetSyntax() {
 		ast.Walk(symbolCollector, src)
 	}
 
 	return symbolCollector.pkgSyms
 }
 
-func astFileToSymbols(pkg *packages.Package, astFile *ast.File) []symbolPair {
+func astFileToSymbols(pkg source.Package, astFile *ast.File) []symbolPair {
 	var pkgSymbols []symbolPair
-	symbolCollector := &SymbolCollector{pkgSymbols, pkg, pkg.Fset}
+	symbolCollector := &SymbolCollector{pkgSymbols, pkg, pkg.GetFileSet()}
 	ast.Walk(symbolCollector, astFile)
 	return symbolCollector.pkgSyms
 }

@@ -8,24 +8,24 @@ import (
 	"go/token"
 	"net/url"
 
-	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/span"
 	"github.com/sourcegraph/go-lsp"
 )
 
 // fromProtocolURI converts a protocol.DocumentURI to a source.URI.
 // TODO(rstambler): Add logic here to support Windows.
-func fromProtocolURI(uri lsp.DocumentURI) (source.URI, error) {
+func fromProtocolURI(uri lsp.DocumentURI) (span.URI, error) {
 	unescaped, err := url.PathUnescape(string(uri))
 	if err != nil {
 		return "", err
 	}
-	return source.URI(unescaped), nil
+	return span.URI(unescaped), nil
 }
 
 // fromProtocolRange converts a protocol range to a source range.
 // It uses fromProtocolPosition to convert the start and end positions, which
 // requires the token file the positions belongs to.
-func fromProtocolRange(f *token.File, r lsp.Range) source.Range {
+func fromProtocolRange(f *token.File, r lsp.Range) span.Range {
 	start := fromProtocolPosition(f, r.Start)
 	var end token.Pos
 	switch {
@@ -36,7 +36,7 @@ func fromProtocolRange(f *token.File, r lsp.Range) source.Range {
 	default:
 		end = fromProtocolPosition(f, r.End)
 	}
-	return source.Range{
+	return span.Range{
 		Start: start,
 		End:   end,
 	}

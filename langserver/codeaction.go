@@ -6,6 +6,7 @@ import (
 
 	"github.com/saibing/bingo/langserver/internal/protocol"
 	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/span"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -53,7 +54,7 @@ func organizeImports(ctx context.Context, v source.View, uri lsp.DocumentURI) ([
 		return nil, fmt.Errorf("token file does not exist for file %s", uri)
 	}
 
-	r := source.Range{
+	r := span.Range{
 		Start: tok.Pos(0),
 		End:   tok.Pos(tok.Size()),
 	}

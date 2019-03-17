@@ -26,11 +26,11 @@ func diagnostics(ctx context.Context, f source.File) (map[string][]lsp.Diagnosti
 	}
 
 	reports := make(map[string][]lsp.Diagnostic)
-	for _, filename := range pkg.GoFiles {
+	for _, filename := range pkg.GetFilenames() {
 		reports[filename] = []lsp.Diagnostic{}
 	}
 	var parseErrors, typeErrors []packages.Error
-	for _, err := range pkg.Errors {
+	for _, err := range pkg.GetErrors() {
 		switch err.Kind {
 		case packages.ParseError:
 			parseErrors = append(parseErrors, err)

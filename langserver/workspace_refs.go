@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"github.com/saibing/bingo/langserver/internal/cache"
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 	"github.com/sourcegraph/go-lsp"
-
-	"golang.org/x/tools/go/packages"
 
 	"github.com/saibing/bingo/langserver/internal/refs"
 	"github.com/sourcegraph/go-lsp/lspext"
@@ -33,7 +32,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 	rootPath := h.FilePath(h.init.Root())
 
 	var results = refResult{results: make([]referenceInformation, 0)}
-	f := func(pkg *packages.Package) error {
+	f := func(pkg source.Package) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -41,8 +40,8 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 		// If a dirs hint is present, only look for references created in those
 		// directories.
 		pkgDir := ""
-		if len(pkg.CompiledGoFiles) > 0 {
-			pkgDir = filepath.ToSlash(filepath.Dir(pkg.CompiledGoFiles[0]))
+		if len(pkg.GetFilenames()) > 0 {
+			pkgDir = filepath.ToSlash(filepath.Dir(pkg.GetFilenames()[0]))
 		}
 		dirs, ok := params.Hints["dirs"]
 		if ok {
@@ -88,7 +87,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 
 // workspaceRefsFromPkg collects all the references made to dependencies from
 // the specified package and returns the results.
-func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JSONRPC2, params lspext.WorkspaceReferencesParams, pkg *packages.Package, rootPath string, results *refResult) (err error) {
+func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JSONRPC2, params lspext.WorkspaceReferencesParams, pkg source.Package, rootPath string, results *refResult) (err error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -96,10 +95,10 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 	// Compute workspace references.
 	findPackage := h.getFindPackageFunc()
 	cfg := &refs.Config{
-		FileSet:  pkg.Fset,
-		Pkg:      pkg.Types,
-		PkgFiles: pkg.Syntax,
-		Info:     pkg.TypesInfo,
+		FileSet:  pkg.GetFileSet(),
+		Pkg:      pkg.GetTypes(),
+		PkgFiles: pkg.GetSyntax(),
+		Info:     pkg.GetTypesInfo(),
 	}
 	refsErr := cfg.Refs(func(r *refs.Ref) {
 		symDesc, err := defSymbolDescriptor(pkg, h.project, r.Def, findPackage)
@@ -117,7 +116,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 			return
 		}
 
-		location := createLocationFromRange(pkg.Fset, r.Start, r.End)
+		location := createLocationFromRange(pkg.GetFileSet(), r.Start, r.End)
 		results.results = append(results.results, referenceInformation{
 			Reference: location,
 			Symbol:    symDesc,
@@ -133,9 +132,9 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, conn jsonrpc2.JS
 	return nil
 }
 
-func defSymbolDescriptor(pkg *packages.Package, project *cache.Project, def refs.Def, findPackage cache.FindPackageFunc) (*symbolDescriptor, error) {
+func defSymbolDescriptor(pkg source.Package, project *cache.Project, def refs.Def, findPackage cache.FindPackageFunc) (*symbolDescriptor, error) {
 	var err error
-	defPkg, _ := pkg.Imports[def.ImportPath]
+	defPkg := pkg.GetImport(def.ImportPath)
 	if defPkg == nil {
 		defPkg, err = findPackage(project, def.ImportPath)
 		if err != nil {
@@ -149,7 +148,7 @@ func defSymbolDescriptor(pkg *packages.Package, project *cache.Project, def refs
 	// NOTE: fields must be kept in sync with symbol.go:symbolEqual
 	desc := &symbolDescriptor{
 		Vendor:      false,
-		Package:     defPkg.PkgPath,
+		Package:     defPkg.GetPkgPath(),
 		PackageName: def.PackageName,
 		Recv:        "",
 		Name:        "",

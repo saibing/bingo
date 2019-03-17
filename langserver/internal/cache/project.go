@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/saibing/bingo/langserver/internal/source"
+	"github.com/saibing/bingo/langserver/internal/span"
 	"github.com/saibing/bingo/langserver/internal/util"
 
 	lsp "github.com/sourcegraph/go-lsp"
@@ -60,7 +61,7 @@ func isFileInsideGomod(path string) bool {
 
 // FindPackageFunc matches the signature of loader.Config.FindPackage, except
 // also takes a context.Context.
-type FindPackageFunc func(project *Project, importPath string) (*packages.Package, error)
+type FindPackageFunc func(project *Project, importPath string) (source.Package, error)
 
 // Project project struct
 type Project struct {
@@ -73,6 +74,7 @@ type Project struct {
 	modules       []*module
 	gopath        *gopath
 	cached        bool
+	newCache      *GlobalCache
 	changedCount  int
 	lastBuildTime time.Time
 }
@@ -135,7 +137,8 @@ func (p *Project) Init(ctx context.Context, globalCacheStyle CacheStyle) error {
 		return nil
 	}
 
-	p.getView().gcache = NewCache()
+	p.newCache = NewCache()
+	p.getView().gcache = p.newCache
 	err := p.createBuiltin()
 	if err != nil {
 		p.notify(err)
@@ -230,7 +233,7 @@ func (p *Project) createProject() error {
 const BuiltinPkg = "builtin"
 
 // GetBuiltinPackage get builtin package
-func (p *Project) GetBuiltinPackage() *packages.Package {
+func (p *Project) GetBuiltinPackage() source.Package {
 	return p.GetFromPkgPath(BuiltinPkg)
 }
 
@@ -334,10 +337,10 @@ func (p *Project) walkDir(rootDir string, level int, walkFunc func(string, strin
 }
 
 // GetFromURI get package from document uri.
-func (p *Project) GetFromURI(uri lsp.DocumentURI) *packages.Package {
+func (p *Project) GetFromURI(uri lsp.DocumentURI) source.Package {
 	filename, _ := source.FromDocumentURI(uri).Filename()
 	pkg := p.getCache().GetByURI(filename)
-	return pkg.Package()
+	return pkg
 }
 
 func (p *Project) getCache() *GlobalCache {
@@ -345,7 +348,7 @@ func (p *Project) getCache() *GlobalCache {
 }
 
 // GetFromPkgPath get package from package import path.
-func (p *Project) GetFromPkgPath(pkgPath string) *packages.Package {
+func (p *Project) GetFromPkgPath(pkgPath string) source.Package {
 	pkg := p.getCache().Get(pkgPath)
 	return pkg.Package()
 }
@@ -353,9 +356,15 @@ func (p *Project) GetFromPkgPath(pkgPath string) *packages.Package {
 func (p *Project) update(eventName string) {
 	if p.needRebuild(eventName) {
 		p.notifyLog("fsnotify " + eventName)
+		p.newCache = NewCache()
+		p.newCache.Put(p.GetBuiltinPackage().(*Package))
 		p.rebuildGopapthCache(eventName)
 		p.rebuildModuleCache(eventName)
 		p.lastBuildTime = time.Now()
+
+		p.view.mu.Lock()
+		p.view.gcache = p.newCache
+		p.view.mu.Unlock()
 	}
 }
 
@@ -372,7 +381,7 @@ func (p *Project) needRebuild(eventName string) bool {
 		return false
 	}
 
-	uri := source.ToURI(eventName)
+	uri := span.NewURI(eventName)
 	v := p.getView()
 	v.mu.Lock()
 	f := v.files[uri]
@@ -460,26 +469,8 @@ func (p *Project) Search(walkFunc source.WalkFunc) error {
 }
 
 func (p *Project) setCache(pkgs []*packages.Package) {
-	seen := map[string]bool{}
 	for _, pkg := range pkgs {
-		p.setOnePackage(pkg, seen)
-	}
-}
-
-func (p *Project) setOnePackage(pkg *packages.Package, seen map[string]bool) {
-	if pkg == nil || len(pkg.Syntax) == 0 {
-		return
-	}
-
-	if seen[pkg.ID] {
-		return
-	}
-	seen[pkg.ID] = true
-
-	p.getCache().put(pkg)
-
-	for _, ip := range pkg.Imports {
-		p.setOnePackage(ip, seen)
+		p.newCache.Add(pkg)
 	}
 }
 
@@ -487,8 +478,8 @@ func (p *Project) Cache() *GlobalCache {
 	return p.getCache()
 }
 
-func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (*packages.Package, source.File, error) {
-	uri := source.FromDocumentURI(fileURI)
+func (p *Project) TypeCheck(ctx context.Context, fileURI lsp.DocumentURI) (source.Package, source.File, error) {
+	uri := span.FromDocumentURI(fileURI)
 
 	v := p.getView()
 	v.mu.Lock()

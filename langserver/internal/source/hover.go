@@ -3,14 +3,12 @@ package source
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"strings"
-
-	"github.com/saibing/bingo/langserver/internal/goast"
-	"golang.org/x/tools/go/packages"
 )
 
-func FindComments(pkg *packages.Package, o types.Object, name string) (string, error) {
+func FindComments(pkg Package, fset *token.FileSet, o types.Object, name string) (string, error) {
 	if o == nil {
 		return "", nil
 	}
@@ -18,16 +16,16 @@ func FindComments(pkg *packages.Package, o types.Object, name string) (string, e
 	// Package names must be resolved specially, so do this now to avoid
 	// additional overhead.
 	if v, ok := o.(*types.PkgName); ok {
-		importPkg := goast.SearchImportPackage(pkg, v.Imported().Path())
+		importPkg := pkg.GetImport(v.Imported().Path())
 		if importPkg == nil {
 			return "", fmt.Errorf("failed to import package %q", v.Imported().Path())
 		}
 
-		return PackageDoc(importPkg.Syntax, name), nil
+		return PackageDoc(importPkg.GetSyntax(), name), nil
 	}
 
 	// Resolve the object o into its respective ast.Node
-	pathNodes, _, _ := goast.GetObjectPathNode(pkg, o)
+	pathNodes, _, _ := GetObjectPathNode(pkg, fset, o)
 	if len(pathNodes) == 0 {
 		return "", nil
 	}

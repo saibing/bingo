@@ -12,7 +12,6 @@ import (
 	"unicode"
 
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/go/packages"
 )
 
 type CompletionItem struct {
@@ -86,16 +85,16 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 	// Save certain facts about the query position, including the expected type
 	// of the completion result, the signature of the function enclosing the
 	// position.
-	typ := expectedType(path, pos, pkg.TypesInfo)
-	sig := enclosingFunction(path, pos, pkg.TypesInfo)
-	pkgStringer := qualifier(file, pkg.Types, pkg.TypesInfo)
+	typ := expectedType(path, pos, pkg.GetTypesInfo())
+	sig := enclosingFunction(path, pos, pkg.GetTypesInfo())
+	pkgStringer := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
 
 	seen := make(map[types.Object]bool)
 
 	// found adds a candidate completion.
 	// Only the first candidate of a given name is considered.
 	found := func(obj types.Object, weight float64, items []CompletionItem) []CompletionItem {
-		if obj.Pkg() != nil && obj.Pkg() != pkg.Types && !obj.Exported() {
+		if obj.Pkg() != nil && obj.Pkg() != pkg.GetTypes() && !obj.Exported() {
 			return items // inaccessible
 		}
 		if !seen[obj] {
@@ -108,7 +107,7 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 			})
 
 			// TODO(mbana): figure out how to get `golang.org/x/tools/go/packages.Packages` from `go/types.Package`.
-			// pkg, ok := obj.Pkg().(pkg.Types)
+			// pkg, ok := obj.Pkg().(pkg.GetTypes())
 			ok := true
 			if ok {
 				// FindComments(obj.Pkg(), obj, "")
@@ -123,9 +122,9 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 		l := len(pkgIdent)
 		if pkgIdent[l-1] == '.' {
 			pkgIdent = pkgIdent[:l-1]
-			visit := func(p *packages.Package) error {
-				if p.Name == pkgIdent && p != pkg {
-					scope := p.Types.Scope()
+			visit := func(p Package) error {
+				if p.GetName() == pkgIdent && p.GetPkgPath() != pkg.GetPkgPath() {
+					scope := p.GetTypes().Scope()
 					for _, name := range scope.Names() {
 						obj := scope.Lookup(name)
 						items = found(obj, stdScore, items)
@@ -133,7 +132,7 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 						// log.Printf("        name := %#+v \n", name)
 						// log.Printf("        pkgIdent := %#+v \n", pkgIdent)
 						itemIndex := len(items) - 1
-						comments, err := FindComments(pkg, obj, pkgIdent)
+						comments, err := FindComments(p, f.GetFileSet(ctx), obj, pkgIdent)
 						if err == nil && len(items) > 1 {
 							items[itemIndex].Documentation = comments
 							// log.Printf("        item := %#+v \n", items[itemIndex])
@@ -152,7 +151,7 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 	}
 
 	// The position is within a composite literal.
-	if items, prefix, ok := complit(path, pos, pkg.Types, pkg.TypesInfo, found, pkgIdent, cache); ok {
+	if items, prefix, ok := complit(path, pos, pkg.GetTypes(), pkg.GetTypesInfo(), found, pkgIdent, cache); ok {
 		return items, prefix, nil
 	}
 	switch n := path[0].(type) {
@@ -162,39 +161,39 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 
 		// Is this the Sel part of a selector?
 		if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
-			items, err = selector(sel, pos, pkg.TypesInfo, found, cache)
+			items, err = selector(sel, pos, pkg.GetTypesInfo(), found, cache)
 			return items, prefix, err
 		}
 		// reject defining identifiers
-		if obj, ok := pkg.TypesInfo.Defs[n]; ok {
+		if obj, ok := pkg.GetTypesInfo().Defs[n]; ok {
 			if v, ok := obj.(*types.Var); ok && v.IsField() {
 				// An anonymous field is also a reference to a type.
 			} else {
 				of := ""
 				if obj != nil {
-					qual := types.RelativeTo(pkg.Types)
+					qual := types.RelativeTo(pkg.GetTypes())
 					of += ", of " + types.ObjectString(obj, qual)
 				}
 				return nil, "", fmt.Errorf("this is a definition%s", of)
 			}
 		}
 
-		items = append(items, lexical(path, pos, pkg.Types, pkg.TypesInfo, found, pkgIdent, cache)...)
+		items = append(items, lexical(path, pos, pkg.GetTypes(), pkg.GetTypesInfo(), found, pkgIdent, cache)...)
 
 	// The function name hasn't been typed yet, but the parens are there:
 	//   recv.‸(arg)
 	case *ast.TypeAssertExpr:
 		// Create a fake selector expression.
-		items, err = selector(&ast.SelectorExpr{X: n.X}, pos, pkg.TypesInfo, found, cache)
+		items, err = selector(&ast.SelectorExpr{X: n.X}, pos, pkg.GetTypesInfo(), found, cache)
 		return items, prefix, err
 
 	case *ast.SelectorExpr:
-		items, err = selector(n, pos, pkg.TypesInfo, found, cache)
+		items, err = selector(n, pos, pkg.GetTypesInfo(), found, cache)
 		return items, prefix, err
 
 	default:
 		// fallback to lexical completions
-		return lexical(path, pos, pkg.Types, pkg.TypesInfo, found, pkgIdent, cache), pkgIdent, nil
+		return lexical(path, pos, pkg.GetTypes(), pkg.GetTypesInfo(), found, pkgIdent, cache), pkgIdent, nil
 	}
 	return items, prefix, nil
 }
@@ -218,9 +217,9 @@ func selector(sel *ast.SelectorExpr, pos token.Pos, info *types.Info, found find
 
 		_, ok := info.Types[sel.X]
 		if !ok {
-			f := func(p *packages.Package) error {
-				if p.Name == id.Name {
-					scope := p.Types.Scope()
+			f := func(p Package) error {
+				if p.GetName() == id.Name {
+					scope := p.GetTypes().Scope()
 					for _, name := range scope.Names() {
 						items = found(scope.Lookup(name), stdScore, items)
 					}
@@ -314,14 +313,14 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 	}
 
 	visit := func(prefix string) {
-		f := func(p *packages.Package) error {
-			if !strings.HasPrefix(p.Name, prefix) {
+		f := func(p Package) error {
+			if !strings.HasPrefix(p.GetName(), prefix) {
 				return nil
 			}
 
 			item := CompletionItem{
-				Label:  p.Name,
-				Detail: p.PkgPath,
+				Label:  p.GetName(),
+				Detail: p.GetPkgPath(),
 				Kind:   PackageCompletionItem,
 				Score:  stdScore,
 			}
