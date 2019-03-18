@@ -90,6 +90,9 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 				NewText: insertText,
 				Range:   getLspRange(pos, len(prefix)),
 			},
+			
+			InsertTextFormat: insertTextFormat,
+			InsertText:	insertText,
 
 			// This is a hack so that the client sorts completion results in the order
 			// according to their score. This can be removed upon the resolution of
