@@ -183,7 +183,7 @@ func (v *View) remove(pkgPath string, seen map[string]bool) {
 		return
 	}
 	for parentPkgPath := range m.parents {
-		v.remove(parentPkgPath, map[string]bool{})
+		v.remove(parentPkgPath, seen)
 	}
 	// All of the files in the package may also be holding a pointer to the
 	// invalidated package.
