@@ -55,8 +55,8 @@ func fromProtocolPosition(f *token.File, pos lsp.Position) token.Pos {
 // It requires the token file the pos belongs to in order to do this.
 func toProtocolPosition(point span.Point) lsp.Position {
 	return lsp.Position{
-		Line:      point.Line(),
-		Character: point.Column(),
+		Line:      point.Line() - 1,
+		Character: point.Column() - 1,
 	}
 }
 
