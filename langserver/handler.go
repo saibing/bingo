@@ -85,7 +85,7 @@ func (h *LangHandler) doInit(ctx context.Context, conn *jsonrpc2.Conn, init *Ini
 	h.config = &config
 	imports.LocalPrefix = h.config.GoimportsLocalPrefix
 	h.init = init
-	h.cancel = &cancel{}
+	h.cancel = NewCancel()
 
 	rootPath := h.FilePath(init.Root())
 	buildFlags := []string{}
