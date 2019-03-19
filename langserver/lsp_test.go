@@ -10,7 +10,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -72,10 +71,11 @@ func tearDown() {
 }
 
 type TestContext struct {
-	h        *LangHandler
-	conn     *jsonrpc2.Conn
-	ctx      context.Context
-	exported *packagestest.Exported
+	h          jsonrpc2.Handler
+	conn       *jsonrpc2.Conn
+	connServer *jsonrpc2.Conn
+	ctx        context.Context
+	exported   *packagestest.Exported
 }
 
 func newTestContext(style cache.CacheStyle) *TestContext {
@@ -83,30 +83,34 @@ func newTestContext(style cache.CacheStyle) *TestContext {
 	cfg.DisableFuncSnippet = false
 	cfg.GlobalCacheStyle = string(style)
 
-	h := &LangHandler{
-		DefaultConfig: cfg,
-		HandlerShared: &HandlerShared{},
-	}
-
+	h := NewHandler(cfg)
 	ctx := context.Background()
-	tx := &TestContext{h: h, ctx: ctx}
-	return tx
+	return &TestContext{
+		h:   h,
+		ctx: ctx,
+	}
 }
 
 func (tx *TestContext) setup(t *testing.T) {
 	tx.exported = packagestest.Export(t, packagestest.Modules, testdata)
-	tx.initServer()
+	tx.initServer(t)
 }
 
 func (tx *TestContext) tearDown() {
 	if tx.exported != nil {
-		fmt.Printf("clean up module project %s\n", tx.exported.Config.Dir)
+		fmt.Printf("clean up module project %s\n", tx.root())
 		tx.exported.Cleanup()
 	}
 
 	if tx.conn != nil {
 		if err := tx.conn.Close(); err != nil {
-			log.Fatal("conn.Close", err)
+			log.Fatal("conn.Close:", err)
+		}
+	}
+
+	if tx.connServer != nil {
+		if err := tx.connServer.Close(); err != nil {
+			log.Fatal("connServer.Close:", err)
 		}
 	}
 }
@@ -115,93 +119,30 @@ func (tx *TestContext) root() string {
 	return tx.exported.Config.Dir
 }
 
-func (tx *TestContext) initServer() {
-	rootDir := tx.exported.Config.Dir
+func (tx *TestContext) initServer(t *testing.T) {
+	rootDir := tx.root()
 	os.Chdir(rootDir)
 	root := util.PathToURI(filepath.ToSlash(rootDir))
-	fmt.Printf("root uri is %s\n", root)
+	t.Log("rootUri:", root)
 
-	addr, done := tx.startLanguageServer()
-	defer done()
-	tx.conn = dialLanguageServer(addr)
 	// Prepare the connection.
+	client, server := net.Pipe()
+	tx.connServer = jsonrpc2.NewConn(tx.ctx, jsonrpc2.NewBufferedStream(server, jsonrpc2.VSCodeObjectCodec{}), tx.h)
+	tx.conn = jsonrpc2.NewConn(tx.ctx, jsonrpc2.NewBufferedStream(client, jsonrpc2.VSCodeObjectCodec{}), tx.h)
 
 	tdCap := lsp.TextDocumentClientCapabilities{}
 	tdCap.Completion.CompletionItemKind.ValueSet = []lsp.CompletionItemKind{lsp.CIKConstant}
-	if err := tx.conn.Call(tx.ctx, "initialize", InitializeParams{
+	params := InitializeParams{
 		InitializeParams: lsp.InitializeParams{
 			RootURI:      root,
 			Capabilities: lsp.ClientCapabilities{TextDocument: tdCap},
 		},
 
 		RootImportPath: rootImportPath,
-	}, nil); err != nil {
-		log.Fatal("conn.Call", err)
 	}
-}
-
-func (tx *TestContext) startLanguageServer() (addr string, done func()) {
-	// go func() {
-	// 	log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
-	// }()
-
-	bindAddr := ":0"
-	if os.Getenv("CI") != "" || runtime.GOOS == "windows" {
-		// CircleCI has issues with IPv6 (e.g., "dial tcp [::]:39984:
-		// connect: network is unreachable").
-		// Similar error is happens on Windows:
-		// "dial tcp [::]:61898: connectex: The requested address is not valid in its context."
-		bindAddr = "127.0.0.1:0"
+	if err := tx.conn.Call(tx.ctx, "initialize", params, nil); err != nil {
+		t.Fatal("conn.Call initialize:", err)
 	}
-	l, err := net.Listen("tcp", bindAddr)
-	if err != nil {
-		log.Fatal("net.Listen", err)
-	}
-
-	go func() {
-		err := tx.serveServer(l)
-		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
-			log.Fatal("jsonrpc2.Serve:", err)
-		}
-	}()
-	return l.Addr().String(), func() {
-		if err := l.Close(); err != nil {
-			log.Fatal("close listener:", err)
-		}
-	}
-}
-
-func (tx *TestContext) serveServer(lis net.Listener, opt ...jsonrpc2.ConnOpt) error {
-	h := jsonrpc2.HandlerWithError(tx.h.handle)
-
-	for {
-		conn, err := lis.Accept()
-		if err != nil {
-			return err
-		}
-		jsonrpc2.NewConn(tx.ctx, jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), h, opt...)
-	}
-}
-
-func dialLanguageServer(addr string, h ...*jsonrpc2.HandlerWithErrorConfigurer) *jsonrpc2.Conn {
-	conn, err := (&net.Dialer{}).Dial("tcp", addr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	handler := jsonrpc2.HandlerWithError(func(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
-		// no-op
-		return nil, nil
-	})
-	if len(h) == 1 {
-		handler = h[0]
-	}
-
-	return jsonrpc2.NewConn(
-		context.Background(),
-		jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}),
-		handler,
-	)
 }
 
 // tbRun calls (testing.T).Run or (testing.B).Run.
