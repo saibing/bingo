@@ -1,0 +1,59 @@
+run:
+  tests: true
+
+linters:
+  enable-all: true
+  disable-all: false
+  fast: false
+
+# all available settings of specific linters
+linters-settings:
+  govet:
+    # report about shadowed variables
+    check-shadowing: false
+  errcheck:
+    # report about not checking of errors in type assetions: `a := b.(MyStruct)`;
+    # default is false: such cases aren't reported by default.
+    check-type-assertions: true
+    # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
+    # default is false: such cases aren't reported by default.
+    check-blank: true
+  gofmt:
+    # simplify code: gofmt with `-s` option, true by default
+    simplify: true
+  gocyclo:
+    min-complexity: 70
+  lll:
+    # max line length, lines longer will be reported. Default is 120.
+    # '\t' is counted as 1 character by default, and can be changed with the tab-width option
+    line-length: 468
+
+  # see: https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml#L47
+  #
+  # by default isn't set. If set we pass it to "go list -mod={option}". From "go help modules":
+  # If invoked with -mod=readonly, the go command is disallowed from the implicit
+  # automatic updating of go.mod described above. Instead, it fails when any changes
+  # to go.mod are needed. This setting is most useful to check that go.mod does
+  # not need updates, such as in a continuous integration and testing system.
+  # If invoked with -mod=vendor, the go command assumes that the vendor
+  # directory holds the correct copies of dependencies and ignores
+  # the dependency descriptions in go.mod.
+  modules-download-mode: readonly
+
+# output configuration options
+output:
+  # colored-line-number|line-number|json|tab|checkstyle, default is "colored-line-number"
+  format: colored-line-number
+
+  # print lines of code with issue, default is true
+  print-issued-lines: false
+
+  # print linter name in the end of issue text, default is true
+  print-linter-name: true
+
+issues:
+  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
+  max-per-linter: 0
+
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0
