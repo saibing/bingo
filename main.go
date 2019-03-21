@@ -13,8 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/saibing/bingo/langserver"
 	"github.com/sourcegraph/jsonrpc2"
+
+	"github.com/saibing/bingo/langserver"
 
 	_ "net/http/pprof"
 )
@@ -29,7 +30,6 @@ var (
 	pprof        = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
 
 	// Default Config, can be overridden by InitializationOptions
-	maxparallelism       = flag.Int("maxparallelism", 0, "use at max N parallel goroutines to fulfill requests. Can be overridden by InitializationOptions.")
 	diagnosticsStyle     = flag.String("diagnostics-style", "instant", "diagnostics style: none, instant, onsave. Can be overridden by InitializationOptions.")
 	disableFuncSnippet   = flag.Bool("disable-func-snippet", false, "disable argument snippets on func completion. Can be overridden by InitializationOptions.")
 	globalCacheStyle     = flag.String("cache-style", "always", "set global cache style: none, on-demand, always. Can be overridden by InitializationOptions.")
@@ -78,10 +78,6 @@ func main() {
 
 	if *buildTags != "" {
 		cfg.BuildTags = strings.Split(*buildTags, " ")
-	}
-
-	if *maxparallelism > 0 {
-		cfg.MaxParallelism = *maxparallelism
 	}
 
 	if err := run(cfg); err != nil {

@@ -1,9 +1,5 @@
 package langserver
 
-import (
-	"runtime"
-)
-
 // Config adjusts the behaviour of go-langserver. Please keep in sync with
 // InitializationOptions in the README.
 type Config struct {
@@ -33,14 +29,6 @@ type Config struct {
 	//
 	// Defaults to empty string if not specified.
 	GoimportsLocalPrefix string
-
-	// MaxParallelism controls the maximum number of goroutines that should be used
-	// to fulfill requests. This is useful in editor environments where users do
-	// not want results ASAP, but rather just semi quickly without eating all of
-	// their CPU.
-	//
-	// Defaults to half of your CPU cores if not specified.
-	MaxParallelism int
 
 	// EnhanceSignatureHelp enhance the signature help with return result.
 	//
@@ -82,10 +70,6 @@ func (c Config) Apply(o *InitializationOptions) Config {
 		c.GoimportsLocalPrefix = *o.GoimportsLocalPrefix
 	}
 
-	if o.MaxParallelism != nil {
-		c.MaxParallelism = *o.MaxParallelism
-	}
-
 	if o.BuildTags != nil {
 		c.BuildTags = o.BuildTags
 	}
@@ -96,14 +80,7 @@ func (c Config) Apply(o *InitializationOptions) Config {
 // NewDefaultConfig returns the default config. See the field comments for the
 // defaults.
 func NewDefaultConfig() Config {
-	// Default max parallelism to half the CPU cores, but at least always one.
-	maxparallelism := runtime.NumCPU() / 2
-	if maxparallelism <= 0 {
-		maxparallelism = 1
-	}
-
 	return Config{
 		DisableFuncSnippet: false,
-		MaxParallelism:     maxparallelism,
 	}
 }

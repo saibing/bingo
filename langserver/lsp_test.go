@@ -31,6 +31,12 @@ const (
 	rootImportPath = "github.com/saibing/bingo/langserver/test/pkg"
 )
 
+var (
+	gopathDir    = getGOPATH()
+	githubModule = "pkg/mod/github.com/saibing/dep@v1.0.2"
+	gomoduleDir  = filepath.Join(gopathDir, githubModule)
+)
+
 func getGOPATH() string {
 	gopath := os.Getenv("GOPATH")
 	if gopath == "" {
@@ -40,12 +46,6 @@ func getGOPATH() string {
 	paths := strings.Split(gopath, string(os.PathListSeparator))
 	return paths[0]
 }
-
-var (
-	gopathDir    = getGOPATH()
-	githubModule = "pkg/mod/github.com/saibing/dep@v1.0.2"
-	gomoduleDir  = filepath.Join(gopathDir, githubModule)
-)
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -124,8 +124,8 @@ func (tx *TestContext) initServer(t *testing.T) {
 	t.Helper()
 	rootDir := tx.root()
 	os.Chdir(rootDir)
-	root := util.PathToURI(filepath.ToSlash(rootDir))
-	t.Log("rootUri:", root)
+	rootURI := util.PathToURI(filepath.ToSlash(rootDir))
+	t.Logf("rootUri:=%q", rootURI)
 
 	// Prepare the connection.
 	client, server := net.Pipe()
@@ -136,7 +136,7 @@ func (tx *TestContext) initServer(t *testing.T) {
 	tdCap.Completion.CompletionItemKind.ValueSet = []lsp.CompletionItemKind{lsp.CIKConstant}
 	params := InitializeParams{
 		InitializeParams: lsp.InitializeParams{
-			RootURI:      root,
+			RootURI:      rootURI,
 			Capabilities: lsp.ClientCapabilities{TextDocument: tdCap},
 		},
 
