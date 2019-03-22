@@ -61,7 +61,7 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 		return nil, "", fmt.Errorf("cannot find node enclosing position")
 	}
 
-	var pkgIdent string
+	var cursorIdent string
 	// If the position is not an identifier but immediately follows
 	// an identifier or selector period (as is common when
 	// requesting a completion), use the path to the preceding node.
@@ -73,7 +73,7 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 			default:
 				contents := f.GetContent(ctx)
 				token := f.GetToken(ctx)
-				pkgIdent = offsetForIdent(contents, token.Position(pos))
+				cursorIdent = offsetForIdent(contents, token.Position(pos))
 			}
 		}
 	}
@@ -126,40 +126,8 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 		return items
 	}
 
-	if pkgIdent != "" {
-		l := len(pkgIdent)
-		if pkgIdent[l-1] == '.' {
-			pkgIdent = pkgIdent[:l-1]
-			visit := func(p Package) error {
-				if p.GetName() == pkgIdent && p.GetPkgPath() != pkg.GetPkgPath() {
-					scope := p.GetTypes().Scope()
-					for _, name := range scope.Names() {
-						obj := scope.Lookup(name)
-						items = found(obj, stdScore, items)
-
-						// log.Printf("        name := %#+v \n", name)
-						// log.Printf("        pkgIdent := %#+v \n", pkgIdent)
-						itemIndex := len(items) - 1
-						comments, err := FindComments(p, f.GetFileSet(ctx), obj, pkgIdent)
-						if err == nil && len(items) > 1 {
-							items[itemIndex].Documentation = comments
-							// log.Printf("        item := %#+v \n", items[itemIndex])
-							// log.Printf("        items[itemIndex].Documentation := %#+v \n", items[itemIndex].Documentation)
-						}
-					}
-				}
-				return nil
-			}
-
-			cache.Walk(visit, []string{})
-			if len(items) > 0 {
-				return items, prefix, nil
-			}
-		}
-	}
-
 	// The position is within a composite literal.
-	if items, prefix, ok := complit(path, pos, pkg.GetTypes(), pkg.GetTypesInfo(), found, pkgIdent, cache); ok {
+	if items, prefix, ok := complit(path, pos, pkg.GetTypes(), pkg.GetTypesInfo(), found, cursorIdent, cache); ok {
 		return items, prefix, nil
 	}
 	switch n := path[0].(type) {
@@ -186,7 +154,7 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 			}
 		}
 
-		items = append(items, lexical(path, pos, pkg.GetTypes(), pkg.GetTypesInfo(), found, pkgIdent, cache)...)
+		items = append(items, lexical(path, pos, pkg.GetTypes(), pkg.GetTypesInfo(), found, cursorIdent, cache)...)
 
 	// The function name hasn't been typed yet, but the parens are there:
 	//   recv.‸(arg)
@@ -201,7 +169,7 @@ func Completion(ctx context.Context, f File, pos token.Pos, cache Cache) (items 
 
 	default:
 		// fallback to lexical completions
-		return lexical(path, pos, pkg.GetTypes(), pkg.GetTypesInfo(), found, pkgIdent, cache), pkgIdent, nil
+		return lexical(path, pos, pkg.GetTypes(), pkg.GetTypesInfo(), found, cursorIdent, cache), getPrefix(cursorIdent), nil
 	}
 	return items, prefix, nil
 }
@@ -269,8 +237,15 @@ func selector(sel *ast.SelectorExpr, pos token.Pos, info *types.Info, found find
 	return items, nil
 }
 
+func getPrefix(cursorIdent string) string {
+	if cursorIdent != "" && cursorIdent[len(cursorIdent) -1] == '.' {
+		return ""
+	}
+	return cursorIdent
+}
+
 // lexical finds completions in the lexical environment.
-func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder, prefix string, cache Cache) (items []CompletionItem) {
+func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Info, found finder, cursorIdent string, cache Cache) (items []CompletionItem) {
 	var scopes []*types.Scope // scopes[i], where i<len(path), is the possibly nil Scope of path[i].
 	for _, n := range path {
 		switch node := n.(type) {
@@ -283,8 +258,10 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 	}
 	scopes = append(scopes, pkg.Scope(), types.Universe)
 
+
 	// Process scopes innermost first.
 	for i, scope := range scopes {
+		score := stdScore
 		if scope == nil {
 			continue
 		}
@@ -293,6 +270,33 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 			if declScope != scope {
 				continue // Name was declared in some enclosing scope, or not at all.
 			}
+
+			if name + "." == cursorIdent && obj.Type() != types.Typ[types.Invalid] {
+				items = items[0:0]
+
+				objType := obj.Type()
+				// methods of T
+				mset := types.NewMethodSet(objType)
+				for i := 0; i < mset.Len(); i++ {
+					items = found(mset.At(i).Obj(), score, items)
+				}
+
+				// methods of *T
+				if !types.IsInterface(obj.Type()) && !isPointer(objType) {
+					mset := types.NewMethodSet(types.NewPointer(objType))
+					for i := 0; i < mset.Len(); i++ {
+						items = found(mset.At(i).Obj(), score, items)
+					}
+				}
+
+				// fields of T
+				for _, f := range fieldSelections(objType) {
+					items = found(f, score, items)
+				}
+
+				return
+			}
+
 			// If obj's type is invalid, find the AST node that defines the lexical block
 			// containing the declaration of obj. Don't resolve types for packages.
 			if _, ok := obj.(*types.PkgName); !ok && obj.Type() == types.Typ[types.Invalid] {
@@ -311,16 +315,37 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 				}
 			}
 
-			score := stdScore
 			// Rank builtins significantly lower than other results.
 			if scope == types.Universe {
-				score *= 0.1
+				score = stdScore * 0.1
 			}
 			items = found(obj, score, items)
 		}
 	}
 
-	visit := func(prefix string) {
+	score := stdScore * 2
+	visit1 := func(prefix string) {
+		f := func(p Package) error {
+			if p.GetName() == prefix && p.GetPkgPath() != pkg.Path() {
+				scope := p.GetTypes().Scope()
+				for _, name := range scope.Names() {
+					obj := scope.Lookup(name)
+					items = found(obj, score, items)
+
+					itemIndex := len(items) - 1
+					comments, err := FindComments(p, p.GetFileSet(), obj, prefix)
+					if err == nil && len(items) > 1 {
+						items[itemIndex].Documentation = comments
+					}
+				}
+			}
+			return nil
+		}
+
+		cache.Walk(f, []string{})
+	}
+
+	visit2 := func(prefix string) {
 		f := func(p Package) error {
 			if !strings.HasPrefix(p.GetName(), prefix) {
 				return nil
@@ -330,7 +355,7 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 				Label:  p.GetName(),
 				Detail: p.GetPkgPath(),
 				Kind:   PackageCompletionItem,
-				Score:  stdScore,
+				Score:  score,
 			}
 			items = append(items, item)
 			return nil
@@ -339,13 +364,18 @@ func lexical(path []ast.Node, pos token.Pos, pkg *types.Package, info *types.Inf
 		cache.Walk(f, []string{})
 	}
 
-	if prefix != "" {
-		visit(prefix)
+	if cursorIdent != "" {
+		l := len(cursorIdent)
+		if cursorIdent[l-1] == '.' {
+			visit1(cursorIdent[:l-1])
+		} else {
+			visit2(cursorIdent)
+		}
 		return items
 	}
 
 	if id, ok := path[0].(*ast.Ident); ok {
-		visit(id.Name)
+		visit2(id.Name)
 	}
 	return items
 }

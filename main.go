@@ -30,7 +30,7 @@ var (
 
 	// Default Config, can be overridden by InitializationOptions
 	maxparallelism       = flag.Int("maxparallelism", 0, "use at max N parallel goroutines to fulfill requests. Can be overridden by InitializationOptions.")
-	diagnosticsStyle     = flag.String("diagnostics-style", "onsave", "diagnostics style: none, instant, onsave. Can be overridden by InitializationOptions.")
+	diagnosticsStyle     = flag.String("diagnostics-style", "instant", "diagnostics style: none, instant, onsave. Can be overridden by InitializationOptions.")
 	disableFuncSnippet   = flag.Bool("disable-func-snippet", false, "disable argument snippets on func completion. Can be overridden by InitializationOptions.")
 	globalCacheStyle     = flag.String("cache-style", "always", "set global cache style: none, on-demand, always. Can be overridden by InitializationOptions.")
 	formatStyle          = flag.String("format-style", "goimports", "which format style is used to format documents. Supported: gofmt and goimports. Can be overridden by InitializationOptions.")
