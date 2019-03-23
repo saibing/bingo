@@ -98,7 +98,6 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string
 			// according to their score. This can be removed upon the resolution of
 			// https://github.com/Microsoft/language-server-protocol/issues/348.
 			SortText:   fmt.Sprintf("%05d", i),
-			FilterText: insertText,
 			Documentation: candidate.Documentation,
 		}
 		// If we are completing a function, we should trigger signature help if possible.
