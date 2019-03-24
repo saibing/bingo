@@ -37,6 +37,13 @@ var (
 	goimportsPrefix      = flag.String("goimports-prefix", "", "set '--local' flag for the goimports invocation. Can be overridden by InitializationOptions.")
 	enhanceSignatureHelp = flag.Bool("enhance-signature-help", false, "enhance signature help with return result. Can be overridden by InitializationOptions.")
 	buildTags            = flag.String("build-tags", "", "build tags, separated by spaces.")
+
+	// Compatible with sourcegraph/go-langserver, ensuring that ide-go can run, but no actual effect
+	// https://github.com/saibing/bingo/issues/163
+	gocodecompletion   = flag.Bool("gocodecompletion", false, "enable completion. no actual effect, just for compatible with ide-go")
+	diagnostics        = flag.Bool("diagnostics", false, "enable diagnostics. no actual effect, just for compatible with ide-go")
+	funcSnippetEnabled = flag.Bool("func-snippet-enabled", true, "enable argument snippets on func completion. no actual effect, just for compatible with ide-go")
+	formatTool         = flag.String("format-tool", "goimports", "which tool is used to format documents. no actual effect, just for compatible with ide-go")
 )
 
 // version is the version field we report back. If you are releasing a new version:
