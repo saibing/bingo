@@ -23,6 +23,7 @@ func TestHover(t *testing.T) {
 	hoverContext.setup(t)
 
 	test := func(t *testing.T, input string, output string) {
+		t.Helper()
 		testHover(t, &hoverTestCase{input: input, output: output})
 	}
 
@@ -128,7 +129,10 @@ type hoverTestCase struct {
 }
 
 func testHover(tb testing.TB, c *hoverTestCase) {
+	tb.Helper()
 	tbRun(tb, fmt.Sprintf("hover-%s", strings.Replace(c.input, "/", "-", -1)), func(t testing.TB) {
+		t.Helper()
+
 		dir, err := filepath.Abs(hoverContext.root())
 		if err != nil {
 			log.Fatal("testHover", err)
@@ -138,6 +142,7 @@ func testHover(tb testing.TB, c *hoverTestCase) {
 }
 
 func doHoverTest(t testing.TB, ctx context.Context, conn *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
+	t.Helper()
 	file, line, char, err := parsePos(pos)
 	if err != nil {
 		t.Fatal(err)

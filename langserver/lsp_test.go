@@ -92,6 +92,7 @@ func newTestContext(style cache.CacheStyle) *TestContext {
 }
 
 func (tx *TestContext) setup(t *testing.T) {
+	t.Helper()
 	tx.exported = packagestest.Export(t, packagestest.Modules, testdata)
 	tx.initServer(t)
 }
@@ -120,6 +121,7 @@ func (tx *TestContext) root() string {
 }
 
 func (tx *TestContext) initServer(t *testing.T) {
+	t.Helper()
 	rootDir := tx.root()
 	os.Chdir(rootDir)
 	root := util.PathToURI(filepath.ToSlash(rootDir))
@@ -147,11 +149,18 @@ func (tx *TestContext) initServer(t *testing.T) {
 
 // tbRun calls (testing.T).Run or (testing.B).Run.
 func tbRun(t testing.TB, name string, f func(testing.TB)) bool {
+	t.Helper()
 	switch tb := t.(type) {
 	case *testing.B:
-		return tb.Run(name, func(b *testing.B) { f(b) })
+		return tb.Run(name, func(b *testing.B) {
+			b.Helper()
+			f(b)
+		})
 	case *testing.T:
-		return tb.Run(name, func(t *testing.T) { f(t) })
+		return tb.Run(name, func(t *testing.T) {
+			t.Helper()
+			f(t)
+		})
 	default:
 		panic(fmt.Sprintf("unexpected %T, want *testing.B or *testing.T", tb))
 	}

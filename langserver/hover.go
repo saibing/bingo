@@ -12,9 +12,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/saibing/bingo/langserver/internal/source"
 	doc "github.com/slimsag/godocmd"
 
+	"github.com/saibing/bingo/langserver/internal/source"
 	"github.com/saibing/bingo/langserver/internal/util"
 
 	"github.com/sourcegraph/go-lsp"
@@ -143,9 +143,13 @@ func (h *LangHandler) hoverIdent(pkg source.Package, pathNodes []ast.Node, ident
 					extra = prettyPrintTypesString(builtInObject.String())
 				}
 			}
-		}
-		if s == "" {
+		} else if _, ok := o.(*types.PkgName); ok {
 			s = types.ObjectString(o, qf)
+		}
+
+		if s == "" {
+			objectString := types.ObjectString(o, qf)
+			s = prettyPrintTypesString(objectString)
 		}
 
 	} else if t != nil {
