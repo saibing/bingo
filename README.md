@@ -2,7 +2,7 @@
 
 I am very sorry that I have planned not continue to maintain this project. 
 
-According to the issue[collaborating on golsp](https://github.com/saibing/bingo/issues/13), I hope that we will eventually have a unified language server: 
+According to the issue [collaborating on golsp](https://github.com/saibing/bingo/issues/13), I hope that we will eventually have a unified language server: 
 gopls that Google's upcoming Go language server. 
 
 It is in the best interests of the community to only have a single language server. 
