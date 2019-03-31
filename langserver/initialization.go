@@ -38,9 +38,6 @@ type InitializationOptions struct {
 	// Config.GoimportsLocalPrefix
 	GoimportsLocalPrefix *string `json:"goimportsLocalPrefix"`
 
-	// MaxParallelism is an optional version of Config.MaxParallelism
-	MaxParallelism *int `json:"maxParallelism"`
-
 	// BuildTags is an optional version of Config.BuildTags
 	BuildTags []string `json:"buildTags"`
 }

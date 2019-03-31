@@ -11,20 +11,22 @@ import (
 
 	"golang.org/x/tools/imports"
 
-	"github.com/saibing/bingo/langserver/internal/cache"
 	lsp "github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 
+	"github.com/saibing/bingo/langserver/internal/cache"
 	"github.com/saibing/bingo/langserver/internal/util"
 )
 
 // NewHandler creates a Go language server handler.
 func NewHandler(defaultCfg Config) jsonrpc2.Handler {
-	return lspHandler{jsonrpc2.HandlerWithError((&LangHandler{
+	langHandler := &LangHandler{
 		DefaultConfig: defaultCfg,
 		HandlerShared: &HandlerShared{},
-	}).handle)}
+	}
+	handleFunc := langHandler.handle
+	return lspHandler{jsonrpc2.HandlerWithError(handleFunc)}
 }
 
 // lspHandler wraps LangHandler to correctly handle requests in the correct
@@ -53,20 +55,16 @@ func (h lspHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrp
 
 // LangHandler is a Go language server LSP/JSON-RPC handler.
 type LangHandler struct {
-	mu sync.Mutex
 	HandlerCommon
 	*HandlerShared
-	init *InitializeParams // set by "initialize" request
-
+	mu      sync.Mutex
+	init    *InitializeParams // set by "initialize" request
 	project *cache.Project
-
-	cancel *cancel
-
+	cancel  *cancel
 	// DefaultConfig is the default values used for configuration. It is
 	// combined with InitializationOptions after initialize. This should be
 	// set by LangHandler creators. Please read config instead.
 	DefaultConfig Config
-
 	// config is the language handler configuration. It is a combination of
 	// DefaultConfig and InitializationOptions.
 	config *Config // pointer so we panic if someone reads before we set it.
@@ -117,9 +115,8 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		}
 	}()
 
-	var cancelManager *cancel
 	h.mu.Lock()
-	cancelManager = h.cancel
+	cancelManager := h.cancel
 	if req.Method != "initialize" && h.init == nil {
 		h.mu.Unlock()
 		return nil, errors.New("server must be initialized")
@@ -164,7 +161,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 		kind := lsp.TDSKIncremental
 		completionOp := &lsp.CompletionOptions{TriggerCharacters: []string{"."}}
-
+		signatureHelpProvider := &lsp.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}}
 		return lsp.InitializeResult{
 			Capabilities: lsp.ServerCapabilities{
 				TextDocumentSync: &lsp.TextDocumentSyncOptionsOrKind{
@@ -186,7 +183,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 				XWorkspaceReferencesProvider:    true,
 				XDefinitionProvider:             true,
 				XWorkspaceSymbolByProperties:    true,
-				SignatureHelpProvider:           &lsp.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}},
+				SignatureHelpProvider:           signatureHelpProvider,
 			},
 		}, nil
 
